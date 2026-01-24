@@ -1,7 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getDatabase } from '../../../lib/db/db';
-import { createGame, getCharacterById, getScriptById } from '../../../lib/db/repositories';
+import { createGame, getCharacterById, getScriptById, listGames } from '../../../lib/db/repositories';
 import { parseCreateGamePayload } from '../../../lib/game/validators';
+
+export async function GET() {
+  try {
+    const db = await getDatabase();
+    const games = await listGames(db);
+    return NextResponse.json({ games });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '游戏记录获取失败';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   let body: unknown;

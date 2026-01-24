@@ -1,9 +1,27 @@
-import type { AttributeKey, ScriptDefinition, CharacterRecord, GameRecord } from '../game/types';
+import type { AttributeKey, ScriptDefinition, CharacterRecord, GameRecord, GameRecordSummary } from '../game/types';
 import type { CharacterPayload, CreateGamePayload } from '../game/validators';
 import { mapScriptRow, serializeCharacterPayload } from './mappers';
+import type { UserSettings } from '../session/session-types';
 
 const SCRIPT_COLUMNS =
   'id, title, summary, setting, difficulty, skill_options_json, equipment_options_json, occupation_options_json, origin_options_json, buff_options_json, debuff_options_json, attribute_ranges_json, attribute_point_budget, skill_limit, equipment_limit, buff_limit, debuff_limit, scenes_json, encounters_json';
+const GAME_SUMMARY_COLUMNS =
+  'g.id as id, g.script_id as script_id, g.character_id as character_id, g.status as status, g.updated_at as updated_at, s.title as script_title, c.name as character_name';
+
+type GameSummaryRow = {
+  id: string;
+  script_id: string;
+  character_id: string;
+  status: string;
+  updated_at: string;
+  script_title: string;
+  character_name: string;
+};
+
+type UserSettingsRow = {
+  ai_provider: string;
+  ai_model: string;
+};
 
 export async function listScripts(db: D1Database): Promise<ScriptDefinition[]> {
   const result = await db.prepare(`SELECT ${SCRIPT_COLUMNS} FROM scripts ORDER BY created_at DESC`).all();
@@ -16,6 +34,30 @@ export async function getScriptById(db: D1Database, scriptId: string): Promise<S
     .bind(scriptId)
     .first<Record<string, string>>();
   return result ? mapScriptRow(result) : null;
+}
+
+export async function listGames(db: D1Database): Promise<GameRecordSummary[]> {
+  const result = await db
+    .prepare(
+      `SELECT ${GAME_SUMMARY_COLUMNS}
+		 FROM games g
+		 JOIN scripts s ON s.id = g.script_id
+		 JOIN characters c ON c.id = g.character_id
+		 ORDER BY g.updated_at DESC`,
+    )
+    .all();
+  return result.results.map((row) => {
+    const data = row as GameSummaryRow;
+    return {
+      id: data.id,
+      scriptId: data.script_id,
+      scriptTitle: data.script_title,
+      characterId: data.character_id,
+      characterName: data.character_name,
+      status: data.status,
+      updatedAt: data.updated_at,
+    };
+  });
 }
 
 export async function createCharacter(db: D1Database, payload: CharacterPayload): Promise<CharacterRecord> {
@@ -116,4 +158,39 @@ export async function createGame(db: D1Database, payload: CreateGamePayload): Pr
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function parseProvider(value: string | null): UserSettings['provider'] {
+  return value === 'gemini' ? 'gemini' : 'openai';
+}
+
+export async function getUserSettings(db: D1Database, userId: string): Promise<UserSettings | null> {
+  const row = await db
+    .prepare('SELECT ai_provider, ai_model FROM user_settings WHERE user_id = ? LIMIT 1')
+    .bind(userId)
+    .first<UserSettingsRow>();
+  if (!row) {
+    return null;
+  }
+  return {
+    provider: parseProvider(row.ai_provider),
+    model: row.ai_model ?? '',
+  };
+}
+
+export async function upsertUserSettings(
+  db: D1Database,
+  userId: string,
+  settings: UserSettings,
+): Promise<UserSettings> {
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO user_settings (user_id, ai_provider, ai_model, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?)
+			 ON CONFLICT(user_id) DO UPDATE SET ai_provider = excluded.ai_provider, ai_model = excluded.ai_model, updated_at = excluded.updated_at`,
+    )
+    .bind(userId, settings.provider, settings.model, now, now)
+    .run();
+  return settings;
 }

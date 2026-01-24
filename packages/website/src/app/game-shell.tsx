@@ -1,122 +1,201 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import AiProviderPanel from './ai-provider-panel';
+import CharacterCreator from './character-creator';
 import GameStage from './game-stage';
-import SetupStage from './setup-stage';
+import HomeStage from './home-stage';
+import ScriptDetailStage from './script-detail-stage';
+import SettingsModal from './settings-modal';
 import type { FormState, SubmitResult } from './character-creator-data';
-import type { CharacterFieldErrors, CharacterRecord, GameRecord, ScriptDefinition } from '../lib/game/types';
+import type {
+  CharacterFieldErrors,
+  CharacterRecord,
+  GameRecord,
+  GameRecordSummary,
+  ScriptDefinition,
+} from '../lib/game/types';
 import { SAMPLE_SCRIPT } from '../lib/game/sample-script';
+import { resolveAttributePointBudget, resolveAttributeRanges } from '../lib/game/rules';
+import type { SessionInfo, UserSettings } from '../lib/session/session-types';
 
 const sidebarTitleClassName = 'text-xs uppercase tracking-[0.3em] text-[var(--ink-soft)]';
 
+const defaultSettings: UserSettings = {
+  provider: 'openai',
+  model: '',
+};
+
+type Phase = 'home' | 'script' | 'game';
+
+function buildNavItemClass(isActive: boolean, isDisabled: boolean): string {
+  if (isDisabled) {
+    return 'w-full rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.5)] px-3 py-2 text-left text-xs text-[var(--ink-soft)]';
+  }
+  return `w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+    isActive
+      ? 'bg-[var(--accent-brass)] text-white'
+      : 'border border-[rgba(27,20,12,0.12)] text-[var(--ink-muted)] hover:border-[var(--accent-brass)]'
+  }`;
+}
+
 export default function GameShell() {
-  const [phase, setPhase] = useState<'setup' | 'game'>('setup');
+  const [phase, setPhase] = useState<Phase>('home');
   const [scripts, setScripts] = useState<ScriptDefinition[]>([]);
+  const [games, setGames] = useState<GameRecordSummary[]>([]);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
+  const [gamesLoaded, setGamesLoaded] = useState(false);
   const [selectedScriptId, setSelectedScriptId] = useState<string | null>(null);
   const [character, setCharacter] = useState<CharacterRecord | null>(null);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [activeGameId, setActiveGameId] = useState<string | null>(null);
+  const [homeMessage, setHomeMessage] = useState('');
+  const [detailMessage, setDetailMessage] = useState('');
   const [isStarting, setIsStarting] = useState(false);
+  const [openRequestId, setOpenRequestId] = useState(0);
+  const [session, setSession] = useState<SessionInfo | null>(null);
+  const [settingsDraft, setSettingsDraft] = useState<UserSettings>(defaultSettings);
+  const [settingsMessage, setSettingsMessage] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const selectedScript = useMemo(
     () => scripts.find((script) => script.id === selectedScriptId) ?? null,
     [scripts, selectedScriptId],
   );
 
-  const canStart = Boolean(selectedScriptId && character);
+  const canStart = Boolean(selectedScript && character);
+  const isLoggedIn = Boolean(session);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadScripts() {
-      try {
-        const response = await fetch('/api/scripts', { cache: 'no-store' });
-        if (!response.ok) {
-          throw new Error('脚本列表获取失败');
-        }
-        const data = (await response.json()) as { scripts?: ScriptDefinition[] };
-        const list = data.scripts ?? [];
-        if (!cancelled) {
-          setScripts(list.length > 0 ? list : [SAMPLE_SCRIPT]);
-          setScriptsLoaded(true);
-          if (list.length === 0) {
-            setStatusMessage('脚本列表为空，暂时使用示例剧本。请先执行数据库迁移导入剧本。');
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          setScripts([SAMPLE_SCRIPT]);
-          setScriptsLoaded(true);
-          setStatusMessage('无法读取脚本列表，暂时使用示例剧本。请检查数据库。');
-        }
-      }
-    }
-    loadScripts();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const handleSelectScript = useCallback((scriptId: string) => {
-    setSelectedScriptId(scriptId);
-    setStatusMessage('');
-    setCharacter((current) => {
-      if (current && current.scriptId !== scriptId) {
-        setStatusMessage('已切换剧本，请重新创建人物卡。');
-        return null;
-      }
-      return current;
-    });
-  }, []);
-
-  const handleClearScript = useCallback(() => {
-    setSelectedScriptId(null);
-    setCharacter(null);
-    setStatusMessage('');
-  }, []);
-
-  const handleCharacterComplete = useCallback(
-    async (formState: FormState): Promise<SubmitResult> => {
-      if (!selectedScriptId) {
-        setStatusMessage('请先选择剧本。');
-        return { ok: false, message: '请先选择剧本。' };
-      }
-      setStatusMessage('正在保存人物卡...');
-      try {
-        const response = await fetch('/api/characters', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...formState, scriptId: selectedScriptId }),
-        });
-        const data = (await response.json()) as {
-          character?: CharacterRecord;
-          error?: string;
-          fieldErrors?: CharacterFieldErrors;
-        };
-        if (!response.ok || !data.character) {
-          const message = data.error ?? '人物卡保存失败';
-          setStatusMessage(message);
-          return { ok: false, fieldErrors: data.fieldErrors, message };
-        }
-        setCharacter(data.character);
-        setStatusMessage('人物卡已保存。请选择剧本并开始游戏。');
-        return { ok: true };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '人物卡保存失败';
-        setStatusMessage(message);
-        return { ok: false, message };
-      }
-    },
-    [selectedScriptId],
+  const effectiveAttributeRanges = useMemo(
+    () => (selectedScript ? resolveAttributeRanges(selectedScript.attributeRanges) : undefined),
+    [selectedScript],
+  );
+  const effectiveAttributePointBudget = useMemo(
+    () => (selectedScript ? resolveAttributePointBudget(selectedScript.attributePointBudget) : undefined),
+    [selectedScript],
   );
 
-  const handleStartGame = useCallback(async () => {
+  const loadScripts = useCallback(async () => {
+    try {
+      const response = await fetch('/api/scripts', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('脚本列表获取失败');
+      }
+      const data = (await response.json()) as { scripts?: ScriptDefinition[] };
+      const list = data.scripts ?? [];
+      setScripts(list.length > 0 ? list : [SAMPLE_SCRIPT]);
+      setScriptsLoaded(true);
+      if (list.length === 0) {
+        setHomeMessage('脚本列表为空，暂时使用示例剧本。请先执行数据库迁移导入剧本。');
+      }
+    } catch {
+      setScripts([SAMPLE_SCRIPT]);
+      setScriptsLoaded(true);
+      setHomeMessage('无法读取脚本列表，暂时使用示例剧本。请检查数据库。');
+    }
+  }, []);
+
+  const loadGames = useCallback(async () => {
+    try {
+      const response = await fetch('/api/games', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('游戏记录获取失败');
+      }
+      const data = (await response.json()) as { games?: GameRecordSummary[] };
+      setGames(data.games ?? []);
+      setGamesLoaded(true);
+    } catch {
+      setGames([]);
+      setGamesLoaded(true);
+      setHomeMessage((prev) => (prev ? prev : '无法读取游戏记录，请稍后重试。'));
+    }
+  }, []);
+
+  const loadSession = useCallback(async () => {
+    try {
+      const response = await fetch('/api/session', { cache: 'no-store' });
+      if (!response.ok) {
+        return;
+      }
+      const data = (await response.json()) as { session?: SessionInfo | null };
+      setSession(data.session ?? null);
+    } catch {
+      setSession(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadScripts();
+    loadGames();
+    loadSession();
+  }, [loadGames, loadScripts, loadSession]);
+
+  function handleSelectScript(scriptId: string) {
+    setSelectedScriptId(scriptId);
+    setPhase('script');
+    setDetailMessage('');
+    if (character && character.scriptId !== scriptId) {
+      setCharacter(null);
+      setDetailMessage('已切换剧本，请重新创建人物卡。');
+    }
+  }
+
+  function handleBackToHome() {
+    setPhase('home');
+    setDetailMessage('');
+  }
+
+  function handleContinueGame(gameId: string) {
+    const game = games.find((item) => item.id === gameId) ?? null;
+    if (game) {
+      setSelectedScriptId(game.scriptId);
+    }
+    setActiveGameId(gameId);
+    setPhase('game');
+  }
+
+  function handleEditCharacter() {
+    setOpenRequestId((value) => value + 1);
+  }
+
+  async function handleCharacterComplete(formState: FormState): Promise<SubmitResult> {
+    if (!selectedScriptId) {
+      setDetailMessage('请先选择剧本。');
+      return { ok: false, message: '请先选择剧本。' };
+    }
+    setDetailMessage('正在保存人物卡...');
+    try {
+      const response = await fetch('/api/characters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formState, scriptId: selectedScriptId }),
+      });
+      const data = (await response.json()) as {
+        character?: CharacterRecord;
+        error?: string;
+        fieldErrors?: CharacterFieldErrors;
+      };
+      if (!response.ok || !data.character) {
+        const message = data.error ?? '人物卡保存失败';
+        setDetailMessage(message);
+        return { ok: false, fieldErrors: data.fieldErrors, message };
+      }
+      setCharacter(data.character);
+      setDetailMessage('人物卡已保存，可以开始游戏。');
+      return { ok: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '人物卡保存失败';
+      setDetailMessage(message);
+      return { ok: false, message };
+    }
+  }
+
+  async function handleStartGame() {
     if (!selectedScriptId || !character) {
-      setStatusMessage('请先选择剧本并创建人物卡。');
+      setDetailMessage('请先选择剧本并创建人物卡。');
       return;
     }
     setIsStarting(true);
-    setStatusMessage('正在创建游戏...');
+    setDetailMessage('正在创建游戏...');
     try {
       const response = await fetch('/api/games', {
         method: 'POST',
@@ -127,15 +206,59 @@ export default function GameShell() {
       if (!response.ok || !data.game) {
         throw new Error(data.error ?? '创建游戏失败');
       }
+      setActiveGameId(data.game.id);
       setPhase('game');
-      setStatusMessage('');
+      setDetailMessage('');
+      await loadGames();
     } catch (error) {
       const message = error instanceof Error ? error.message : '创建游戏失败';
-      setStatusMessage(message);
+      setDetailMessage(message);
     } finally {
       setIsStarting(false);
     }
-  }, [selectedScriptId, character]);
+  }
+
+  function handleOpenSettings() {
+    if (!session) {
+      return;
+    }
+    setSettingsDraft(session.settings ?? defaultSettings);
+    setSettingsMessage('');
+    setIsSettingsOpen(true);
+  }
+
+  function handleCloseSettings() {
+    setIsSettingsOpen(false);
+  }
+
+  async function handleSaveSettings() {
+    if (!session) {
+      setSettingsMessage('未登录无法保存设置。');
+      return;
+    }
+    setIsSavingSettings(true);
+    setSettingsMessage('');
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsDraft),
+      });
+      const data = (await response.json()) as { settings?: UserSettings; error?: string };
+      if (!response.ok || !data.settings) {
+        throw new Error(data.error ?? '保存设置失败');
+      }
+      setSession((current) => (current ? { ...current, settings: data.settings ?? null } : current));
+      setIsSettingsOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '保存设置失败';
+      setSettingsMessage(message);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }
+
+  const characterSummary = character ? { name: character.name, occupation: character.occupation } : null;
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden grid grid-cols-[15rem_minmax(0,1fr)]">
@@ -146,69 +269,101 @@ export default function GameShell() {
         <div className="space-y-3">
           <p className={sidebarTitleClassName}>AI 跑团体验 · COC 模式</p>
           <h1 className="text-3xl text-[var(--ink-strong)] sm:text-4xl font-[var(--font-accent)]">肉团长</h1>
-          <p className="text-sm text-[var(--ink-muted)]">游戏外控制台，管理房间、成员与模型设置，随时切回冒险现场。</p>
+          <p className="text-sm text-[var(--ink-muted)]">导航与账号入口，随时切换不同阶段。</p>
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">游戏大厅</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">导航</p>
+          <button className={buildNavItemClass(phase === 'home', false)} onClick={() => setPhase('home')} type="button">
+            首页
+          </button>
           <button
-            className="w-full rounded-xl bg-[var(--accent-brass)] px-4 py-2 text-sm text-white shadow-[0_12px_30px_-18px_var(--accent-brass)] transition hover:-translate-y-0.5"
+            className={buildNavItemClass(phase === 'script', !selectedScript)}
+            disabled={!selectedScript}
+            onClick={() => selectedScript && setPhase('script')}
             type="button"
           >
-            创建游戏
+            剧本详情
           </button>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              className="rounded-xl border border-[var(--ring-soft)] bg-[rgba(255,255,255,0.7)] px-3 py-2 text-xs text-[var(--ink-strong)]"
-              disabled
-              type="button"
-            >
-              登入
-            </button>
-            <button
-              className="rounded-xl border border-[var(--ring-soft)] bg-[rgba(255,255,255,0.7)] px-3 py-2 text-xs text-[var(--ink-strong)]"
-              disabled
-              type="button"
-            >
-              登出
-            </button>
-          </div>
           <button
-            className="w-full rounded-xl border border-[var(--ring-soft)] bg-[rgba(255,255,255,0.7)] px-3 py-2 text-xs text-[var(--ink-strong)]"
-            disabled
+            className={buildNavItemClass(phase === 'game', !activeGameId)}
+            disabled={!activeGameId}
+            onClick={() => activeGameId && setPhase('game')}
+            type="button"
+          >
+            游戏现场
+          </button>
+          <button
+            className={buildNavItemClass(false, !isLoggedIn)}
+            disabled={!isLoggedIn}
+            onClick={handleOpenSettings}
             type="button"
           >
             设置
           </button>
-          <p className="text-xs text-[var(--ink-soft)]">登入/登出/设置功能后续接入。</p>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:overflow-y-auto lg:pr-2">
-          <AiProviderPanel />
-
-          <div className="rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-4 text-xs text-[var(--ink-muted)]">
-            <p className="font-semibold text-[var(--ink-strong)]">控制台状态</p>
-            <p className="mt-2">房间：未创建 · 成员：0 · 版本：Alpha 预览</p>
+        <div className="mt-auto space-y-2 text-xs text-[var(--ink-soft)]">
+          <div className="rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] p-3">
+            <p className="font-semibold text-[var(--ink-strong)]">账号状态</p>
+            <p className="mt-2">{isLoggedIn ? `已登录：${session?.displayName}` : '未登录'}</p>
+            <p className="mt-1">登录后可使用设置。</p>
           </div>
         </div>
       </aside>
 
-      {phase === 'setup' ? (
-        <SetupStage
+      {phase === 'home' ? (
+        <HomeStage
           scripts={scriptsLoaded ? scripts : [SAMPLE_SCRIPT]}
-          selectedScriptId={selectedScriptId}
+          games={gamesLoaded ? games : []}
           onSelectScript={handleSelectScript}
-          onClearScript={handleClearScript}
-          characterSummary={character ? { name: character.name, occupation: character.occupation } : null}
-          onCharacterComplete={handleCharacterComplete}
-          canStart={canStart}
-          isStarting={isStarting}
-          onStartGame={handleStartGame}
-          statusMessage={statusMessage}
+          onContinueGame={handleContinueGame}
+          statusMessage={homeMessage}
         />
-      ) : (
-        <GameStage />
-      )}
+      ) : null}
+
+      {phase === 'script' && selectedScript ? (
+        <ScriptDetailStage
+          script={selectedScript}
+          characterSummary={characterSummary}
+          onBack={handleBackToHome}
+          onStartGame={handleStartGame}
+          onEditCharacter={handleEditCharacter}
+          isStarting={isStarting}
+          statusMessage={detailMessage}
+        >
+          <CharacterCreator
+            key={selectedScriptId ?? 'no-script'}
+            onComplete={handleCharacterComplete}
+            variant="compact"
+            openRequestId={openRequestId}
+            skillOptions={selectedScript.skillOptions}
+            equipmentOptions={selectedScript.equipmentOptions}
+            occupationOptions={selectedScript.occupationOptions}
+            originOptions={selectedScript.originOptions}
+            buffOptions={selectedScript.buffOptions}
+            debuffOptions={selectedScript.debuffOptions}
+            attributeRanges={effectiveAttributeRanges}
+            attributePointBudget={effectiveAttributePointBudget}
+            skillLimit={selectedScript.skillLimit}
+            equipmentLimit={selectedScript.equipmentLimit}
+            buffLimit={selectedScript.buffLimit}
+            debuffLimit={selectedScript.debuffLimit}
+          />
+        </ScriptDetailStage>
+      ) : null}
+
+      {phase === 'game' ? <GameStage /> : null}
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        isSaving={isSavingSettings}
+        settings={settingsDraft}
+        message={settingsMessage}
+        onClose={handleCloseSettings}
+        onSave={handleSaveSettings}
+        onSettingsChange={setSettingsDraft}
+      />
     </div>
   );
 }

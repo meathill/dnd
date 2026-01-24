@@ -99,3 +99,13 @@ export type GameRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type GameRecordSummary = {
+  id: string;
+  scriptId: string;
+  scriptTitle: string;
+  characterId: string;
+  characterName: string;
+  status: string;
+  updatedAt: string;
+};

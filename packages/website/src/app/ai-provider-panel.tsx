@@ -20,6 +20,14 @@ const providerOptions = [
 
 type ProviderOption = (typeof providerOptions)[number];
 
+export type AiProviderPanelProps = {
+  provider?: AiProvider;
+  model?: string;
+  onProviderChange?: (provider: AiProvider) => void;
+  onModelChange?: (model: string) => void;
+  isDisabled?: boolean;
+};
+
 function isAiProvider(value: string): value is AiProvider {
   return value === 'openai' || value === 'gemini';
 }
@@ -28,22 +36,38 @@ function getProviderOption(provider: AiProvider): ProviderOption {
   return providerOptions.find((option) => option.id === provider) ?? providerOptions[0];
 }
 
-export default function AiProviderPanel() {
-  const [provider, setProvider] = useState<AiProvider>('openai');
-  const [customModel, setCustomModel] = useState('');
+export default function AiProviderPanel({
+  provider,
+  model,
+  onProviderChange,
+  onModelChange,
+  isDisabled = false,
+}: AiProviderPanelProps) {
+  const [internalProvider, setInternalProvider] = useState<AiProvider>(provider ?? 'openai');
+  const [internalModel, setInternalModel] = useState(model ?? '');
+  const activeProviderValue = provider ?? internalProvider;
+  const activeModelValue = model ?? internalModel;
 
-  const activeProvider = useMemo(() => getProviderOption(provider), [provider]);
-  const effectiveModel = customModel.trim() || activeProvider.defaultModel;
+  const activeProvider = useMemo(() => getProviderOption(activeProviderValue), [activeProviderValue]);
+  const effectiveModel = activeModelValue.trim() || activeProvider.defaultModel;
 
   function handleProviderChange(event: ChangeEvent<HTMLSelectElement>) {
     const value = event.target.value;
-    if (isAiProvider(value)) {
-      setProvider(value);
+    if (!isAiProvider(value)) {
+      return;
     }
+    if (!provider) {
+      setInternalProvider(value);
+    }
+    onProviderChange?.(value);
   }
 
   function handleModelChange(event: ChangeEvent<HTMLInputElement>) {
-    setCustomModel(event.target.value);
+    const value = event.target.value;
+    if (!model) {
+      setInternalModel(value);
+    }
+    onModelChange?.(value);
   }
 
   return (
@@ -66,7 +90,8 @@ export default function AiProviderPanel() {
           className="w-full rounded-xl border border-[rgba(27,20,12,0.12)] bg-[rgba(255,255,255,0.75)] px-3 py-2 text-sm text-[var(--ink-strong)]"
           id="ai-provider"
           onChange={handleProviderChange}
-          value={provider}
+          value={activeProviderValue}
+          disabled={isDisabled}
         >
           {providerOptions.map((option) => (
             <option key={option.id} value={option.id}>
@@ -86,7 +111,8 @@ export default function AiProviderPanel() {
           id="ai-model"
           onChange={handleModelChange}
           placeholder={activeProvider.defaultModel}
-          value={customModel}
+          value={activeModelValue}
+          disabled={isDisabled}
         />
         <p className="text-xs text-[var(--ink-muted)]">当前使用：{effectiveModel}</p>
       </div>
