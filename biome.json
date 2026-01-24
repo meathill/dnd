@@ -9,11 +9,7 @@
     "ignoreUnknown": false
   },
   "formatter": {
-    "includes": [
-      "src/**/*",
-      "tests/**/*",
-      "packages/**/*"
-    ],
+    "includes": ["src/**/*", "tests/**/*", "packages/**/*"],
     "enabled": true,
     "indentStyle": "space",
     "lineWidth": 120

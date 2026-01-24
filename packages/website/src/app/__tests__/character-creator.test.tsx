@@ -1,14 +1,139 @@
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import CharacterCreator from "../character-creator";
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
+import CharacterCreator from '../character-creator';
 
-describe("人物卡创建", () => {
-	it("点击创建角色会显示流程弹窗", async () => {
-		render(<CharacterCreator />);
-		const user = userEvent.setup();
+describe('人物卡创建', () => {
+  it('点击创建角色会显示流程弹窗', async () => {
+    render(<CharacterCreator />);
+    const user = userEvent.setup();
 
-		await user.click(screen.getByRole("button", { name: "创建角色" }));
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
 
-		expect(screen.getByText("创建人物卡")).toBeInTheDocument();
-	});
+    expect(screen.getByText('创建人物卡')).toBeInTheDocument();
+  });
+
+  it('完成创建会触发回调', async () => {
+    const onComplete = vi.fn().mockResolvedValue({ ok: true });
+    render(<CharacterCreator onComplete={onComplete} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+
+    for (let step = 0; step < 4; step += 1) {
+      await user.click(screen.getByRole('button', { name: '下一步' }));
+    }
+
+    const createButtons = screen.getAllByRole('button', { name: '创建角色' });
+    await user.click(createButtons[createButtons.length - 1]);
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete.mock.calls[0]?.[0]?.name).toBe('沈砚');
+  });
+
+  it('提交失败会显示字段级错误并保持弹窗', async () => {
+    const onComplete = vi.fn().mockResolvedValue({
+      ok: false,
+      fieldErrors: { occupation: '人物卡职业不在剧本允许范围内' },
+      message: '人物卡字段不合法',
+    });
+    render(<CharacterCreator onComplete={onComplete} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+
+    for (let step = 0; step < 4; step += 1) {
+      await user.click(screen.getByRole('button', { name: '下一步' }));
+    }
+
+    const createButtons = screen.getAllByRole('button', { name: '创建角色' });
+    await user.click(createButtons[createButtons.length - 1]);
+
+    expect(await screen.findByText('人物卡字段不合法')).toBeInTheDocument();
+    expect(await screen.findByText('人物卡职业不在剧本允许范围内')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '关闭' })).toBeInTheDocument();
+  });
+
+  it('传入剧本选项会显示职业与来源下拉', async () => {
+    render(
+      <CharacterCreator
+        occupationOptions={['神父', '警探']}
+        originOptions={['松柏镇', '河口镇']}
+        skillOptions={[{ id: 'occult', label: '神秘学', group: '学识' }]}
+      />,
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+
+    expect(screen.getByRole('combobox', { name: '职业' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '出身' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '神父' })).toBeInTheDocument();
+  });
+
+  it('属性点预算不足会提示错误', async () => {
+    render(<CharacterCreator attributePointBudget={200} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+
+    const attributeInputs = screen.getAllByRole('spinbutton');
+    await user.clear(attributeInputs[0] as HTMLInputElement);
+    await user.type(attributeInputs[0] as HTMLInputElement, '90');
+
+    const nextButton = screen.getByRole('button', { name: '下一步' });
+    expect(nextButton).toBeDisabled();
+    expect(screen.getByText('属性点总和超出上限 200')).toBeInTheDocument();
+  });
+
+  it('buff/debuff 限制为 1 时会自动替换选中项', async () => {
+    render(
+      <CharacterCreator
+        buffOptions={['灵感加持', '冷静分析']}
+        debuffOptions={['轻微受伤', '噩梦缠身']}
+        buffLimit={1}
+        debuffLimit={1}
+      />,
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+
+    const buffA = screen.getByRole('button', { name: '灵感加持' });
+    const buffB = screen.getByRole('button', { name: '冷静分析' });
+    await user.click(buffA);
+    await user.click(buffB);
+    expect(buffB).toHaveClass('bg-[rgba(61,82,56,0.16)]');
+    expect(buffA).not.toHaveClass('bg-[rgba(61,82,56,0.16)]');
+
+    const debuffA = screen.getByRole('button', { name: '轻微受伤' });
+    const debuffB = screen.getByRole('button', { name: '噩梦缠身' });
+    await user.click(debuffA);
+    await user.click(debuffB);
+    expect(debuffB).toHaveClass('bg-[rgba(176,74,53,0.16)]');
+    expect(debuffA).not.toHaveClass('bg-[rgba(176,74,53,0.16)]');
+  });
+
+  it('属性与状态有 tooltip 说明', async () => {
+    render(<CharacterCreator buffOptions={['灵感加持']} debuffOptions={['轻微受伤']} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+
+    const strengthLabel = screen.getByText('力量');
+    expect(strengthLabel).toHaveAttribute('title');
+
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+
+    const buffButton = screen.getByRole('button', { name: '灵感加持' });
+    const debuffButton = screen.getByRole('button', { name: '轻微受伤' });
+    expect(buffButton).toHaveAttribute('title');
+    expect(debuffButton).toHaveAttribute('title');
+  });
 });

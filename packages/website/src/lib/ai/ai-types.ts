@@ -1,22 +1,22 @@
-export type AiProvider = "openai" | "gemini";
+export type AiProvider = 'openai' | 'gemini';
 
-export type AiMessageRole = "system" | "developer" | "user" | "assistant";
+export type AiMessageRole = 'system' | 'developer' | 'user' | 'assistant';
 
 export type AiMessage = {
-	role: AiMessageRole;
-	content: string;
+  role: AiMessageRole;
+  content: string;
 };
 
 export type AiGenerateRequest = {
-	provider: AiProvider;
-	messages: AiMessage[];
-	model?: string;
-	temperature?: number;
-	maxOutputTokens?: number;
+  provider: AiProvider;
+  messages: AiMessage[];
+  model?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
 };
 
 export type AiGenerateResponse = {
-	provider: AiProvider;
-	model: string;
-	text: string;
+  provider: AiProvider;
+  model: string;
+  text: string;
 };
