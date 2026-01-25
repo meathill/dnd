@@ -34,6 +34,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '设置参数不合法' }, { status: 400 });
   }
 
+  const cookie = request.headers.get('cookie');
+  if (!cookie) {
+    return NextResponse.json({ error: '未登录无法保存设置' }, { status: 401 });
+  }
+
   try {
     const auth = await getAuth();
     const authSession = await auth.api.getSession({ headers: request.headers });
@@ -45,7 +50,12 @@ export async function POST(request: Request) {
     const saved = await upsertUserSettings(db, userId, settings);
     return NextResponse.json({ settings: saved });
   } catch (error) {
+    console.error('[api/settings] 保存设置失败', error);
     const message = error instanceof Error ? error.message : '保存设置失败';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const payload: { error: string; stack?: string } = { error: message };
+    if (process.env.NODE_ENV !== 'production' && error instanceof Error && error.stack) {
+      payload.stack = error.stack;
+    }
+    return NextResponse.json(payload, { status: 500 });
   }
 }

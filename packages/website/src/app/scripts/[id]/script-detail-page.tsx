@@ -23,7 +23,7 @@ type ScriptFetchResponse = {
 
 function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
   const router = useRouter();
-  const { session } = useSession();
+  const { session, requestAuth } = useSession();
   const selectScript = useGameStore((state) => state.selectScript);
   const setPhase = useGameStore((state) => state.setPhase);
   const setActiveGameId = useGameStore((state) => state.setActiveGameId);
@@ -91,6 +91,12 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
 
   function handleEditCharacter() {
     setOpenRequestId((value) => value + 1);
+  }
+
+  function handleRequestAuthForCharacter() {
+    requestAuth(() => {
+      setOpenRequestId((value) => value + 1);
+    });
   }
 
   async function handleCharacterComplete(formState: FormState): Promise<SubmitResult> {
@@ -214,6 +220,7 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
         buffLimit={script.buffLimit}
         debuffLimit={script.debuffLimit}
         isDisabled={!session}
+        onRequireAuth={handleRequestAuthForCharacter}
       />
     </ScriptDetailStage>
   );

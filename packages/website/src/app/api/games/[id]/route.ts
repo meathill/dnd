@@ -4,13 +4,18 @@ import { getDatabase } from '../../../../lib/db/db';
 import { getCharacterByIdForUser, getGameByIdForUser, getScriptById } from '../../../../lib/db/repositories';
 
 type RouteContext = {
-  params: { id?: string };
+  params: Promise<{ id?: string }>;
 };
 
 export async function GET(request: Request, context: RouteContext) {
-  const gameId = context.params.id;
+  const { id: gameId } = await context.params;
   if (!gameId) {
     return NextResponse.json({ error: '缺少游戏编号' }, { status: 400 });
+  }
+
+  const cookie = request.headers.get('cookie');
+  if (!cookie) {
+    return NextResponse.json({ error: '未登录无法读取游戏' }, { status: 401 });
   }
 
   try {
@@ -34,7 +39,12 @@ export async function GET(request: Request, context: RouteContext) {
     }
     return NextResponse.json({ game, script, character });
   } catch (error) {
+    console.error('[api/games/:id] 游戏读取失败', error);
     const message = error instanceof Error ? error.message : '游戏读取失败';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const payload: { error: string; stack?: string } = { error: message };
+    if (process.env.NODE_ENV !== 'production' && error instanceof Error && error.stack) {
+      payload.stack = error.stack;
+    }
+    return NextResponse.json(payload, { status: 500 });
   }
 }

@@ -48,7 +48,7 @@ describe('GET /api/games/:id 权限', () => {
     mockSession(null);
 
     const response = await GET(new Request('http://localhost/api/games/game-1'), {
-      params: { id: 'game-1' },
+      params: Promise.resolve({ id: 'game-1' }),
     });
 
     expect(response.status).toBe(401);
@@ -61,8 +61,8 @@ describe('GET /api/games/:id 权限', () => {
     vi.mocked(getDatabase).mockResolvedValue({} as D1Database);
     vi.mocked(getGameByIdForUser).mockResolvedValue(null);
 
-    const response = await GET(new Request('http://localhost/api/games/game-2'), {
-      params: { id: 'game-2' },
+    const response = await GET(new Request('http://localhost/api/games/game-2', { headers: { cookie: 'auth=stub' } }), {
+      params: Promise.resolve({ id: 'game-2' }),
     });
 
     expect(response.status).toBe(404);

@@ -48,6 +48,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
   const [authDisplayName, setAuthDisplayName] = useState('');
   const [authMessage, setAuthMessage] = useState('');
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [authSuccessAction, setAuthSuccessAction] = useState<null | (() => void)>(null);
 
   const isLoggedIn = Boolean(session);
 
@@ -56,12 +57,15 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
       const response = await fetch('/api/session', { cache: 'no-store' });
       if (!response.ok) {
         setSession(null);
-        return;
+        return null;
       }
       const data = (await response.json()) as { session?: SessionInfo | null };
-      setSession(data.session ?? null);
+      const nextSession = data.session ?? null;
+      setSession(nextSession);
+      return nextSession;
     } catch {
       setSession(null);
+      return null;
     }
   }, []);
 
@@ -111,6 +115,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
 
   function handleCloseAuth() {
     setIsAuthOpen(false);
+    setAuthSuccessAction(null);
   }
 
   async function handleSubmitAuth() {
@@ -141,8 +146,15 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
         setAuthMessage(message);
         return;
       }
-      await loadSession();
-      setIsAuthOpen(false);
+      const nextSession = await loadSession();
+      if (nextSession) {
+        setIsAuthOpen(false);
+        const nextAction = authSuccessAction;
+        setAuthSuccessAction(null);
+        if (nextAction) {
+          nextAction();
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : authMode === 'signUp' ? '注册失败。' : '登录失败。';
       setAuthMessage(message);
@@ -157,6 +169,17 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
     } finally {
       await loadSession();
     }
+  }
+
+  function handleRequestAuth(onSuccess?: () => void) {
+    if (session) {
+      if (onSuccess) {
+        onSuccess();
+      }
+      return;
+    }
+    setAuthSuccessAction(() => (onSuccess ? onSuccess : null));
+    handleOpenAuth();
   }
 
   async function handleSaveSettings() {
@@ -187,7 +210,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
   }
 
   return (
-    <SessionProvider value={{ session, reloadSession: loadSession }}>
+    <SessionProvider value={{ session, reloadSession: loadSession, requestAuth: handleRequestAuth }}>
       <div className="min-h-screen lg:h-screen lg:overflow-hidden grid grid-cols-[15rem_minmax(0,1fr)]">
         <aside
           className="panel-card animate-[fade-up_0.7s_ease-out_both] flex w-full flex-col gap-4 p-4 lg:h-full lg:overflow-hidden"

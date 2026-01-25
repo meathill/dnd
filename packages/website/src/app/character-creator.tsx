@@ -46,6 +46,7 @@ type CharacterCreatorProps = {
   buffLimit?: number;
   debuffLimit?: number;
   isDisabled?: boolean;
+  onRequireAuth?: () => void;
 };
 
 export default function CharacterCreator({
@@ -65,6 +66,7 @@ export default function CharacterCreator({
   buffLimit = 0,
   debuffLimit = 0,
   isDisabled = false,
+  onRequireAuth,
 }: CharacterCreatorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -108,9 +110,13 @@ export default function CharacterCreator({
       ? `属性点总和超出上限 ${effectiveAttributePointBudget}`
       : '';
   const isOverAttributeBudget = Boolean(attributeBudgetErrorMessage);
+  const shouldDisableButton = isDisabled && !onRequireAuth;
 
-  function openCreator() {
-    if (isDisabled) {
+  function openCreator(force = false) {
+    if (isDisabled && !force) {
+      if (onRequireAuth) {
+        onRequireAuth();
+      }
       return;
     }
     setIsOpen(true);
@@ -363,7 +369,7 @@ export default function CharacterCreator({
     if (!openRequestId) {
       return;
     }
-    openCreator();
+    openCreator(true);
   }, [openRequestId]);
 
   return (
@@ -373,7 +379,8 @@ export default function CharacterCreator({
           isDisabled ? 'bg-[rgba(182,121,46,0.4)]' : 'bg-[var(--accent-brass)] hover:-translate-y-0.5'
         }`}
         onClick={openCreator}
-        disabled={isDisabled}
+        disabled={shouldDisableButton}
+        aria-disabled={isDisabled}
         type="button"
       >
         创建角色

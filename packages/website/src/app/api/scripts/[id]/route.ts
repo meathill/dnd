@@ -3,11 +3,11 @@ import { getDatabase } from '../../../../lib/db/db';
 import { getScriptById } from '../../../../lib/db/repositories';
 
 type RouteContext = {
-  params: { id?: string };
+  params: Promise<{ id?: string }>;
 };
 
 export async function GET(_: Request, context: RouteContext) {
-  const scriptId = context.params.id;
+  const { id: scriptId } = await context.params;
   if (!scriptId) {
     return NextResponse.json({ error: '缺少剧本编号' }, { status: 400 });
   }

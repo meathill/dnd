@@ -1,9 +1,10 @@
 import ScriptDetailPage from './script-detail-page';
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
-export default function ScriptPage({ params }: PageProps) {
-  return <ScriptDetailPage scriptId={params.id} />;
+export default async function ScriptPage({ params }: PageProps) {
+  const { id } = await params;
+  return <ScriptDetailPage scriptId={id} />;
 }

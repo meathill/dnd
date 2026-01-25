@@ -160,6 +160,7 @@ describe('POST /api/games 权限', () => {
     const response = await POST(
       new Request('http://localhost/api/games', {
         method: 'POST',
+        headers: { cookie: 'auth=stub' },
         body: JSON.stringify(buildGamePayload()),
       }),
     );

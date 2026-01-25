@@ -11,6 +11,10 @@ import {
 import { parseCreateGamePayload } from '../../../lib/game/validators';
 
 export async function GET(request: Request) {
+  const cookie = request.headers.get('cookie');
+  if (!cookie) {
+    return NextResponse.json({ error: '未登录无法读取游戏记录' }, { status: 401 });
+  }
   try {
     const auth = await getAuth();
     const authSession = await auth.api.getSession({ headers: request.headers });
@@ -22,8 +26,13 @@ export async function GET(request: Request) {
     const games = await listGamesByUser(db, userId);
     return NextResponse.json({ games });
   } catch (error) {
+    console.error('[api/games] 游戏记录获取失败', error);
     const message = error instanceof Error ? error.message : '游戏记录获取失败';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const payload: { error: string; stack?: string } = { error: message };
+    if (process.env.NODE_ENV !== 'production' && error instanceof Error && error.stack) {
+      payload.stack = error.stack;
+    }
+    return NextResponse.json(payload, { status: 500 });
   }
 }
 
@@ -38,6 +47,11 @@ export async function POST(request: Request) {
   const payload = parseCreateGamePayload(body);
   if (!payload) {
     return NextResponse.json({ error: '创建游戏参数不完整' }, { status: 400 });
+  }
+
+  const cookie = request.headers.get('cookie');
+  if (!cookie) {
+    return NextResponse.json({ error: '未登录无法创建游戏' }, { status: 401 });
   }
 
   try {
@@ -67,7 +81,12 @@ export async function POST(request: Request) {
     const game = await createGame(db, userId, payload);
     return NextResponse.json({ game });
   } catch (error) {
+    console.error('[api/games] 创建游戏失败', error);
     const message = error instanceof Error ? error.message : '创建游戏失败';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const payload: { error: string; stack?: string } = { error: message };
+    if (process.env.NODE_ENV !== 'production' && error instanceof Error && error.stack) {
+      payload.stack = error.stack;
+    }
+    return NextResponse.json(payload, { status: 500 });
   }
 }

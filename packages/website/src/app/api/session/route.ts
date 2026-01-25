@@ -5,6 +5,10 @@ import { getUserSettings } from '../../../lib/db/repositories';
 import type { SessionInfo } from '../../../lib/session/session-types';
 
 export async function GET(request: Request) {
+  const cookie = request.headers.get('cookie');
+  if (!cookie) {
+    return NextResponse.json({ session: null });
+  }
   try {
     const auth = await getAuth();
     const authSession = await auth.api.getSession({ headers: request.headers });
@@ -21,7 +25,12 @@ export async function GET(request: Request) {
     };
     return NextResponse.json({ session });
   } catch (error) {
+    console.error('[api/session] 会话读取失败', error);
     const message = error instanceof Error ? error.message : '会话读取失败';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const payload: { error: string; stack?: string } = { error: message };
+    if (process.env.NODE_ENV !== 'production' && error instanceof Error && error.stack) {
+      payload.stack = error.stack;
+    }
+    return NextResponse.json(payload, { status: 500 });
   }
 }

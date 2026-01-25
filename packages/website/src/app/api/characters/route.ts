@@ -17,6 +17,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '人物卡数据不完整' }, { status: 400 });
   }
 
+  const cookie = request.headers.get('cookie');
+  if (!cookie) {
+    return NextResponse.json({ error: '未登录无法创建人物卡' }, { status: 401 });
+  }
+
   try {
     const auth = await getAuth();
     const authSession = await auth.api.getSession({ headers: request.headers });
@@ -36,7 +41,12 @@ export async function POST(request: Request) {
     const character = await createCharacter(db, userId, payload);
     return NextResponse.json({ character });
   } catch (error) {
+    console.error('[api/characters] 人物卡保存失败', error);
     const message = error instanceof Error ? error.message : '人物卡保存失败';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const payload: { error: string; stack?: string } = { error: message };
+    if (process.env.NODE_ENV !== 'production' && error instanceof Error && error.stack) {
+      payload.stack = error.stack;
+    }
+    return NextResponse.json(payload, { status: 500 });
   }
 }

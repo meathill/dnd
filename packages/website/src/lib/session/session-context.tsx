@@ -6,7 +6,8 @@ import type { SessionInfo } from './session-types';
 
 type SessionContextValue = {
   session: SessionInfo | null;
-  reloadSession: () => Promise<void>;
+  reloadSession: () => Promise<SessionInfo | null>;
+  requestAuth: (onSuccess?: () => void) => void;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);

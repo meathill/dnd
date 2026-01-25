@@ -7,11 +7,11 @@ import HomeStage from './home-stage';
 import { SAMPLE_SCRIPT } from '../lib/game/sample-script';
 import type { GameRecordSummary, ScriptDefinition } from '../lib/game/types';
 import { useGameStore } from '../lib/game/game-store';
+import { useSession } from '../lib/session/session-context';
 
-export default function HomePage() {
+export function HomeContent() {
   const router = useRouter();
-  const selectedScriptId = useGameStore((state) => state.selectedScriptId);
-  const activeGameId = useGameStore((state) => state.activeGameId);
+  const { session } = useSession();
   const setPhase = useGameStore((state) => state.setPhase);
   const [scripts, setScripts] = useState<ScriptDefinition[]>([]);
   const [games, setGames] = useState<GameRecordSummary[]>([]);
@@ -41,15 +41,16 @@ export default function HomePage() {
   }, []);
 
   const loadGames = useCallback(async () => {
+    if (!session) {
+      setGames([]);
+      setGamesLoaded(true);
+      setGamesMessage('登录后可查看游戏记录。');
+      return;
+    }
     try {
+      setGamesMessage('');
       const response = await fetch('/api/games', { cache: 'no-store' });
       if (!response.ok) {
-        if (response.status === 401) {
-          setGames([]);
-          setGamesLoaded(true);
-          setGamesMessage('登录后可查看游戏记录。');
-          return;
-        }
         throw new Error('游戏记录获取失败');
       }
       const data = (await response.json()) as { games?: GameRecordSummary[] };
@@ -68,8 +69,11 @@ export default function HomePage() {
 
   useEffect(() => {
     loadScripts();
+  }, [loadScripts]);
+
+  useEffect(() => {
     loadGames();
-  }, [loadGames, loadScripts]);
+  }, [loadGames]);
 
   function handleSelectScript(scriptId: string) {
     router.push(`/scripts/${scriptId}`);
@@ -80,15 +84,24 @@ export default function HomePage() {
   }
 
   return (
+    <HomeStage
+      scripts={scriptsLoaded ? scripts : [SAMPLE_SCRIPT]}
+      games={gamesLoaded ? games : []}
+      onSelectScript={handleSelectScript}
+      onContinueGame={handleContinueGame}
+      statusMessage={homeMessage}
+      gamesMessage={gamesMessage}
+    />
+  );
+}
+
+export default function HomePage() {
+  const selectedScriptId = useGameStore((state) => state.selectedScriptId);
+  const activeGameId = useGameStore((state) => state.activeGameId);
+
+  return (
     <AppShell activeNav="home" scriptId={selectedScriptId} gameId={activeGameId}>
-      <HomeStage
-        scripts={scriptsLoaded ? scripts : [SAMPLE_SCRIPT]}
-        games={gamesLoaded ? games : []}
-        onSelectScript={handleSelectScript}
-        onContinueGame={handleContinueGame}
-        statusMessage={homeMessage}
-        gamesMessage={gamesMessage}
-      />
+      <HomeContent />
     </AppShell>
   );
 }

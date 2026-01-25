@@ -1,9 +1,10 @@
 import GamePage from './game-page';
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
-export default function GameDetailPage({ params }: PageProps) {
-  return <GamePage gameId={params.id} />;
+export default async function GameDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  return <GamePage gameId={id} />;
 }
