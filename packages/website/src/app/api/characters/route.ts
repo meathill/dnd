@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getAuth } from '../../../lib/auth/auth';
 import { getDatabase } from '../../../lib/db/db';
 import { createCharacter, getScriptById } from '../../../lib/db/repositories';
 import { parseCharacterPayload, validateCharacterAgainstScript } from '../../../lib/game/validators';
@@ -17,6 +18,12 @@ export async function POST(request: Request) {
   }
 
   try {
+    const auth = await getAuth();
+    const authSession = await auth.api.getSession({ headers: request.headers });
+    if (!authSession?.user) {
+      return NextResponse.json({ error: '未登录无法创建人物卡' }, { status: 401 });
+    }
+    const userId = authSession.user.id;
     const db = await getDatabase();
     const script = await getScriptById(db, payload.scriptId);
     if (!script) {
@@ -26,7 +33,7 @@ export async function POST(request: Request) {
     if (Object.keys(fieldErrors).length > 0) {
       return NextResponse.json({ error: '人物卡字段不合法', fieldErrors }, { status: 400 });
     }
-    const character = await createCharacter(db, payload);
+    const character = await createCharacter(db, userId, payload);
     return NextResponse.json({ character });
   } catch (error) {
     const message = error instanceof Error ? error.message : '人物卡保存失败';

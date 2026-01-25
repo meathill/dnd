@@ -19,6 +19,7 @@ export type AttributeOption = {
   label: string;
   min: number;
   max: number;
+  recommendedMin: number;
   group: string;
 };
 
@@ -39,6 +40,7 @@ export const baseAttributeOptions: AttributeOption[] = [
     label: '力量',
     min: DEFAULT_ATTRIBUTE_RANGES.strength?.min ?? 20,
     max: DEFAULT_ATTRIBUTE_RANGES.strength?.max ?? 90,
+    recommendedMin: DEFAULT_ATTRIBUTE_RANGES.strength?.min ?? 20,
     group: '身体',
   },
   {
@@ -46,6 +48,7 @@ export const baseAttributeOptions: AttributeOption[] = [
     label: '敏捷',
     min: DEFAULT_ATTRIBUTE_RANGES.dexterity?.min ?? 20,
     max: DEFAULT_ATTRIBUTE_RANGES.dexterity?.max ?? 90,
+    recommendedMin: DEFAULT_ATTRIBUTE_RANGES.dexterity?.min ?? 20,
     group: '身体',
   },
   {
@@ -53,6 +56,7 @@ export const baseAttributeOptions: AttributeOption[] = [
     label: '体质',
     min: DEFAULT_ATTRIBUTE_RANGES.constitution?.min ?? 20,
     max: DEFAULT_ATTRIBUTE_RANGES.constitution?.max ?? 90,
+    recommendedMin: DEFAULT_ATTRIBUTE_RANGES.constitution?.min ?? 20,
     group: '身体',
   },
   {
@@ -60,6 +64,7 @@ export const baseAttributeOptions: AttributeOption[] = [
     label: '体型',
     min: DEFAULT_ATTRIBUTE_RANGES.size?.min ?? 20,
     max: DEFAULT_ATTRIBUTE_RANGES.size?.max ?? 90,
+    recommendedMin: DEFAULT_ATTRIBUTE_RANGES.size?.min ?? 20,
     group: '身体',
   },
   {
@@ -67,6 +72,7 @@ export const baseAttributeOptions: AttributeOption[] = [
     label: '智力',
     min: DEFAULT_ATTRIBUTE_RANGES.intelligence?.min ?? 40,
     max: DEFAULT_ATTRIBUTE_RANGES.intelligence?.max ?? 90,
+    recommendedMin: DEFAULT_ATTRIBUTE_RANGES.intelligence?.min ?? 40,
     group: '心智',
   },
   {
@@ -74,6 +80,7 @@ export const baseAttributeOptions: AttributeOption[] = [
     label: '意志',
     min: DEFAULT_ATTRIBUTE_RANGES.willpower?.min ?? 30,
     max: DEFAULT_ATTRIBUTE_RANGES.willpower?.max ?? 90,
+    recommendedMin: DEFAULT_ATTRIBUTE_RANGES.willpower?.min ?? 30,
     group: '心智',
   },
   {
@@ -81,6 +88,7 @@ export const baseAttributeOptions: AttributeOption[] = [
     label: '外貌',
     min: DEFAULT_ATTRIBUTE_RANGES.appearance?.min ?? 15,
     max: DEFAULT_ATTRIBUTE_RANGES.appearance?.max ?? 90,
+    recommendedMin: DEFAULT_ATTRIBUTE_RANGES.appearance?.min ?? 15,
     group: '心智',
   },
   {
@@ -88,6 +96,7 @@ export const baseAttributeOptions: AttributeOption[] = [
     label: '教育',
     min: DEFAULT_ATTRIBUTE_RANGES.education?.min ?? 40,
     max: DEFAULT_ATTRIBUTE_RANGES.education?.max ?? 90,
+    recommendedMin: DEFAULT_ATTRIBUTE_RANGES.education?.min ?? 40,
     group: '心智',
   },
 ];

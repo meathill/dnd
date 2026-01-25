@@ -75,32 +75,44 @@ export default function CharacterCreatorStepAttributes({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {attributeOptions.map((attribute) => (
-          <div className="panel-muted flex flex-col gap-2 rounded-xl px-4 py-3" key={attribute.id}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-[var(--ink-strong)]" title={getAttributeTooltip(attribute.id)}>
-                  {attribute.label}
-                </p>
-                <p className="text-xs text-[var(--ink-soft)]">{attribute.group}</p>
+        {attributeOptions.map((attribute) => {
+          const recommendedBase = attribute.recommendedMin ?? attribute.min;
+          const recommendedMin = Math.min(Math.max(recommendedBase, attribute.min), attribute.max);
+          const currentValue = formState.attributes[attribute.id];
+          const isBelowRecommended = currentValue < recommendedMin;
+          return (
+            <div className="panel-muted flex flex-col gap-2 rounded-xl px-4 py-3" key={attribute.id}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p
+                    className="text-sm font-semibold text-[var(--ink-strong)]"
+                    title={getAttributeTooltip(attribute.id)}
+                  >
+                    {attribute.label}
+                  </p>
+                  <p className="text-xs text-[var(--ink-soft)]">{attribute.group}</p>
+                </div>
+                <span className="text-xs text-[var(--ink-soft)]">
+                  {attribute.min}-{attribute.max}
+                </span>
               </div>
-              <span className="text-xs text-[var(--ink-soft)]">
-                {attribute.min}-{attribute.max}
-              </span>
+              <input
+                className={inputClassName}
+                max={attribute.max}
+                min={attribute.min}
+                type="number"
+                value={currentValue}
+                onChange={(event) => onAttributeChange(attribute.id, Number(event.target.value) || attribute.min)}
+              />
+              <p className={`text-xs ${isBelowRecommended ? 'text-[var(--accent-brass)]' : 'text-[var(--ink-soft)]'}`}>
+                {isBelowRecommended ? `低于规则推荐最低值 ${recommendedMin}` : `规则推荐最低值 ${recommendedMin}`}
+              </p>
+              {attributeErrors?.[attribute.id] ? (
+                <p className="text-xs text-[var(--accent-ember)]">{attributeErrors[attribute.id]}</p>
+              ) : null}
             </div>
-            <input
-              className={inputClassName}
-              max={attribute.max}
-              min={attribute.min}
-              type="number"
-              value={formState.attributes[attribute.id]}
-              onChange={(event) => onAttributeChange(attribute.id, Number(event.target.value) || attribute.min)}
-            />
-            {attributeErrors?.[attribute.id] ? (
-              <p className="text-xs text-[var(--accent-ember)]">{attributeErrors[attribute.id]}</p>
-            ) : null}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

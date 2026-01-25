@@ -3,6 +3,7 @@
 import CharacterCardPanel from './character-card-panel';
 import SceneMapPanel from './scene-map-panel';
 import { chatMessages, quickActions, type ChatRole } from './home-data';
+import type { ScriptDefinition } from '../lib/game/types';
 
 const messageToneStyles = {
   dm: {
@@ -19,7 +20,11 @@ const messageToneStyles = {
   },
 } satisfies Record<ChatRole, { bubble: string; badge: string }>;
 
-export default function GameStage() {
+type GameStageProps = {
+  script?: ScriptDefinition | null;
+};
+
+export default function GameStage({ script = null }: GameStageProps) {
   return (
     <div className="grid h-full gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_20rem] overflow-hidden">
       <main
@@ -84,7 +89,7 @@ export default function GameStage() {
       </main>
 
       <aside className="flex min-h-0 flex-col gap-4 lg:overflow-y-auto">
-        <CharacterCardPanel />
+        <CharacterCardPanel skillOptions={script?.skillOptions} />
       </aside>
     </div>
   );

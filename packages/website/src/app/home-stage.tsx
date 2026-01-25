@@ -8,6 +8,7 @@ export type HomeStageProps = {
   onSelectScript: (scriptId: string) => void;
   onContinueGame: (gameId: string) => void;
   statusMessage?: string;
+  gamesMessage?: string;
 };
 
 function formatUpdatedAt(value: string): string {
@@ -17,7 +18,14 @@ function formatUpdatedAt(value: string): string {
   return value.replace('T', ' ').slice(0, 16);
 }
 
-export default function HomeStage({ scripts, games, onSelectScript, onContinueGame, statusMessage }: HomeStageProps) {
+export default function HomeStage({
+  scripts,
+  games,
+  onSelectScript,
+  onContinueGame,
+  statusMessage,
+  gamesMessage,
+}: HomeStageProps) {
   return (
     <div className="grid h-full gap-4 overflow-hidden p-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <section className="panel-card flex h-full flex-col gap-4 rounded-xl p-4">
@@ -71,6 +79,7 @@ export default function HomeStage({ scripts, games, onSelectScript, onContinueGa
           <p className={sectionTitleClassName}>记录</p>
           <h2 className="text-xl font-semibold text-[var(--ink-strong)]">游戏记录</h2>
           <p className="text-sm text-[var(--ink-muted)]">继续上一次的冒险。</p>
+          {gamesMessage ? <p className="mt-2 text-xs text-[var(--accent-ember)]">{gamesMessage}</p> : null}
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">

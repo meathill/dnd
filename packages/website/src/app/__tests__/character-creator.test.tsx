@@ -87,6 +87,19 @@ describe('人物卡创建', () => {
     expect(screen.getByText('属性点总和超出上限 200')).toBeInTheDocument();
   });
 
+  it('低于规则推荐最低值会显示提示', async () => {
+    render(<CharacterCreator attributeRanges={{ strength: { min: 5, max: 90 } }} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+
+    const attributeInputs = screen.getAllByRole('spinbutton');
+    await user.clear(attributeInputs[0] as HTMLInputElement);
+
+    expect(await screen.findByText('低于规则推荐最低值 15')).toBeInTheDocument();
+  });
+
   it('buff/debuff 限制为 1 时会自动替换选中项', async () => {
     render(
       <CharacterCreator

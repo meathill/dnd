@@ -18,10 +18,52 @@ type GameSummaryRow = {
   character_name: string;
 };
 
+type CharacterRow = {
+  id: string;
+  script_id: string;
+  name: string;
+  occupation: string;
+  age: string;
+  origin: string;
+  appearance: string;
+  background: string;
+  motivation: string;
+  attributes_json: string;
+  skills_json: string;
+  inventory_json: string;
+  buffs_json: string;
+  debuffs_json: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
 type UserSettingsRow = {
   ai_provider: string;
   ai_model: string;
 };
+
+function mapCharacterRow(row: CharacterRow): CharacterRecord {
+  return {
+    id: row.id,
+    scriptId: row.script_id,
+    name: row.name,
+    occupation: row.occupation,
+    age: row.age,
+    origin: row.origin,
+    appearance: row.appearance,
+    background: row.background,
+    motivation: row.motivation,
+    attributes: JSON.parse(row.attributes_json) as Record<AttributeKey, number>,
+    skills: JSON.parse(row.skills_json) as Record<string, boolean>,
+    inventory: JSON.parse(row.inventory_json) as string[],
+    buffs: JSON.parse(row.buffs_json) as string[],
+    debuffs: JSON.parse(row.debuffs_json) as string[],
+    note: row.note,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 export async function listScripts(db: D1Database): Promise<ScriptDefinition[]> {
   const result = await db.prepare(`SELECT ${SCRIPT_COLUMNS} FROM scripts ORDER BY created_at DESC`).all();
@@ -60,7 +102,37 @@ export async function listGames(db: D1Database): Promise<GameRecordSummary[]> {
   });
 }
 
-export async function createCharacter(db: D1Database, payload: CharacterPayload): Promise<CharacterRecord> {
+export async function listGamesByUser(db: D1Database, userId: string): Promise<GameRecordSummary[]> {
+  const result = await db
+    .prepare(
+      `SELECT ${GAME_SUMMARY_COLUMNS}
+		 FROM games g
+		 JOIN scripts s ON s.id = g.script_id
+		 JOIN characters c ON c.id = g.character_id
+		 WHERE g.user_id = ?
+		 ORDER BY g.updated_at DESC`,
+    )
+    .bind(userId)
+    .all();
+  return result.results.map((row) => {
+    const data = row as GameSummaryRow;
+    return {
+      id: data.id,
+      scriptId: data.script_id,
+      scriptTitle: data.script_title,
+      characterId: data.character_id,
+      characterName: data.character_name,
+      status: data.status,
+      updatedAt: data.updated_at,
+    };
+  });
+}
+
+export async function createCharacter(
+  db: D1Database,
+  userId: string,
+  payload: CharacterPayload,
+): Promise<CharacterRecord> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const data = serializeCharacterPayload(payload);
@@ -68,13 +140,14 @@ export async function createCharacter(db: D1Database, payload: CharacterPayload)
   await db
     .prepare(
       `INSERT INTO characters (
-				id, script_id, name, occupation, age, origin, appearance, background, motivation,
+				id, user_id, script_id, name, occupation, age, origin, appearance, background, motivation,
 				attributes_json, skills_json, inventory_json, buffs_json, debuffs_json, note,
 				created_at, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       id,
+      userId,
       payload.scriptId,
       data.name,
       data.occupation,
@@ -112,42 +185,86 @@ export async function getCharacterById(db: D1Database, characterId: string): Pro
 			FROM characters WHERE id = ? LIMIT 1`,
     )
     .bind(characterId)
-    .first<Record<string, string>>();
+    .first<CharacterRow>();
   if (!row) {
     return null;
   }
 
+  return mapCharacterRow(row);
+}
+
+export async function getCharacterByIdForUser(
+  db: D1Database,
+  characterId: string,
+  userId: string,
+): Promise<CharacterRecord | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, script_id, name, occupation, age, origin, appearance, background, motivation,
+			attributes_json, skills_json, inventory_json, buffs_json, debuffs_json, note,
+			created_at, updated_at
+			FROM characters WHERE id = ? AND user_id = ? LIMIT 1`,
+    )
+    .bind(characterId, userId)
+    .first<CharacterRow>();
+  if (!row) {
+    return null;
+  }
+  return mapCharacterRow(row);
+}
+
+export async function getGameByCharacterId(db: D1Database, characterId: string): Promise<GameRecord | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, script_id, character_id, status, created_at, updated_at
+		 FROM games WHERE character_id = ? LIMIT 1`,
+    )
+    .bind(characterId)
+    .first<Record<string, string>>();
+  if (!row) {
+    return null;
+  }
   return {
     id: row.id,
     scriptId: row.script_id,
-    name: row.name,
-    occupation: row.occupation,
-    age: row.age,
-    origin: row.origin,
-    appearance: row.appearance,
-    background: row.background,
-    motivation: row.motivation,
-    attributes: JSON.parse(row.attributes_json) as Record<AttributeKey, number>,
-    skills: JSON.parse(row.skills_json) as Record<string, boolean>,
-    inventory: JSON.parse(row.inventory_json) as string[],
-    buffs: JSON.parse(row.buffs_json) as string[],
-    debuffs: JSON.parse(row.debuffs_json) as string[],
-    note: row.note,
+    characterId: row.character_id,
+    status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-export async function createGame(db: D1Database, payload: CreateGamePayload): Promise<GameRecord> {
+export async function getGameByIdForUser(db: D1Database, gameId: string, userId: string): Promise<GameRecord | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, script_id, character_id, status, created_at, updated_at
+		 FROM games WHERE id = ? AND user_id = ? LIMIT 1`,
+    )
+    .bind(gameId, userId)
+    .first<Record<string, string>>();
+  if (!row) {
+    return null;
+  }
+  return {
+    id: row.id,
+    scriptId: row.script_id,
+    characterId: row.character_id,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function createGame(db: D1Database, userId: string, payload: CreateGamePayload): Promise<GameRecord> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
   await db
     .prepare(
-      `INSERT INTO games (id, script_id, character_id, status, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO games (id, user_id, script_id, character_id, status, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(id, payload.scriptId, payload.characterId, 'active', now, now)
+    .bind(id, userId, payload.scriptId, payload.characterId, 'active', now, now)
     .run();
 
   return {

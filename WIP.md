@@ -5,7 +5,10 @@
 - 首页展示剧本列表与游戏记录，支持继续游戏
 - 左侧边栏改为导航，设置放入登录后可用的 Modal
 - 个人设置持久化（D1/KV）并在 get_session 返回
-- 建立 D1 数据结构与 API（脚本 / 人物 / 游戏）
+- 使用 zustand 管理关键全局状态（剧本/人物/游戏）
+- 选择剧本/继续游戏时 URL 反映当前状态
+- 接入 better-auth 登录/注册（不需要邮箱验证）
+- 建立 D1 数据结构与 API（脚本 / 人物 / 游戏 / 用户）
 - 保持两列布局 + 侧边栏，主游戏区 100% 高度
 - OpenAI / Gemini provider 接入 + 默认模型配置
 - 建立前端测试框架并覆盖关键流程
@@ -35,6 +38,18 @@
 - [x] 游戏记录继续游戏入口
 - [x] 侧边栏导航与设置 Modal（登录后可用）
 - [x] 个人设置存储与 get_session 返回
+- [x] zustand 全局状态（剧本 / 人物 / 游戏）与人物卡联动
+- [x] URL 同步（/scripts/:id /games/:id）
+- [x] better-auth 邮箱 + 密码登录/注册（API + UI）
+- [x] better-auth 表迁移与本地执行
+- [x] 动态路由：/scripts/:id 与 /games/:id
+- [x] 登录/注册改为密码模式（移除 magic link）
+- [x] 人物卡绑定登录用户（user_id + API 权限）
+- [x] 游戏记录按用户过滤
+- [x] 更新前端流程测试（AuthModal / HomeStage）
+- [x] 核对 COC 点购规则（属性总预算）并补充测试/文档
+- [x] 权限相关 API 测试（characters / games / games/:id）
+- [x] 属性推荐最低值提示（不强制）与点购范围说明
 - [ ] 补充 API 异常与加载状态测试（可选）
 - [ ] 检查响应式与信息密度
 
