@@ -1,8 +1,9 @@
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
 import {
   fieldLabelClassName,
   getBuffTooltip,
   getDebuffTooltip,
-  inputClassName,
   type FormState,
   type ToggleBuff,
   type ToggleDebuff,
@@ -48,8 +49,8 @@ export default function CharacterCreatorStepBackground({
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {buffOptions.map((buff) => (
-              <button
-                className={`rounded-lg px-3 py-1 text-xs transition ${
+              <Button
+                className={`h-auto rounded-lg px-3 py-1 text-xs transition ${
                   formState.buffs.includes(buff)
                     ? 'bg-[rgba(61,82,56,0.16)] text-[var(--accent-moss)]'
                     : 'bg-[rgba(255,255,255,0.7)] text-[var(--ink-muted)]'
@@ -58,9 +59,10 @@ export default function CharacterCreatorStepBackground({
                 type="button"
                 title={getBuffTooltip(buff)}
                 key={buff}
+                variant="ghost"
               >
                 {buff}
-              </button>
+              </Button>
             ))}
           </div>
           {buffError ? <p className="mt-2 text-xs text-[var(--accent-ember)]">{buffError}</p> : null}
@@ -77,8 +79,8 @@ export default function CharacterCreatorStepBackground({
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {debuffOptions.map((debuff) => (
-              <button
-                className={`rounded-lg px-3 py-1 text-xs transition ${
+              <Button
+                className={`h-auto rounded-lg px-3 py-1 text-xs transition ${
                   formState.debuffs.includes(debuff)
                     ? 'bg-[rgba(176,74,53,0.16)] text-[var(--accent-ember)]'
                     : 'bg-[rgba(255,255,255,0.7)] text-[var(--ink-muted)]'
@@ -87,9 +89,10 @@ export default function CharacterCreatorStepBackground({
                 type="button"
                 title={getDebuffTooltip(debuff)}
                 key={debuff}
+                variant="ghost"
               >
                 {debuff}
-              </button>
+              </Button>
             ))}
           </div>
           {debuffError ? <p className="mt-2 text-xs text-[var(--accent-ember)]">{debuffError}</p> : null}
@@ -97,32 +100,32 @@ export default function CharacterCreatorStepBackground({
 
         <div>
           <p className={fieldLabelClassName}>行为习惯</p>
-          <textarea
-            className={`${inputClassName} mt-3 min-h-[120px]`}
+          <Textarea
+            className="mt-3 min-h-[120px] bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
             placeholder="角色的口头禅、习惯动作、禁忌"
             rows={4}
             value={formState.note}
             onChange={(event) => onFieldChange('note', event.target.value)}
-          ></textarea>
+          />
         </div>
       </div>
 
       <div className="space-y-4">
         <p className={fieldLabelClassName}>背景设定</p>
-        <textarea
-          className={`${inputClassName} min-h-[140px]`}
+        <Textarea
+          className="min-h-[140px] bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
           placeholder="经历、线索、与模组相关的过去"
           rows={5}
           value={formState.background}
           onChange={(event) => onFieldChange('background', event.target.value)}
-        ></textarea>
-        <textarea
-          className={`${inputClassName} min-h-[120px]`}
+        />
+        <Textarea
+          className="min-h-[120px] bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
           placeholder="角色动机、近期目标"
           rows={4}
           value={formState.motivation}
           onChange={(event) => onFieldChange('motivation', event.target.value)}
-        ></textarea>
+        />
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '../components/ui/button';
 import CharacterCreatorModal from './character-creator-modal';
 import CharacterCreatorStepContent from './character-creator-step-content';
 import {
@@ -46,7 +47,7 @@ type CharacterCreatorProps = {
   buffLimit?: number;
   debuffLimit?: number;
   isDisabled?: boolean;
-  onRequireAuth?: () => void;
+  onRequestOpen?: () => void;
 };
 
 export default function CharacterCreator({
@@ -66,7 +67,7 @@ export default function CharacterCreator({
   buffLimit = 0,
   debuffLimit = 0,
   isDisabled = false,
-  onRequireAuth,
+  onRequestOpen,
 }: CharacterCreatorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -110,16 +111,27 @@ export default function CharacterCreator({
       ? `属性点总和超出上限 ${effectiveAttributePointBudget}`
       : '';
   const isOverAttributeBudget = Boolean(attributeBudgetErrorMessage);
-  const shouldDisableButton = isDisabled && !onRequireAuth;
+  const shouldDisableButton = isDisabled && !onRequestOpen;
 
   function openCreator(force = false) {
     if (isDisabled && !force) {
-      if (onRequireAuth) {
-        onRequireAuth();
-      }
       return;
     }
     setIsOpen(true);
+  }
+
+  function handleRequestOpen() {
+    if (isDisabled) {
+      if (onRequestOpen) {
+        onRequestOpen();
+      }
+      return;
+    }
+    if (onRequestOpen) {
+      onRequestOpen();
+      return;
+    }
+    openCreator();
   }
 
   function closeCreator() {
@@ -374,32 +386,31 @@ export default function CharacterCreator({
 
   return (
     <div className="flex flex-wrap gap-3">
-      <button
-        className={`rounded-lg px-4 py-2 text-sm text-white shadow-[0_12px_30px_-18px_var(--accent-brass)] transition ${
+      <Button
+        className={`px-4 py-2 text-sm text-white shadow-[0_12px_30px_-18px_var(--accent-brass)] transition ${
           isDisabled ? 'bg-[rgba(182,121,46,0.4)]' : 'bg-[var(--accent-brass)] hover:-translate-y-0.5'
         }`}
-        onClick={openCreator}
+        onClick={handleRequestOpen}
         disabled={shouldDisableButton}
         aria-disabled={isDisabled}
-        type="button"
       >
         创建角色
-      </button>
+      </Button>
       {showSecondaryActions ? (
-        <button
-          className="rounded-lg border border-[var(--ring-soft)] bg-[rgba(255,255,255,0.7)] px-4 py-2 text-sm text-[var(--ink-strong)] transition hover:-translate-y-0.5 hover:border-[var(--accent-brass)]"
-          type="button"
+        <Button
+          className="border border-[var(--ring-soft)] bg-[rgba(255,255,255,0.7)] px-4 py-2 text-sm text-[var(--ink-strong)] transition hover:-translate-y-0.5 hover:border-[var(--accent-brass)]"
+          variant="outline"
         >
           载入模组
-        </button>
+        </Button>
       ) : null}
       {showSecondaryActions ? (
-        <button
-          className="rounded-lg border border-[var(--ring-soft)] bg-[rgba(255,255,255,0.7)] px-4 py-2 text-sm text-[var(--ink-strong)] transition hover:-translate-y-0.5 hover:border-[var(--accent-brass)]"
-          type="button"
+        <Button
+          className="border border-[var(--ring-soft)] bg-[rgba(255,255,255,0.7)] px-4 py-2 text-sm text-[var(--ink-strong)] transition hover:-translate-y-0.5 hover:border-[var(--accent-brass)]"
+          variant="outline"
         >
           开始冒险
-        </button>
+        </Button>
       ) : null}
 
       <CharacterCreatorModal

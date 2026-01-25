@@ -66,9 +66,12 @@ describe('人物卡创建', () => {
 
     await user.click(screen.getByRole('button', { name: '创建角色' }));
 
-    expect(screen.getByRole('combobox', { name: '职业' })).toBeInTheDocument();
+    const occupationTrigger = screen.getByRole('combobox', { name: '职业' });
+    expect(occupationTrigger).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: '出身' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: '神父' })).toBeInTheDocument();
+
+    await user.click(occupationTrigger);
+    expect(await screen.findByRole('option', { name: '神父' })).toBeInTheDocument();
   });
 
   it('属性点预算不足会提示错误', async () => {
@@ -148,5 +151,16 @@ describe('人物卡创建', () => {
     const debuffButton = screen.getByRole('button', { name: '轻微受伤' });
     expect(buffButton).toHaveAttribute('title');
     expect(debuffButton).toHaveAttribute('title');
+  });
+
+  it('未登录时点击创建角色会请求登录流程', async () => {
+    const onRequestOpen = vi.fn();
+    render(<CharacterCreator isDisabled onRequestOpen={onRequestOpen} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+
+    expect(onRequestOpen).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('创建人物卡')).not.toBeInTheDocument();
   });
 });

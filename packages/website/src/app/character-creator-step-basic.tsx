@@ -1,5 +1,8 @@
 import type { CharacterFieldErrors } from '../lib/game/types';
-import { fieldLabelClassName, inputClassName, type FormState, type UpdateField } from './character-creator-data';
+import { Input } from '../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Textarea } from '../components/ui/textarea';
+import { fieldLabelClassName, type FormState, type UpdateField } from './character-creator-data';
 
 type CharacterCreatorStepBasicProps = {
   formState: FormState;
@@ -28,68 +31,80 @@ export default function CharacterCreatorStepBasic({
           <p className={fieldLabelClassName}>基本信息</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <input
-                className={inputClassName}
+              <Input
+                className="bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
+                aria-label="角色姓名"
                 placeholder="角色姓名"
                 value={formState.name}
                 onChange={(event) => onFieldChange('name', event.target.value)}
+                size="sm"
               />
               {errors?.name ? <p className="text-xs text-[var(--accent-ember)]">{errors.name}</p> : null}
             </div>
             <div className="space-y-1">
               {hasOccupationOptions ? (
-                <select
-                  aria-label="职业"
-                  className={inputClassName}
+                <Select
                   value={occupationOptions?.includes(formState.occupation) ? formState.occupation : occupationValue}
-                  onChange={(event) => onFieldChange('occupation', event.target.value)}
+                  onValueChange={(value) => onFieldChange('occupation', value)}
                 >
-                  {occupationOptions?.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger aria-label="职业" className="bg-[rgba(255,255,255,0.8)]" size="sm">
+                    <SelectValue placeholder="职业" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {occupationOptions?.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               ) : (
-                <input
+                <Input
                   aria-label="职业"
-                  className={inputClassName}
+                  className="bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
                   placeholder="职业"
                   value={formState.occupation}
                   onChange={(event) => onFieldChange('occupation', event.target.value)}
+                  size="sm"
                 />
               )}
               {errors?.occupation ? <p className="text-xs text-[var(--accent-ember)]">{errors.occupation}</p> : null}
             </div>
             <div className="space-y-1">
-              <input
-                className={inputClassName}
+              <Input
+                className="bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
+                aria-label="年龄"
                 placeholder="年龄"
                 value={formState.age}
                 onChange={(event) => onFieldChange('age', event.target.value)}
+                size="sm"
               />
             </div>
             <div className="space-y-1">
               {hasOriginOptions ? (
-                <select
-                  aria-label="出身"
-                  className={inputClassName}
+                <Select
                   value={originOptions?.includes(formState.origin) ? formState.origin : originValue}
-                  onChange={(event) => onFieldChange('origin', event.target.value)}
+                  onValueChange={(value) => onFieldChange('origin', value)}
                 >
-                  {originOptions?.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger aria-label="出身" className="bg-[rgba(255,255,255,0.8)]" size="sm">
+                    <SelectValue placeholder="出身" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {originOptions?.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               ) : (
-                <input
+                <Input
                   aria-label="出身"
-                  className={inputClassName}
+                  className="bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
                   placeholder="出身/城市"
                   value={formState.origin}
                   onChange={(event) => onFieldChange('origin', event.target.value)}
+                  size="sm"
                 />
               )}
               {errors?.origin ? <p className="text-xs text-[var(--accent-ember)]">{errors.origin}</p> : null}
@@ -99,13 +114,13 @@ export default function CharacterCreatorStepBasic({
 
         <div>
           <p className={fieldLabelClassName}>外观与标签</p>
-          <textarea
-            className={`${inputClassName} mt-3 min-h-[120px]`}
+          <Textarea
+            className="mt-3 min-h-[120px] bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
             placeholder="外观、习惯或明显特征"
             rows={4}
             value={formState.appearance}
             onChange={(event) => onFieldChange('appearance', event.target.value)}
-          ></textarea>
+          />
         </div>
       </div>
 

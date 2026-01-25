@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import type { StepItem } from './character-creator-data';
+import { Button } from '../components/ui/button';
+import { Dialog, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '../components/ui/dialog';
 
 export type CharacterCreatorModalProps = {
   isOpen: boolean;
@@ -28,34 +30,24 @@ export default function CharacterCreatorModal({
   isNextDisabled = false,
   children,
 }: CharacterCreatorModalProps) {
-  if (!isOpen) {
-    return null;
-  }
-
   const progressWidth = `${Math.round(((currentStep + 1) / steps.length) * 100)}%`;
   const isLastStep = currentStep >= steps.length - 1;
-  const nextButtonClassName = `rounded-lg bg-[var(--accent-brass)] px-4 py-1.5 text-xs text-white ${
-    isNextDisabled ? 'cursor-not-allowed opacity-60' : ''
-  }`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4">
-      <div className="absolute inset-0 bg-[rgba(15,10,6,0.45)] backdrop-blur"></div>
-      <div className="panel-card relative flex h-[min(88vh,820px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl">
-        <div className="flex items-center justify-between border-b border-[rgba(27,20,12,0.08)] px-4 py-4">
+    <Dialog open={isOpen} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <DialogPopup className="h-[min(88vh,820px)] max-w-5xl" showCloseButton={false}>
+        <DialogHeader className="flex flex-row items-start justify-between gap-3 border-b border-[rgba(27,20,12,0.08)]">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">创建人物卡</p>
-            <h2 className="font-[var(--font-display)] text-2xl text-[var(--ink-strong)]">{steps[currentStep].title}</h2>
+            <DialogTitle className="font-[var(--font-display)] text-2xl text-[var(--ink-strong)]">
+              {steps[currentStep].title}
+            </DialogTitle>
             <p className="text-sm text-[var(--ink-muted)]">{steps[currentStep].description}</p>
           </div>
-          <button
-            className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-muted)]"
-            onClick={onClose}
-            type="button"
-          >
+          <Button className="text-xs text-[var(--ink-muted)]" onClick={onClose} size="sm" variant="outline">
             关闭
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
 
         <div className="relative">
           <div className="h-1 w-full bg-[rgba(27,20,12,0.08)]">
@@ -78,46 +70,46 @@ export default function CharacterCreatorModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
+        <DialogPanel className="flex-1 overflow-y-auto px-4 py-4">{children}</DialogPanel>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(27,20,12,0.08)] px-4 py-4">
+        <DialogFooter
+          className="flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(27,20,12,0.08)]"
+          variant="bare"
+        >
           <div className="flex items-center gap-2">
-            <button
-              className="rounded-lg border border-[rgba(27,20,12,0.12)] px-4 py-1.5 text-xs text-[var(--ink-muted)]"
-              onClick={onReset}
-              type="button"
-            >
+            <Button onClick={onReset} size="sm" variant="outline">
               重置
-            </button>
+            </Button>
             <span className="text-xs text-[var(--ink-soft)]">
               {currentStep + 1} / {steps.length}
             </span>
           </div>
           {submitError ? <p className="text-xs text-[var(--accent-ember)]">{submitError}</p> : null}
           <div className="flex gap-2">
-            <button
-              className="rounded-lg border border-[rgba(27,20,12,0.12)] px-4 py-1.5 text-xs text-[var(--ink-muted)]"
-              onClick={onPrevious}
-              type="button"
-            >
+            <Button onClick={onPrevious} size="sm" variant="outline">
               上一步
-            </button>
+            </Button>
             {isLastStep ? (
-              <button
-                className="rounded-lg bg-[var(--accent-brass)] px-4 py-1.5 text-xs text-white"
+              <Button
+                className="bg-[var(--accent-brass)] text-white hover:bg-[var(--accent-brass)]/90"
                 onClick={onComplete}
-                type="button"
+                size="sm"
               >
                 创建角色
-              </button>
+              </Button>
             ) : (
-              <button className={nextButtonClassName} onClick={onNext} disabled={isNextDisabled} type="button">
+              <Button
+                className="bg-[var(--accent-brass)] text-white hover:bg-[var(--accent-brass)]/90"
+                disabled={isNextDisabled}
+                onClick={onNext}
+                size="sm"
+              >
                 下一步
-              </button>
+              </Button>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogPopup>
+    </Dialog>
   );
 }

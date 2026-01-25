@@ -1,7 +1,11 @@
 'use client';
 
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useMemo, useState } from 'react';
 import type { AiProvider } from '../lib/ai/ai-types';
+import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const providerOptions = [
   {
@@ -51,8 +55,7 @@ export default function AiProviderPanel({
   const activeProvider = useMemo(() => getProviderOption(activeProviderValue), [activeProviderValue]);
   const effectiveModel = activeModelValue.trim() || activeProvider.defaultModel;
 
-  function handleProviderChange(event: ChangeEvent<HTMLSelectElement>) {
-    const value = event.target.value;
+  function handleProviderChange(value: string) {
     if (!isAiProvider(value)) {
       return;
     }
@@ -62,8 +65,7 @@ export default function AiProviderPanel({
     onProviderChange?.(value);
   }
 
-  function handleModelChange(event: ChangeEvent<HTMLInputElement>) {
-    const value = event.target.value;
+  function handleModelChange(value: string) {
     if (!model) {
       setInternalModel(value);
     }
@@ -77,42 +79,42 @@ export default function AiProviderPanel({
           <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">模型配置</p>
           <h2 className="font-[var(--font-display)] text-xl text-[var(--ink-strong)]">AI 提供方</h2>
         </div>
-        <span className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-soft)]">
+        <Badge className="px-3 py-1 text-xs text-[var(--ink-soft)]" variant="outline">
           默认模型
-        </span>
+        </Badge>
       </div>
 
       <div className="space-y-3">
-        <label className="block text-xs text-[var(--ink-soft)]" htmlFor="ai-provider">
+        <Label className="text-xs text-[var(--ink-soft)]" htmlFor="ai-provider">
           Provider
-        </label>
-        <select
-          className="w-full rounded-xl border border-[rgba(27,20,12,0.12)] bg-[rgba(255,255,255,0.75)] px-3 py-2 text-sm text-[var(--ink-strong)]"
-          id="ai-provider"
-          onChange={handleProviderChange}
-          value={activeProviderValue}
-          disabled={isDisabled}
-        >
-          {providerOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        </Label>
+        <Select value={activeProviderValue} onValueChange={handleProviderChange} disabled={isDisabled}>
+          <SelectTrigger aria-label="Provider" className="bg-[rgba(255,255,255,0.75)]" id="ai-provider" size="sm">
+            <SelectValue placeholder="选择提供方" />
+          </SelectTrigger>
+          <SelectContent>
+            {providerOptions.map((option) => (
+              <SelectItem key={option.id} value={option.id}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <p className="text-xs text-[var(--ink-muted)]">{activeProvider.description}</p>
       </div>
 
       <div className="space-y-3">
-        <label className="block text-xs text-[var(--ink-soft)]" htmlFor="ai-model">
+        <Label className="text-xs text-[var(--ink-soft)]" htmlFor="ai-model">
           自定义模型（可选）
-        </label>
-        <input
-          className="w-full rounded-xl border border-[rgba(27,20,12,0.12)] bg-[rgba(255,255,255,0.75)] px-3 py-2 text-sm text-[var(--ink-strong)]"
+        </Label>
+        <Input
+          className="bg-[rgba(255,255,255,0.75)] text-[var(--ink-strong)]"
           id="ai-model"
-          onChange={handleModelChange}
+          onChange={(event) => handleModelChange(event.target.value)}
           placeholder={activeProvider.defaultModel}
           value={activeModelValue}
           disabled={isDisabled}
+          size="sm"
         />
         <p className="text-xs text-[var(--ink-muted)]">当前使用：{effectiveModel}</p>
       </div>

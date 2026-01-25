@@ -1,6 +1,7 @@
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
 import {
   fieldLabelClassName,
-  inputClassName,
   type FormState,
   type SkillOption,
   type ToggleSkill,
@@ -50,8 +51,8 @@ export default function CharacterCreatorStepSkills({
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {skillOptions.map((skill) => (
-            <button
-              className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
+            <Button
+              className={`flex h-auto items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
                 formState.skills[skill.id]
                   ? 'border-[rgba(61,82,56,0.4)] bg-[rgba(61,82,56,0.12)] text-[var(--accent-moss)]'
                   : 'border-[rgba(27,20,12,0.1)] bg-[rgba(255,255,255,0.7)] text-[var(--ink-muted)]'
@@ -59,10 +60,11 @@ export default function CharacterCreatorStepSkills({
               onClick={() => onToggleSkill(skill.id)}
               type="button"
               key={skill.id}
+              variant="ghost"
             >
               <span>{skill.label}</span>
               <span className="text-xs text-[var(--ink-soft)]">{skill.group}</span>
-            </button>
+            </Button>
           ))}
         </div>
         {skillError ? <p className="text-xs text-[var(--accent-ember)]">{skillError}</p> : null}
@@ -82,8 +84,8 @@ export default function CharacterCreatorStepSkills({
             {equipmentOptions.map((item) => {
               const isSelected = selectedEquipment.includes(item);
               return (
-                <button
-                  className={`rounded-lg px-3 py-1 transition ${
+                <Button
+                  className={`h-auto rounded-lg px-3 py-1 text-xs transition ${
                     isSelected
                       ? 'bg-[rgba(182,121,46,0.18)] text-[var(--accent-brass)]'
                       : 'border border-[rgba(27,20,12,0.12)] text-[var(--ink-muted)]'
@@ -91,21 +93,24 @@ export default function CharacterCreatorStepSkills({
                   key={item}
                   onClick={() => onToggleEquipment(item)}
                   type="button"
+                  variant="ghost"
                 >
                   {item}
-                </button>
+                </Button>
               );
             })}
           </div>
         ) : null}
-        <textarea
-          className={`${inputClassName} min-h-[160px] ${isEquipmentRestricted ? 'cursor-not-allowed opacity-80' : ''}`}
+        <Textarea
+          className={`min-h-[160px] bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)] ${
+            isEquipmentRestricted ? 'cursor-not-allowed opacity-80' : ''
+          }`}
           placeholder={isEquipmentRestricted ? '从清单选择装备' : '用逗号分隔物品，例如：圣水、手电筒'}
           readOnly={isEquipmentRestricted}
           rows={6}
           value={formState.inventory}
           onChange={(event) => onFieldChange('inventory', event.target.value)}
-        ></textarea>
+        />
         {equipmentError ? <p className="text-xs text-[var(--accent-ember)]">{equipmentError}</p> : null}
         <div className="panel-muted rounded-xl p-4">
           <p className="text-sm font-semibold text-[var(--ink-strong)]">已选技能</p>

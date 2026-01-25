@@ -12,7 +12,9 @@ describe('AI 模型配置', () => {
     render(<AiProviderPanel />);
     const user = userEvent.setup();
 
-    await user.selectOptions(screen.getByLabelText('Provider'), 'gemini');
+    await user.click(screen.getByRole('combobox', { name: 'Provider' }));
+    const geminiOption = await screen.findByRole('option', { name: 'Google Gemini' });
+    await user.click(geminiOption);
 
     expect(screen.getByText('当前使用：gemini-3-flash-preview')).toBeInTheDocument();
   });

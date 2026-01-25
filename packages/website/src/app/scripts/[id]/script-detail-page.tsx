@@ -93,7 +93,7 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
     setOpenRequestId((value) => value + 1);
   }
 
-  function handleRequestAuthForCharacter() {
+  function handleRequestCharacterOpen() {
     requestAuth(() => {
       setOpenRequestId((value) => value + 1);
     });
@@ -220,7 +220,7 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
         buffLimit={script.buffLimit}
         debuffLimit={script.debuffLimit}
         isDisabled={!session}
-        onRequireAuth={handleRequestAuthForCharacter}
+        onRequestOpen={handleRequestCharacterOpen}
       />
     </ScriptDetailStage>
   );

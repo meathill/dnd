@@ -1,7 +1,8 @@
 import type { AttributeKey } from '../lib/game/types';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import {
   fieldLabelClassName,
-  inputClassName,
   getAttributeTooltip,
   type AttributeOption,
   type FormState,
@@ -57,20 +58,12 @@ export default function CharacterCreatorStepAttributes({
           ) : null}
         </div>
         <div className="flex gap-2">
-          <button
-            className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-muted)]"
-            onClick={onApplyAverage}
-            type="button"
-          >
+          <Button onClick={onApplyAverage} size="sm" variant="outline">
             平均值
-          </button>
-          <button
-            className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-muted)]"
-            onClick={onApplyRandom}
-            type="button"
-          >
+          </Button>
+          <Button onClick={onApplyRandom} size="sm" variant="outline">
             随机生成
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -96,13 +89,14 @@ export default function CharacterCreatorStepAttributes({
                   {attribute.min}-{attribute.max}
                 </span>
               </div>
-              <input
-                className={inputClassName}
+              <Input
+                className="bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
                 max={attribute.max}
                 min={attribute.min}
                 type="number"
                 value={currentValue}
                 onChange={(event) => onAttributeChange(attribute.id, Number(event.target.value) || attribute.min)}
+                size="sm"
               />
               <p className={`text-xs ${isBelowRecommended ? 'text-[var(--accent-brass)]' : 'text-[var(--ink-soft)]'}`}>
                 {isBelowRecommended ? `低于规则推荐最低值 ${recommendedMin}` : `规则推荐最低值 ${recommendedMin}`}

@@ -172,9 +172,6 @@ export type ToggleBuff = (buff: BuffId) => void;
 
 export type ToggleDebuff = (debuff: DebuffId) => void;
 
-export const inputClassName =
-  'w-full rounded-xl border border-[rgba(27,20,12,0.12)] bg-[rgba(255,255,255,0.8)] px-3 py-2 text-sm text-[var(--ink-strong)] placeholder:text-[var(--ink-soft)] focus:border-[var(--accent-brass)] focus:outline-none';
-
 export const fieldLabelClassName = 'text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]';
 
 export function buildAttributeOptions(attributeRanges: AttributeRangeMap = {}): AttributeOption[] {
