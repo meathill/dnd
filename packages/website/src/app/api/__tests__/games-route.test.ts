@@ -45,6 +45,7 @@ const sampleScript: ScriptDefinition = {
   summary: '测试',
   setting: '现代',
   difficulty: '低',
+  openingMessages: [],
   skillOptions: [],
   equipmentOptions: [],
   occupationOptions: [],
@@ -57,6 +58,7 @@ const sampleScript: ScriptDefinition = {
   equipmentLimit: 0,
   buffLimit: 0,
   debuffLimit: 0,
+  rules: {},
   scenes: [],
   encounters: [],
 };
@@ -71,6 +73,8 @@ const sampleCharacter: CharacterRecord = {
   appearance: '',
   background: '',
   motivation: '',
+  avatar: '',
+  luck: 55,
   attributes: {
     strength: 50,
     dexterity: 50,

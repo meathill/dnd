@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { baseAttributeOptions } from './character-creator-data';
-import { attributes, buffs, debuffs, inventory, skills, stats, type StatTone } from './home-data';
-import type { AttributeKey, CharacterRecord, ScriptSkillOption } from '../lib/game/types';
+import { attributes, buffs, debuffs, inventory, skills, stats, type Stat, type StatTone } from './home-data';
+import type { AttributeKey, CharacterRecord, ScriptRuleOverrides, ScriptSkillOption } from '../lib/game/types';
+import { resolveTrainedSkillValue, resolveUntrainedSkillValue } from '../lib/game/rules';
 import { useGameStore } from '../lib/game/game-store';
 
 const statToneStyles = {
@@ -51,14 +52,64 @@ function resolveAttributes(character: CharacterRecord | null) {
   }));
 }
 
-function resolveSkills(character: CharacterRecord | null, skillOptions?: ScriptSkillOption[]) {
+function resolveStats(character: CharacterRecord | null): Stat[] {
   if (!character) {
-    return skills.map((skill) => skill.label);
+    return stats;
+  }
+  const constitution = character.attributes.constitution ?? 0;
+  const size = character.attributes.size ?? 0;
+  const willpower = character.attributes.willpower ?? 0;
+  const intelligence = character.attributes.intelligence ?? 0;
+  const hitPoints = Math.max(1, Math.floor((constitution + size) / 10));
+  const sanity = Math.max(0, Math.floor(willpower));
+  const magicPoints = Math.max(0, Math.floor(willpower / 5));
+  const fallbackLuck = Math.max(0, Math.floor((willpower + intelligence) / 2));
+  const luckValue = character.luck > 0 ? character.luck : fallbackLuck;
+  return [
+    { label: '生命值', value: hitPoints, max: hitPoints, tone: 'ember' },
+    { label: '理智值', value: sanity, max: sanity, tone: 'moss' },
+    { label: '魔法值', value: magicPoints, max: magicPoints, tone: 'river' },
+    { label: '幸运值', value: luckValue, max: luckValue, tone: 'brass' },
+  ];
+}
+
+type SkillDisplay = {
+  label: string;
+  value: number;
+};
+
+function resolveSkillBaseValue(skillId: string, rules?: ScriptRuleOverrides): number {
+  const baseOverride = rules?.skillBaseValues?.[skillId];
+  if (typeof baseOverride === 'number' && Number.isFinite(baseOverride)) {
+    return baseOverride;
+  }
+  return resolveUntrainedSkillValue(rules);
+}
+
+function resolveSkillEntries(
+  character: CharacterRecord | null,
+  skillOptions?: ScriptSkillOption[],
+  rules?: ScriptRuleOverrides,
+): SkillDisplay[] {
+  if (!character) {
+    return skills;
   }
   const labelMap = new Map(skillOptions?.map((option) => [option.id, option.label]) ?? []);
-  return Object.entries(character.skills)
-    .filter(([, enabled]) => enabled)
-    .map(([key]) => labelMap.get(key) ?? key);
+  return Object.entries(character.skills as Record<string, unknown>)
+    .map(([skillId, rawValue]) => {
+      const baseValue = resolveSkillBaseValue(skillId, rules);
+      const value =
+        typeof rawValue === 'number' && Number.isFinite(rawValue)
+          ? rawValue
+          : rawValue
+            ? resolveTrainedSkillValue(rules)
+            : baseValue;
+      if (value <= baseValue) {
+        return null;
+      }
+      return { label: labelMap.get(skillId) ?? skillId, value };
+    })
+    .filter((item): item is SkillDisplay => Boolean(item));
 }
 
 function resolveInventory(character: CharacterRecord | null) {
@@ -75,16 +126,21 @@ function resolveDebuffs(character: CharacterRecord | null) {
 
 type CharacterCardPanelProps = {
   skillOptions?: ScriptSkillOption[];
+  rules?: ScriptRuleOverrides;
 };
 
-export default function CharacterCardPanel({ skillOptions }: CharacterCardPanelProps) {
+export default function CharacterCardPanel({ skillOptions, rules }: CharacterCardPanelProps) {
   const character = useGameStore((state) => state.character);
 
   const activeAttributes = useMemo(() => resolveAttributes(character), [character]);
+  const activeStats = useMemo(() => resolveStats(character), [character]);
   const activeInventory = useMemo(() => resolveInventory(character), [character]);
   const activeBuffs = useMemo(() => resolveBuffs(character), [character]);
   const activeDebuffs = useMemo(() => resolveDebuffs(character), [character]);
-  const activeSkills = useMemo(() => resolveSkills(character, skillOptions), [character, skillOptions]);
+  const activeSkills = useMemo(
+    () => resolveSkillEntries(character, skillOptions, rules),
+    [character, rules, skillOptions],
+  );
 
   const hasBuffs = activeBuffs.length > 0;
   const hasDebuffs = activeDebuffs.length > 0;
@@ -98,7 +154,7 @@ export default function CharacterCardPanel({ skillOptions }: CharacterCardPanelP
       >
         <div className="flex flex-wrap items-center gap-4">
           <div className="h-16 w-16 rounded-xl bg-[linear-gradient(135deg,rgba(61,82,56,0.2),rgba(182,121,46,0.2))] p-1">
-            <div className="flex h-full w-full items-center justify-center rounded-xl bg-[rgba(255,255,255,0.7)] text-sm text-[var(--ink-soft)]">
+            <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-[rgba(255,255,255,0.7)] text-sm text-[var(--ink-soft)]">
               肖像
             </div>
           </div>
@@ -121,8 +177,12 @@ export default function CharacterCardPanel({ skillOptions }: CharacterCardPanelP
     >
       <div className="flex flex-wrap items-center gap-4">
         <div className="h-16 w-16 rounded-xl bg-[linear-gradient(135deg,rgba(61,82,56,0.2),rgba(182,121,46,0.2))] p-1">
-          <div className="flex h-full w-full items-center justify-center rounded-xl bg-[rgba(255,255,255,0.7)] text-sm text-[var(--ink-soft)]">
-            肖像
+          <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-[rgba(255,255,255,0.7)] text-sm text-[var(--ink-soft)]">
+            {character.avatar ? (
+              <img className="h-full w-full object-cover" src={character.avatar} alt={`${character.name} 头像`} />
+            ) : (
+              '肖像'
+            )}
           </div>
         </div>
         <div className="flex-1">
@@ -133,7 +193,7 @@ export default function CharacterCardPanel({ skillOptions }: CharacterCardPanelP
       </div>
 
       <div className="space-y-4">
-        {stats.map((stat) => {
+        {activeStats.map((stat) => {
           const tone = statToneStyles[stat.tone];
           return (
             <div className="space-y-2" key={stat.label}>
@@ -171,9 +231,9 @@ export default function CharacterCardPanel({ skillOptions }: CharacterCardPanelP
               {activeSkills.map((skill) => (
                 <span
                   className="rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] px-3 py-1 text-xs text-[var(--ink-muted)]"
-                  key={skill}
+                  key={skill.label}
                 >
-                  {skill}
+                  {skill.label} {skill.value}
                 </span>
               ))}
             </div>

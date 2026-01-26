@@ -5,7 +5,7 @@ import {
   calculateAttributeTotal,
   defaultSkillOptions,
 } from '../character-creator-data';
-import { DEFAULT_ATTRIBUTE_RANGES } from '../../lib/game/rules';
+import { DEFAULT_ATTRIBUTE_RANGES, resolveUntrainedSkillValue } from '../../lib/game/rules';
 
 describe('character-creator-data', () => {
   it('可以覆盖属性范围', () => {
@@ -40,7 +40,8 @@ describe('character-creator-data', () => {
       skillOptions: defaultSkillOptions.slice(0, 3),
       skillLimit: 1,
     });
-    const selectedCount = Object.values(formState.skills).filter(Boolean).length;
+    const untrainedValue = resolveUntrainedSkillValue();
+    const selectedCount = Object.values(formState.skills).filter((value) => value > untrainedValue).length;
     expect(selectedCount).toBe(1);
   });
 

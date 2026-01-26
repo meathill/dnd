@@ -69,6 +69,12 @@ function buildGeminiSystemInstruction(messages: AiMessage[]): { parts: Array<{ t
   return { parts: [{ text: systemText }] };
 }
 
+async function* streamTextChunks(text: string, chunkSize = 24): AsyncGenerator<string> {
+  for (let index = 0; index < text.length; index += chunkSize) {
+    yield text.slice(index, index + chunkSize);
+  }
+}
+
 async function requestOpenAiCompletion(request: AiGenerateRequest): Promise<AiGenerateResponse> {
   const apiKey = getRequiredEnv('OPENAI_API_KEY');
   const model = request.model ?? process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
@@ -103,6 +109,68 @@ async function requestOpenAiCompletion(request: AiGenerateRequest): Promise<AiGe
     model,
     text,
   };
+}
+
+async function* streamOpenAiCompletion(request: AiGenerateRequest): AsyncGenerator<string> {
+  const apiKey = getRequiredEnv('OPENAI_API_KEY');
+  const model = request.model ?? process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
+  const messages = normalizeOpenAiMessages(request.messages);
+
+  const response = await fetch(OPENAI_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: request.temperature,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI 请求失败：${response.status}`);
+  }
+
+  if (!response.body) {
+    const fallback = await requestOpenAiCompletion(request);
+    yield* streamTextChunks(fallback.text);
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const reader = response.body.getReader();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      const dataLine = trimmed.startsWith('data:') ? trimmed.slice(5).trim() : trimmed;
+      if (dataLine === '[DONE]') {
+        return;
+      }
+      try {
+        const data = JSON.parse(dataLine) as { choices?: Array<{ delta?: { content?: string } }> };
+        const delta = data.choices?.[0]?.delta?.content ?? '';
+        if (delta) {
+          yield delta;
+        }
+      } catch {
+        // ignore malformed chunks
+      }
+    }
+  }
 }
 
 async function requestGeminiCompletion(request: AiGenerateRequest): Promise<AiGenerateResponse> {
@@ -146,6 +214,72 @@ async function requestGeminiCompletion(request: AiGenerateRequest): Promise<AiGe
   };
 }
 
+async function* streamGeminiCompletion(request: AiGenerateRequest): AsyncGenerator<string> {
+  const apiKey = getRequiredEnv('GEMINI_API_KEY');
+  const model = request.model ?? process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
+  const contents = buildGeminiContents(request.messages);
+  const systemInstruction = buildGeminiSystemInstruction(request.messages);
+
+  const response = await fetch(`${GEMINI_ENDPOINT}/${encodeURIComponent(model)}:streamGenerateContent`, {
+    method: 'POST',
+    headers: {
+      'x-goog-api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents,
+      systemInstruction,
+      generationConfig: {
+        temperature: request.temperature,
+        maxOutputTokens: request.maxOutputTokens,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gemini 请求失败：${response.status}`);
+  }
+
+  if (!response.body) {
+    const fallback = await requestGeminiCompletion(request);
+    yield* streamTextChunks(fallback.text);
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const reader = response.body.getReader();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      const dataLine = trimmed.startsWith('data:') ? trimmed.slice(5).trim() : trimmed;
+      if (dataLine === '[DONE]') {
+        return;
+      }
+      try {
+        const data = JSON.parse(dataLine) as GeminiResponse;
+        const parts = data.candidates?.[0]?.content?.parts ?? [];
+        const text = parts.map((part) => part.text ?? '').join('');
+        if (text) {
+          yield text;
+        }
+      } catch {
+        // ignore malformed chunks
+      }
+    }
+  }
+}
+
 export async function generateChatCompletion(request: AiGenerateRequest): Promise<AiGenerateResponse> {
   if (request.provider === 'openai') {
     return requestOpenAiCompletion(request);
@@ -155,5 +289,17 @@ export async function generateChatCompletion(request: AiGenerateRequest): Promis
     return requestGeminiCompletion(request);
   }
 
+  throw new Error(`不支持的 provider：${request.provider}`);
+}
+
+export async function* streamChatCompletion(request: AiGenerateRequest): AsyncGenerator<string> {
+  if (request.provider === 'openai') {
+    yield* streamOpenAiCompletion(request);
+    return;
+  }
+  if (request.provider === 'gemini') {
+    yield* streamGeminiCompletion(request);
+    return;
+  }
   throw new Error(`不支持的 provider：${request.provider}`);
 }

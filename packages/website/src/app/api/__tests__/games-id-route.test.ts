@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from '../games/[id]/route';
 import { getAuth } from '../../../lib/auth/auth';
 import { getDatabase } from '../../../lib/db/db';
-import { getCharacterByIdForUser, getGameByIdForUser, getScriptById } from '../../../lib/db/repositories';
+import {
+  getCharacterByIdForUser,
+  getGameByIdForUser,
+  getScriptById,
+  listGameMessages,
+} from '../../../lib/db/repositories';
 
 vi.mock('../../../lib/auth/auth', () => ({
   getAuth: vi.fn(),
@@ -16,6 +21,7 @@ vi.mock('../../../lib/db/repositories', () => ({
   getCharacterByIdForUser: vi.fn(),
   getGameByIdForUser: vi.fn(),
   getScriptById: vi.fn(),
+  listGameMessages: vi.fn(),
 }));
 
 type AuthSession = {
@@ -70,5 +76,6 @@ describe('GET /api/games/:id 权限', () => {
     expect(data.error).toBe('游戏不存在');
     expect(vi.mocked(getScriptById)).not.toHaveBeenCalled();
     expect(vi.mocked(getCharacterByIdForUser)).not.toHaveBeenCalled();
+    expect(vi.mocked(listGameMessages)).not.toHaveBeenCalled();
   });
 });

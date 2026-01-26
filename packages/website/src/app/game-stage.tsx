@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import CharacterCardPanel from './character-card-panel';
 import SceneMapPanel from './scene-map-panel';
-import { chatMessages, quickActions, type ChatRole } from './home-data';
-import type { ScriptDefinition } from '../lib/game/types';
+import { chatMessages, quickActions } from './home-data';
+import { useGameStore } from '../lib/game/game-store';
+import type { ChatMessage, ChatModule, ChatRole, ScriptDefinition, ScriptOpeningMessage } from '../lib/game/types';
 
 const messageToneStyles = {
   dm: {
@@ -20,11 +23,234 @@ const messageToneStyles = {
   },
 } satisfies Record<ChatRole, { bubble: string; badge: string }>;
 
-type GameStageProps = {
-  script?: ScriptDefinition | null;
+const defaultSpeakerMap: Record<ChatRole, string> = {
+  dm: '肉团长',
+  player: '玩家',
+  system: '系统',
 };
 
-export default function GameStage({ script = null }: GameStageProps) {
+function buildOpeningChatMessages(messages: ScriptOpeningMessage[]): ChatMessage[] {
+  return messages.map((message, index) => ({
+    id: `opening-${index}`,
+    role: message.role,
+    speaker: message.speaker ?? defaultSpeakerMap[message.role],
+    time: '开场',
+    content: message.content,
+  }));
+}
+
+function formatTimeValue(date: Date): string {
+  return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+}
+
+type StreamEvent =
+  | { type: 'delta'; text: string }
+  | { type: 'done'; message: ChatMessage }
+  | { type: 'error'; error: string };
+
+function consumeSseBuffer(buffer: string): { events: StreamEvent[]; rest: string } {
+  const chunks = buffer.split('\n\n');
+  const rest = chunks.pop() ?? '';
+  const events: StreamEvent[] = [];
+  for (const chunk of chunks) {
+    const lines = chunk.split('\n').filter((line) => line.startsWith('data:'));
+    if (lines.length === 0) {
+      continue;
+    }
+    const dataText = lines.map((line) => line.replace(/^data:\s*/, '')).join('');
+    try {
+      const payload = JSON.parse(dataText) as StreamEvent;
+      events.push(payload);
+    } catch {
+      // ignore malformed payload
+    }
+  }
+  return { events, rest };
+}
+
+function renderModules(modules: ChatModule[]) {
+  return (
+    <div className="space-y-2">
+      {modules.map((module, index) => {
+        if (module.type === 'suggestions') {
+          return (
+            <div className="rounded-lg border border-[rgba(27,20,12,0.12)] bg-white/70 px-3 py-2" key={`m-${index}`}>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--ink-soft)]">行动建议</p>
+              <ul className="mt-2 list-disc pl-4 text-sm text-[var(--ink-strong)]">
+                {module.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          );
+        }
+        const label =
+          module.type === 'dice'
+            ? '掷骰结果'
+            : module.type === 'map'
+              ? '绘图提示'
+              : module.type === 'notice'
+                ? '提示'
+                : '叙事';
+        return (
+          <div className="rounded-lg border border-[rgba(27,20,12,0.12)] bg-white/70 px-3 py-2" key={`m-${index}`}>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--ink-soft)]">{label}</p>
+            <p className="mt-2 whitespace-pre-line text-sm text-[var(--ink-strong)]">{module.content}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+type GameStageProps = {
+  script?: ScriptDefinition | null;
+  initialMessages?: ChatMessage[];
+};
+
+export default function GameStage({ script = null, initialMessages = [] }: GameStageProps) {
+  const character = useGameStore((state) => state.character);
+  const gameId = useGameStore((state) => state.activeGameId);
+  const openingMessages = useMemo(() => {
+    return script?.openingMessages?.length ? buildOpeningChatMessages(script.openingMessages) : null;
+  }, [script]);
+  const baseMessages = useMemo(
+    () =>
+      initialMessages.length > 0
+        ? initialMessages
+        : openingMessages && openingMessages.length > 0
+          ? openingMessages
+          : chatMessages,
+    [openingMessages, initialMessages],
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>(baseMessages);
+  const [inputText, setInputText] = useState('');
+  const [sendError, setSendError] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    setMessages(baseMessages);
+    setInputText('');
+    setSendError('');
+  }, [baseMessages]);
+
+  function handleInputChange(event: ChangeEvent<HTMLTextAreaElement>) {
+    setInputText(event.target.value);
+  }
+
+  function handleQuickAction(action: string) {
+    setInputText(action);
+  }
+
+  async function handleSendMessage() {
+    if (isSending) {
+      return;
+    }
+    if (!gameId) {
+      setSendError('缺少游戏编号，无法发送指令。');
+      return;
+    }
+    const content = inputText.trim();
+    if (!content) {
+      return;
+    }
+    setSendError('');
+
+    const speakerName = character?.name ? `玩家 · ${character.name}` : '玩家';
+    const now = new Date();
+    const userMessage: ChatMessage = {
+      id: `player-${now.getTime()}`,
+      role: 'player',
+      speaker: speakerName,
+      time: formatTimeValue(now),
+      content,
+    };
+
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
+    setInputText('');
+    setIsSending(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId,
+          input: content,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        throw new Error(data.error ?? 'AI 请求失败');
+      }
+
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.includes('text/event-stream') || !response.body) {
+        const data = (await response.json()) as { text?: string; error?: string };
+        if (!data.text) {
+          throw new Error(data.error ?? 'AI 没有返回内容');
+        }
+        const replyTime = new Date();
+        const assistantMessage: ChatMessage = {
+          id: `dm-${replyTime.getTime()}`,
+          role: 'dm',
+          speaker: defaultSpeakerMap.dm,
+          time: formatTimeValue(replyTime),
+          content: data.text,
+        };
+        setMessages((current) => [...current, assistantMessage]);
+        return;
+      }
+
+      const streamId = `dm-stream-${Date.now()}`;
+      const streamMessage: ChatMessage = {
+        id: streamId,
+        role: 'dm',
+        speaker: defaultSpeakerMap.dm,
+        time: formatTimeValue(new Date()),
+        content: '',
+        isStreaming: true,
+      };
+      setMessages((current) => [...current, streamMessage]);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        const { events, rest } = consumeSseBuffer(buffer);
+        buffer = rest;
+        for (const event of events) {
+          if (event.type === 'delta') {
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === streamId ? { ...message, content: `${message.content}${event.text}` } : message,
+              ),
+            );
+          } else if (event.type === 'done') {
+            setMessages((current) =>
+              current.map((message) => (message.id === streamId ? { ...event.message, isStreaming: false } : message)),
+            );
+          } else if (event.type === 'error') {
+            throw new Error(event.error);
+          }
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'AI 请求失败';
+      setSendError(message);
+      setInputText(content);
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   return (
     <div className="grid h-full gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_20rem] overflow-hidden">
       <main
@@ -33,7 +259,7 @@ export default function GameStage({ script = null }: GameStageProps) {
       >
         <SceneMapPanel />
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden pt-4">
-          {chatMessages.map((message) => {
+          {messages.map((message) => {
             const styles = messageToneStyles[message.role];
             const align = message.role === 'player' ? 'items-end' : 'items-start';
             return (
@@ -45,7 +271,14 @@ export default function GameStage({ script = null }: GameStageProps) {
                   <span className="text-[var(--ink-soft)]">{message.time}</span>
                 </div>
                 <div className={`max-w-[85%] rounded-xl px-4 py-3 text-sm text-[var(--ink-strong)] ${styles.bubble}`}>
-                  <p className="whitespace-pre-line leading-relaxed">{message.content}</p>
+                  {message.modules && message.modules.length > 0 ? (
+                    renderModules(message.modules)
+                  ) : (
+                    <p className="whitespace-pre-line leading-relaxed">
+                      {message.content}
+                      {message.isStreaming ? <span className="ml-1 animate-pulse">▍</span> : null}
+                    </p>
+                  )}
                 </div>
               </div>
             );
@@ -58,6 +291,7 @@ export default function GameStage({ script = null }: GameStageProps) {
               <button
                 className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-muted)] transition hover:-translate-y-0.5 hover:border-[var(--accent-brass)]"
                 key={action}
+                onClick={() => handleQuickAction(action)}
                 type="button"
               >
                 {action}
@@ -69,18 +303,29 @@ export default function GameStage({ script = null }: GameStageProps) {
               className="min-h-[80px] w-full resize-none bg-transparent text-sm text-[var(--ink-strong)] placeholder:text-[var(--ink-soft)] focus:outline-none"
               placeholder="描述你要说的话或采取的行动，肉团长会结合规则做出回应。"
               rows={3}
+              disabled={isSending}
+              value={inputText}
+              onChange={handleInputChange}
             ></textarea>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-[var(--ink-soft)]">提示：区分“说的话”和“动作”，让叙事更清晰。</p>
+              <p className={`text-xs ${sendError ? 'text-[var(--accent-ember)]' : 'text-[var(--ink-soft)]'}`}>
+                {sendError || '提示：区分“说的话”和“动作”，让叙事更清晰。'}
+              </p>
               <div className="flex gap-2">
                 <button
                   className="rounded-lg border border-[rgba(27,20,12,0.12)] px-4 py-1.5 text-xs text-[var(--ink-muted)]"
+                  disabled={isSending}
                   type="button"
                 >
                   记录回合
                 </button>
-                <button className="rounded-lg bg-[var(--accent-brass)] px-4 py-1.5 text-xs text-white" type="button">
-                  发送指令
+                <button
+                  className="rounded-lg bg-[var(--accent-brass)] px-4 py-1.5 text-xs text-white disabled:opacity-70"
+                  disabled={isSending || !inputText.trim()}
+                  onClick={handleSendMessage}
+                  type="button"
+                >
+                  {isSending ? '指令发送中...' : '发送指令'}
                 </button>
               </div>
             </div>
@@ -89,7 +334,7 @@ export default function GameStage({ script = null }: GameStageProps) {
       </main>
 
       <aside className="flex min-h-0 flex-col gap-4 lg:overflow-y-auto">
-        <CharacterCardPanel skillOptions={script?.skillOptions} />
+        <CharacterCardPanel skillOptions={script?.skillOptions} rules={script?.rules} />
       </aside>
     </div>
   );

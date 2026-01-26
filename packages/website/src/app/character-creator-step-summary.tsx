@@ -16,12 +16,23 @@ export default function CharacterCreatorStepSummary({
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="panel-muted space-y-4 rounded-xl p-4">
-        <div>
-          <p className="text-xs text-[var(--ink-soft)]">角色</p>
-          <p className="text-lg font-semibold text-[var(--ink-strong)]">{formState.name || '未命名'}</p>
-          <p className="text-sm text-[var(--ink-muted)]">
-            {formState.occupation || '未设置职业'} · {formState.age || '--'} 岁 · {formState.origin || '--'}
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="h-14 w-14 rounded-lg bg-[rgba(255,255,255,0.7)] p-1">
+            {formState.avatar ? (
+              <img className="h-full w-full rounded-lg object-cover" src={formState.avatar} alt="角色头像预览" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center rounded-lg text-[10px] text-[var(--ink-soft)]">
+                头像
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="text-xs text-[var(--ink-soft)]">角色</p>
+            <p className="text-lg font-semibold text-[var(--ink-strong)]">{formState.name || '未命名'}</p>
+            <p className="text-sm text-[var(--ink-muted)]">
+              {formState.occupation || '未设置职业'} · {formState.age || '--'} 岁 · {formState.origin || '--'}
+            </p>
+          </div>
         </div>
 
         <div>
@@ -33,6 +44,10 @@ export default function CharacterCreatorStepSummary({
                 <span className="font-mono text-[var(--ink-strong)]">{formState.attributes[attribute.id]}</span>
               </div>
             ))}
+          </div>
+          <div className="mt-3 flex items-center justify-between text-sm text-[var(--ink-muted)]">
+            <span>幸运值</span>
+            <span className="font-mono text-[var(--ink-strong)]">{formState.luck}</span>
           </div>
         </div>
 
@@ -74,7 +89,7 @@ export default function CharacterCreatorStepSummary({
                   className="rounded-lg bg-[rgba(61,82,56,0.12)] px-3 py-1 text-xs text-[var(--accent-moss)]"
                   key={skill.id}
                 >
-                  {skill.label}
+                  {skill.label} {formState.skills[skill.id] ?? 0}
                 </span>
               ))
             )}

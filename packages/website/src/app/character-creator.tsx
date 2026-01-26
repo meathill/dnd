@@ -6,8 +6,8 @@ import CharacterCreatorModal from './character-creator-modal';
 import CharacterCreatorStepContent from './character-creator-step-content';
 import {
   buildAttributeErrorMessage,
+  buildRandomAttributes,
   findErrorStep,
-  getRandomInRange,
   parseInventoryList,
 } from './character-creator-utils';
 import {
@@ -27,8 +27,16 @@ import {
   type SkillOption,
   type SubmitResult,
 } from './character-creator-data';
-import type { CharacterFieldErrors } from '../lib/game/types';
-import { resolveAttributePointBudget, resolveAttributeRanges } from '../lib/game/rules';
+import type { CharacterFieldErrors, ScriptRuleOverrides } from '../lib/game/types';
+import {
+  resolveAttributePointBudget,
+  resolveAttributeRanges,
+  resolveSkillMaxValue,
+  resolveSkillPointBudget,
+  resolveTrainedSkillValue,
+  resolveUntrainedSkillValue,
+  rollLuck,
+} from '../lib/game/rules';
 
 type CharacterCreatorProps = {
   onComplete?: (formState: FormState) => SubmitResult | Promise<SubmitResult>;
@@ -46,6 +54,7 @@ type CharacterCreatorProps = {
   equipmentLimit?: number;
   buffLimit?: number;
   debuffLimit?: number;
+  rules?: ScriptRuleOverrides;
   isDisabled?: boolean;
   onRequestOpen?: () => void;
 };
@@ -66,6 +75,7 @@ export default function CharacterCreator({
   equipmentLimit = 0,
   buffLimit = 0,
   debuffLimit = 0,
+  rules,
   isDisabled = false,
   onRequestOpen,
 }: CharacterCreatorProps) {
@@ -86,12 +96,25 @@ export default function CharacterCreator({
     () => resolveAttributePointBudget(attributePointBudget),
     [attributePointBudget],
   );
+  const skillPointBudget = useMemo(() => resolveSkillPointBudget(rules), [rules]);
+  const trainedSkillValue = useMemo(() => resolveTrainedSkillValue(rules), [rules]);
+  const untrainedSkillValue = useMemo(() => resolveUntrainedSkillValue(rules), [rules]);
+  const skillMaxValue = useMemo(() => resolveSkillMaxValue(rules), [rules]);
+  const skillBaseValueMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    activeSkillOptions.forEach((skill) => {
+      const baseValue = rules?.skillBaseValues?.[skill.id];
+      map[skill.id] = typeof baseValue === 'number' && Number.isFinite(baseValue) ? baseValue : untrainedSkillValue;
+    });
+    return map;
+  }, [activeSkillOptions, rules?.skillBaseValues, untrainedSkillValue]);
   const [formState, setFormState] = useState<FormState>(() =>
     buildDefaultFormState({
       attributeOptions: activeAttributeOptions,
       attributePointBudget: effectiveAttributePointBudget,
       skillOptions: activeSkillOptions,
       skillLimit,
+      rules,
       occupationOptions,
       originOptions,
       inventory: equipmentOptions.length > 0 ? '' : undefined,
@@ -101,8 +124,13 @@ export default function CharacterCreator({
   );
   const showSecondaryActions = variant === 'full';
   const selectedSkills = useMemo<SkillOption[]>(
-    () => activeSkillOptions.filter((skill) => formState.skills[skill.id]),
-    [activeSkillOptions, formState.skills],
+    () =>
+      activeSkillOptions.filter((skill) => {
+        const baseValue = skillBaseValueMap[skill.id] ?? untrainedSkillValue;
+        const value = formState.skills[skill.id] ?? baseValue;
+        return value > baseValue;
+      }),
+    [activeSkillOptions, formState.skills, skillBaseValueMap, untrainedSkillValue],
   );
   const inventoryList = useMemo(() => parseInventoryList(formState.inventory), [formState.inventory]);
   const attributePointTotal = useMemo(() => calculateAttributeTotal(formState.attributes), [formState.attributes]);
@@ -111,6 +139,19 @@ export default function CharacterCreator({
       ? `属性点总和超出上限 ${effectiveAttributePointBudget}`
       : '';
   const isOverAttributeBudget = Boolean(attributeBudgetErrorMessage);
+  const skillPointsUsed = useMemo(() => {
+    if (skillPointBudget <= 0) {
+      return 0;
+    }
+    return activeSkillOptions.reduce((sum, skill) => {
+      const baseValue = skillBaseValueMap[skill.id] ?? untrainedSkillValue;
+      const value = formState.skills[skill.id] ?? baseValue;
+      return sum + Math.max(0, value - baseValue);
+    }, 0);
+  }, [activeSkillOptions, formState.skills, skillBaseValueMap, skillPointBudget, untrainedSkillValue]);
+  const skillPointErrorMessage =
+    skillPointBudget > 0 && skillPointsUsed > skillPointBudget ? `技能点数超出预算 ${skillPointBudget}` : '';
+  const isOverSkillBudget = Boolean(skillPointErrorMessage);
   const shouldDisableButton = isDisabled && !onRequestOpen;
 
   function openCreator(force = false) {
@@ -145,6 +186,7 @@ export default function CharacterCreator({
         attributePointBudget: effectiveAttributePointBudget,
         skillOptions: activeSkillOptions,
         skillLimit,
+        rules,
         occupationOptions,
         originOptions,
         inventory: equipmentOptions.length > 0 ? '' : undefined,
@@ -206,18 +248,28 @@ export default function CharacterCreator({
   }
 
   function toggleSkill(skillId: SkillId) {
+    if (skillPointBudget > 0) {
+      return;
+    }
     setFormState((current) => ({
       ...current,
       skills: (() => {
-        const isSelected = current.skills[skillId];
+        const baseValue = skillBaseValueMap[skillId] ?? untrainedSkillValue;
+        const currentValue = current.skills[skillId] ?? baseValue;
+        const isSelected = currentValue > baseValue;
         if (!isSelected && skillLimit > 0) {
-          const selectedCount = Object.values(current.skills).filter(Boolean).length;
+          const selectedCount = activeSkillOptions.filter((skill) => {
+            const value = current.skills[skill.id] ?? skillBaseValueMap[skill.id] ?? untrainedSkillValue;
+            const base = skillBaseValueMap[skill.id] ?? untrainedSkillValue;
+            return value > base;
+          }).length;
           if (selectedCount >= skillLimit) {
             setFieldErrors((prev) => ({ ...prev, skills: `技能最多选择 ${skillLimit} 项` }));
             return current.skills;
           }
         }
-        const nextSkills = { ...current.skills, [skillId]: !current.skills[skillId] };
+        const nextValue = isSelected ? baseValue : Math.max(baseValue, trainedSkillValue);
+        const nextSkills = { ...current.skills, [skillId]: nextValue };
         setFieldErrors((prev) => {
           if (!prev.skills) {
             return prev;
@@ -229,6 +281,27 @@ export default function CharacterCreator({
         return nextSkills;
       })(),
     }));
+  }
+
+  function updateSkillValue(skillId: SkillId, value: number) {
+    const baseValue = skillBaseValueMap[skillId] ?? untrainedSkillValue;
+    const maxValue = skillMaxValue > 0 ? skillMaxValue : Infinity;
+    const nextValue = Math.min(Math.max(value, baseValue), maxValue);
+    setFormState((current) => ({
+      ...current,
+      skills: {
+        ...current.skills,
+        [skillId]: nextValue,
+      },
+    }));
+    setFieldErrors((prev) => {
+      if (!prev.skills) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next.skills;
+      return next;
+    });
   }
 
   function toggleEquipment(item: string) {
@@ -346,13 +419,11 @@ export default function CharacterCreator({
 
   function applyRandomAttributes() {
     setFormState((current) => {
-      const nextAttributes = { ...current.attributes };
-      activeAttributeOptions.forEach((attribute) => {
-        nextAttributes[attribute.id] = getRandomInRange(attribute.min, attribute.max);
-      });
+      const nextAttributes = buildRandomAttributes(activeAttributeOptions, effectiveAttributePointBudget);
       return {
         ...current,
         attributes: nextAttributes,
+        luck: rollLuck(),
       };
     });
   }
@@ -423,7 +494,7 @@ export default function CharacterCreator({
         onPrevious={goPreviousStep}
         onNext={goNextStep}
         onComplete={handleComplete}
-        isNextDisabled={currentStep === 1 && isOverAttributeBudget}
+        isNextDisabled={(currentStep === 1 && isOverAttributeBudget) || (currentStep === 2 && isOverSkillBudget)}
       >
         <CharacterCreatorStepContent
           currentStep={currentStep}
@@ -440,10 +511,16 @@ export default function CharacterCreator({
           onApplyAverage={applyAverageAttributes}
           onApplyRandom={applyRandomAttributes}
           skillOptions={activeSkillOptions}
+          skillBaseValues={skillBaseValueMap}
+          skillPointBudget={skillPointBudget}
+          skillPointsUsed={skillPointsUsed}
+          skillMaxValue={skillMaxValue}
+          skillPointError={skillPointErrorMessage}
           equipmentOptions={equipmentOptions}
           selectedEquipment={inventoryList}
           selectedSkills={selectedSkills}
           onToggleSkill={toggleSkill}
+          onUpdateSkillValue={updateSkillValue}
           onToggleEquipment={toggleEquipment}
           skillLimit={skillLimit}
           equipmentLimit={equipmentLimit}

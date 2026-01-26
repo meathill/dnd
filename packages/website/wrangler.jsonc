@@ -18,6 +18,16 @@
   "images": {
     "binding": "IMAGES"
   },
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "dnd"
+    },
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "site-cache"
+    }
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
@@ -31,6 +41,7 @@
     "mode": "smart"
   },
   "vars": {
+    "NEXT_PUBLIC_ASSET_URL": "https://idnd.roudan.io",
     "NEXT_PUBLIC_SITE_URL": "https://dndcoc.meathill.com"
   }
 }

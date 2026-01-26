@@ -90,6 +90,28 @@ describe('人物卡创建', () => {
     expect(screen.getByText('属性点总和超出上限 200')).toBeInTheDocument();
   });
 
+  it('技能点数超预算会禁用下一步', async () => {
+    render(
+      <CharacterCreator
+        skillOptions={[{ id: 'spotHidden', label: '侦查', group: '调查' }]}
+        rules={{ skillPointBudget: 10, skillMaxValue: 60 }}
+      />,
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+
+    const skillInput = screen.getByLabelText('侦查技能值');
+    await user.clear(skillInput);
+    await user.type(skillInput, '40');
+
+    const nextButton = screen.getByRole('button', { name: '下一步' });
+    expect(nextButton).toBeDisabled();
+    expect(screen.getByText('技能点数超出预算 10')).toBeInTheDocument();
+  });
+
   it('低于规则推荐最低值会显示提示', async () => {
     render(<CharacterCreator attributeRanges={{ strength: { min: 5, max: 90 } }} />);
     const user = userEvent.setup();

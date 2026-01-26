@@ -4,7 +4,9 @@ import type {
   AttributeRangeMap,
   ScriptDefinition,
   ScriptEncounter,
+  ScriptOpeningMessage,
   ScriptScene,
+  ScriptRuleOverrides,
   ScriptSkillOption,
 } from '../game/types';
 
@@ -14,6 +16,7 @@ type ScriptRow = {
   summary: string;
   setting: string;
   difficulty: string;
+  opening_messages_json: string;
   skill_options_json: string;
   equipment_options_json: string;
   occupation_options_json: string;
@@ -26,6 +29,7 @@ type ScriptRow = {
   equipment_limit: string | number | null;
   buff_limit: string | number | null;
   debuff_limit: string | number | null;
+  rules_json: string;
   scenes_json: string;
   encounters_json: string;
 };
@@ -81,6 +85,49 @@ function parseLimit(value: string | number | null): number {
   return 0;
 }
 
+function parseNumberRecord(value: unknown): Record<string, number> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const result: Record<string, number> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry !== 'number' || !Number.isFinite(entry)) {
+      continue;
+    }
+    result[key] = entry;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function parseScriptRules(raw: string): ScriptRuleOverrides {
+  const data = parseJsonRecord(raw);
+  const rules: ScriptRuleOverrides = {};
+  if (typeof data.defaultCheckDc === 'number' && Number.isFinite(data.defaultCheckDc)) {
+    rules.defaultCheckDc = data.defaultCheckDc;
+  }
+  const dcOverrides = parseNumberRecord(data.checkDcOverrides);
+  if (dcOverrides) {
+    rules.checkDcOverrides = dcOverrides;
+  }
+  if (typeof data.skillValueTrained === 'number' && Number.isFinite(data.skillValueTrained)) {
+    rules.skillValueTrained = data.skillValueTrained;
+  }
+  if (typeof data.skillValueUntrained === 'number' && Number.isFinite(data.skillValueUntrained)) {
+    rules.skillValueUntrained = data.skillValueUntrained;
+  }
+  if (typeof data.skillPointBudget === 'number' && Number.isFinite(data.skillPointBudget)) {
+    rules.skillPointBudget = data.skillPointBudget;
+  }
+  if (typeof data.skillMaxValue === 'number' && Number.isFinite(data.skillMaxValue)) {
+    rules.skillMaxValue = data.skillMaxValue;
+  }
+  const skillBaseValues = parseNumberRecord(data.skillBaseValues);
+  if (skillBaseValues) {
+    rules.skillBaseValues = skillBaseValues;
+  }
+  return rules;
+}
+
 export function mapScriptRow(row: ScriptRow): ScriptDefinition {
   return {
     id: row.id,
@@ -88,6 +135,7 @@ export function mapScriptRow(row: ScriptRow): ScriptDefinition {
     summary: row.summary,
     setting: row.setting,
     difficulty: row.difficulty,
+    openingMessages: parseJsonArray<ScriptOpeningMessage>(row.opening_messages_json),
     skillOptions: parseJsonArray<ScriptSkillOption>(row.skill_options_json),
     equipmentOptions: parseJsonArray<string>(row.equipment_options_json),
     occupationOptions: parseJsonArray<string>(row.occupation_options_json),
@@ -100,6 +148,7 @@ export function mapScriptRow(row: ScriptRow): ScriptDefinition {
     equipmentLimit: parseLimit(row.equipment_limit),
     buffLimit: parseLimit(row.buff_limit),
     debuffLimit: parseLimit(row.debuff_limit),
+    rules: parseScriptRules(row.rules_json),
     scenes: parseJsonArray<ScriptScene>(row.scenes_json),
     encounters: parseJsonArray<ScriptEncounter>(row.encounters_json),
   };
@@ -114,6 +163,8 @@ export function serializeCharacterPayload(payload: CharacterPayload) {
     appearance: payload.appearance,
     background: payload.background,
     motivation: payload.motivation,
+    avatar: payload.avatar,
+    luck: payload.luck,
     attributes_json: JSON.stringify(payload.attributes),
     skills_json: JSON.stringify(payload.skills),
     inventory_json: JSON.stringify(payload.inventory),
@@ -130,6 +181,7 @@ export function serializeScriptDefinition(script: ScriptDefinition) {
     summary: script.summary,
     setting: script.setting,
     difficulty: script.difficulty,
+    opening_messages_json: JSON.stringify(script.openingMessages),
     skill_options_json: JSON.stringify(script.skillOptions),
     equipment_options_json: JSON.stringify(script.equipmentOptions),
     occupation_options_json: JSON.stringify(script.occupationOptions),
@@ -142,6 +194,7 @@ export function serializeScriptDefinition(script: ScriptDefinition) {
     equipment_limit: script.equipmentLimit,
     buff_limit: script.buffLimit,
     debuff_limit: script.debuffLimit,
+    rules_json: JSON.stringify(script.rules ?? {}),
     scenes_json: JSON.stringify(script.scenes),
     encounters_json: JSON.stringify(script.encounters),
   };

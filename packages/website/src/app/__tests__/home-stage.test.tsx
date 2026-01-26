@@ -9,6 +9,7 @@ const sampleScript: ScriptDefinition = {
   summary: '暴雨夜的驱邪行动。',
   setting: '现代',
   difficulty: '中等',
+  openingMessages: [],
   skillOptions: [],
   equipmentOptions: [],
   occupationOptions: [],
@@ -21,6 +22,7 @@ const sampleScript: ScriptDefinition = {
   equipmentLimit: 0,
   buffLimit: 0,
   debuffLimit: 0,
+  rules: {},
   scenes: [{ id: 'scene-1', title: '旧宅门厅', summary: '破门而入。', location: '门厅', hooks: [] }],
   encounters: [{ id: 'encounter-1', title: '邪灵现身', summary: '紧张战斗。', enemies: [], danger: '高' }],
 };

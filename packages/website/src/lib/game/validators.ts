@@ -1,5 +1,11 @@
 import type { AttributeKey, CharacterFieldErrors, ScriptDefinition } from './types';
-import { resolveAttributePointBudget, resolveAttributeRanges } from './rules';
+import {
+  resolveAttributePointBudget,
+  resolveAttributeRanges,
+  resolveSkillMaxValue,
+  resolveSkillPointBudget,
+  resolveUntrainedSkillValue,
+} from './rules';
 
 type RecordValue = Record<string, unknown>;
 
@@ -12,8 +18,10 @@ export type CharacterPayload = {
   appearance: string;
   background: string;
   motivation: string;
+  avatar: string;
+  luck: number;
   attributes: Record<AttributeKey, number>;
-  skills: Record<string, boolean>;
+  skills: Record<string, number>;
   inventory: string[];
   buffs: string[];
   debuffs: string[];
@@ -51,6 +59,10 @@ function parseInventory(value: unknown): string[] | null {
   return parseStringArray(value);
 }
 
+function parseNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function parseNumberRecord(value: unknown): Record<string, number> | null {
   if (!isRecord(value)) {
     return null;
@@ -66,17 +78,22 @@ function parseNumberRecord(value: unknown): Record<string, number> | null {
   return result;
 }
 
-function parseBooleanRecord(value: unknown): Record<string, boolean> | null {
+function parseSkillRecord(value: unknown): Record<string, number> | null {
   if (!isRecord(value)) {
     return null;
   }
   const entries = Object.entries(value);
-  const result: Record<string, boolean> = {};
+  const result: Record<string, number> = {};
   for (const [key, val] of entries) {
-    if (typeof val !== 'boolean') {
-      return null;
+    if (typeof val === 'number' && Number.isFinite(val)) {
+      result[key] = val;
+      continue;
     }
-    result[key] = val;
+    if (typeof val === 'boolean') {
+      result[key] = val ? 1 : 0;
+      continue;
+    }
+    return null;
   }
   return result;
 }
@@ -108,7 +125,7 @@ export function parseCharacterPayload(payload: unknown): CharacterPayload | null
   }
 
   const attributes = parseNumberRecord(payload.attributes);
-  const skills = parseBooleanRecord(payload.skills);
+  const skills = parseSkillRecord(payload.skills);
   if (!attributes || !skills) {
     return null;
   }
@@ -117,6 +134,11 @@ export function parseCharacterPayload(payload: unknown): CharacterPayload | null
   const buffs = parseStringArray(payload.buffs);
   const debuffs = parseStringArray(payload.debuffs);
   if (!inventory || !buffs || !debuffs) {
+    return null;
+  }
+
+  const luck = parseNumber(payload.luck);
+  if (luck === null) {
     return null;
   }
 
@@ -129,6 +151,8 @@ export function parseCharacterPayload(payload: unknown): CharacterPayload | null
     appearance: parseString(payload.appearance) ?? '',
     background: parseString(payload.background) ?? '',
     motivation: parseString(payload.motivation) ?? '',
+    avatar: parseString(payload.avatar) ?? '',
+    luck,
     attributes: attributes as Record<AttributeKey, number>,
     skills,
     inventory,
@@ -174,8 +198,37 @@ export function validateCharacterAgainstScript(
     }
   }
 
-  const selectedSkillCount = Object.values(payload.skills).filter(Boolean).length;
-  if (script.skillLimit > 0 && selectedSkillCount > script.skillLimit) {
+  const skillPointBudget = resolveSkillPointBudget(script.rules);
+  const untrainedSkillValue = resolveUntrainedSkillValue(script.rules);
+  const skillMaxValue = resolveSkillMaxValue(script.rules);
+  const skillBaseValues = script.rules.skillBaseValues ?? {};
+  const skillValues = payload.skills;
+  const skillEntries = Object.entries(skillValues);
+  let allocatedPoints = 0;
+  let selectedSkillCount = 0;
+  for (const [skillId, value] of skillEntries) {
+    const baseValue =
+      typeof skillBaseValues[skillId] === 'number' && Number.isFinite(skillBaseValues[skillId])
+        ? (skillBaseValues[skillId] as number)
+        : untrainedSkillValue;
+    if (value < baseValue) {
+      errors.skills = '技能值低于基础值';
+      break;
+    }
+    if (skillMaxValue > 0 && value > skillMaxValue) {
+      errors.skills = `技能值不能超过 ${skillMaxValue}`;
+      break;
+    }
+    if (value > baseValue) {
+      selectedSkillCount += 1;
+      allocatedPoints += value - baseValue;
+    }
+  }
+  if (skillPointBudget > 0) {
+    if (allocatedPoints > skillPointBudget) {
+      errors.skills = `技能点数超出预算 ${skillPointBudget}`;
+    }
+  } else if (script.skillLimit > 0 && selectedSkillCount > script.skillLimit) {
     errors.skills = `技能最多选择 ${script.skillLimit} 项`;
   }
 

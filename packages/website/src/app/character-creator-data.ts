@@ -1,5 +1,12 @@
-import type { AttributeKey, AttributeRangeMap, CharacterFieldErrors } from '../lib/game/types';
-import { DEFAULT_ATTRIBUTE_RANGES, resolveAttributePointBudget } from '../lib/game/rules';
+import type { AttributeKey, AttributeRangeMap, CharacterFieldErrors, ScriptRuleOverrides } from '../lib/game/types';
+import {
+  DEFAULT_ATTRIBUTE_RANGES,
+  resolveAttributePointBudget,
+  resolveSkillPointBudget,
+  resolveTrainedSkillValue,
+  resolveUntrainedSkillValue,
+  rollLuck,
+} from '../lib/game/rules';
 
 export type StepItem = {
   title: string;
@@ -154,8 +161,10 @@ export type FormState = {
   appearance: string;
   background: string;
   motivation: string;
+  avatar: string;
+  luck: number;
   attributes: Record<AttributeKey, number>;
-  skills: Record<SkillId, boolean>;
+  skills: Record<SkillId, number>;
   inventory: string;
   buffs: BuffId[];
   debuffs: DebuffId[];
@@ -268,10 +277,22 @@ export type SubmitResult =
 export function buildDefaultSkills(
   skillOptions: SkillOption[] = defaultSkillOptions,
   defaultSelectedCount = 4,
-): Record<SkillId, boolean> {
-  const result: Record<SkillId, boolean> = {};
+  rules?: ScriptRuleOverrides,
+): Record<SkillId, number> {
+  const result: Record<SkillId, number> = {};
+  const trainedValue = resolveTrainedSkillValue(rules);
+  const untrainedValue = resolveUntrainedSkillValue(rules);
+  const skillPointBudget = resolveSkillPointBudget(rules);
   skillOptions.forEach((skill, index) => {
-    result[skill.id] = index < defaultSelectedCount;
+    const baseValue =
+      typeof rules?.skillBaseValues?.[skill.id] === 'number' && Number.isFinite(rules.skillBaseValues[skill.id])
+        ? (rules.skillBaseValues[skill.id] as number)
+        : untrainedValue;
+    if (skillPointBudget <= 0 && index < defaultSelectedCount) {
+      result[skill.id] = Math.max(baseValue, trainedValue);
+    } else {
+      result[skill.id] = baseValue;
+    }
   });
   return result;
 }
@@ -281,6 +302,7 @@ type FormStateSeed = {
   attributePointBudget?: number;
   skillOptions?: SkillOption[];
   skillLimit?: number;
+  rules?: ScriptRuleOverrides;
   occupationOptions?: string[];
   originOptions?: string[];
   inventory?: string;
@@ -298,8 +320,14 @@ export function buildDefaultFormState(seed: FormStateSeed = {}): FormState {
     appearance: '瘦高、黑色风衣、常带速记本',
     background: '曾追踪港口失踪案，留下未解的档案。',
     motivation: '找出旅店里隐藏的真相，保护同伴。',
+    avatar: '',
+    luck: rollLuck(),
     attributes: buildDefaultAttributes(seed.attributeOptions, effectiveAttributePointBudget),
-    skills: buildDefaultSkills(seed.skillOptions, seed.skillLimit && seed.skillLimit > 0 ? seed.skillLimit : 4),
+    skills: buildDefaultSkills(
+      seed.skillOptions,
+      seed.skillLimit && seed.skillLimit > 0 ? seed.skillLimit : 4,
+      seed.rules,
+    ),
     inventory: seed.inventory ?? '黑色风衣、左轮手枪、速记本、银质怀表',
     buffs: seed.buffOptions?.slice(0, 1) ?? ['灵感加持'],
     debuffs: seed.debuffOptions?.slice(0, 1) ?? ['噩梦缠身'],

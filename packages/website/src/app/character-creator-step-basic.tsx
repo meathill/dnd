@@ -1,8 +1,11 @@
+import { useEffect, useState, type ChangeEvent } from 'react';
 import type { CharacterFieldErrors } from '../lib/game/types';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Textarea } from '../components/ui/textarea';
 import { fieldLabelClassName, type FormState, type UpdateField } from './character-creator-data';
+import { uploadAvatar } from '../lib/assets/upload-avatar';
 
 type CharacterCreatorStepBasicProps = {
   formState: FormState;
@@ -23,12 +26,86 @@ export default function CharacterCreatorStepBasic({
   const hasOriginOptions = Boolean(originOptions && originOptions.length > 0);
   const occupationValue = hasOccupationOptions ? (occupationOptions?.[0] ?? '') : formState.occupation;
   const originValue = hasOriginOptions ? (originOptions?.[0] ?? '') : formState.origin;
+  const [localPreview, setLocalPreview] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const avatarPreview = formState.avatar?.trim() || localPreview;
+  const helperMessage = uploadError ? uploadError : isUploading ? '正在上传头像...' : '建议使用正方形图片，便于显示。';
+  const uploadHintTone = uploadError ? 'text-[var(--accent-ember)]' : 'text-[var(--ink-soft)]';
+
+  useEffect(() => {
+    return () => {
+      if (localPreview) {
+        URL.revokeObjectURL(localPreview);
+      }
+    };
+  }, [localPreview]);
+
+  async function handleAvatarChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      onFieldChange('avatar', '');
+      setLocalPreview('');
+      setUploadError('');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      onFieldChange('avatar', '');
+      setLocalPreview('');
+      setUploadError('仅支持图片文件');
+      return;
+    }
+    setUploadError('');
+    setIsUploading(true);
+    setLocalPreview(URL.createObjectURL(file));
+    try {
+      const url = await uploadAvatar(file);
+      onFieldChange('avatar', url);
+      setUploadError('');
+      setLocalPreview('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '头像上传失败';
+      setUploadError(message);
+      onFieldChange('avatar', '');
+      setLocalPreview('');
+    } finally {
+      setIsUploading(false);
+    }
+  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-4">
         <div>
           <p className={fieldLabelClassName}>基本信息</p>
+          <div className="mt-3 flex items-center gap-3 rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-3">
+            <div className="h-16 w-16 rounded-lg bg-[rgba(255,255,255,0.6)] p-1">
+              {avatarPreview ? (
+                <img className="h-full w-full rounded-lg object-cover" src={avatarPreview} alt="角色头像" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center rounded-lg text-xs text-[var(--ink-soft)]">
+                  头像
+                </div>
+              )}
+            </div>
+            <div className="flex-1 space-y-1">
+              <Label className="text-xs text-[var(--ink-soft)]" htmlFor="character-avatar">
+                上传头像
+              </Label>
+              <Input
+                aria-label="上传头像"
+                className="bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
+                id="character-avatar"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                size="sm"
+                disabled={isUploading}
+              />
+              <p className={`text-[10px] ${uploadHintTone}`}>{helperMessage}</p>
+            </div>
+          </div>
+
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Input

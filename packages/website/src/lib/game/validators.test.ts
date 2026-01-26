@@ -12,8 +12,9 @@ const baseCharacter = {
   appearance: '瘦高',
   background: '旧案追踪',
   motivation: '寻找真相',
+  luck: 55,
   attributes: { strength: 50, dexterity: 60 },
-  skills: { spotHidden: true, libraryUse: false },
+  skills: { spotHidden: 50, libraryUse: 20 },
   inventory: ['速记本', '左轮手枪'],
   buffs: ['冷静分析'],
   debuffs: ['轻微受伤'],
@@ -26,6 +27,7 @@ const baseScript: ScriptDefinition = {
   summary: '限制人物卡选项。',
   setting: '现代',
   difficulty: '中等',
+  openingMessages: [],
   skillOptions: [{ id: 'spotHidden', label: '侦查', group: '调查' }],
   equipmentOptions: ['手电筒', '录音机'],
   occupationOptions: ['神父', '刑警'],
@@ -47,6 +49,7 @@ const baseScript: ScriptDefinition = {
   equipmentLimit: 1,
   buffLimit: 1,
   debuffLimit: 1,
+  rules: {},
   scenes: [],
   encounters: [],
 };
@@ -60,6 +63,7 @@ const basePayload = {
   appearance: '瘦高',
   background: '旧案追踪',
   motivation: '寻找真相',
+  luck: 55,
   attributes: {
     strength: 50,
     dexterity: 50,
@@ -70,7 +74,7 @@ const basePayload = {
     appearance: 50,
     education: 50,
   },
-  skills: { spotHidden: true },
+  skills: { spotHidden: 50 },
   inventory: ['手电筒'],
   buffs: ['灵感加持'],
   debuffs: ['噩梦缠身'],
@@ -192,7 +196,7 @@ describe('validateCharacterAgainstScript', () => {
     const errors = validateCharacterAgainstScript(
       {
         ...basePayload,
-        skills: { stealth: true },
+        skills: { stealth: 50 },
         buffs: ['夜视适应'],
       },
       baseScript,
@@ -205,7 +209,7 @@ describe('validateCharacterAgainstScript', () => {
     const errors = validateCharacterAgainstScript(
       {
         ...basePayload,
-        skills: { spotHidden: true, libraryUse: true },
+        skills: { spotHidden: 50, libraryUse: 50 },
         inventory: ['手电筒', '录音机'],
       },
       baseScript,

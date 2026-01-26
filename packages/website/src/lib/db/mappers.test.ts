@@ -8,6 +8,10 @@ const baseScriptRow = {
   summary: '港口雾夜的低语。',
   setting: '1923 年沿海港口',
   difficulty: '中等',
+  opening_messages_json: JSON.stringify([
+    { role: 'system', content: '开场' },
+    { role: 'dm', content: '迷雾笼罩。' },
+  ]),
   skill_options_json: JSON.stringify([
     { id: 'spotHidden', label: '侦查', group: '调查' },
     { id: 'occult', label: '神秘学', group: '学识' },
@@ -23,6 +27,7 @@ const baseScriptRow = {
   equipment_limit: 5,
   buff_limit: 1,
   debuff_limit: 1,
+  rules_json: JSON.stringify({}),
   scenes_json: JSON.stringify([
     {
       id: 'scene-inn',
@@ -52,6 +57,8 @@ const baseCharacter: CharacterPayload = {
   appearance: '瘦高',
   background: '旧案追踪',
   motivation: '寻找真相',
+  avatar: 'data:image/png;base64,avatar',
+  luck: 55,
   attributes: {
     strength: 50,
     dexterity: 60,
@@ -62,7 +69,7 @@ const baseCharacter: CharacterPayload = {
     appearance: 40,
     education: 75,
   },
-  skills: { spotHidden: true },
+  skills: { spotHidden: 50 },
   inventory: ['速记本', '左轮手枪'],
   buffs: ['冷静分析'],
   debuffs: ['轻微受伤'],
@@ -78,6 +85,7 @@ describe('mapScriptRow', () => {
     expect(script.equipmentOptions[0]).toBe('手电筒');
     expect(script.occupationOptions[0]).toBe('码头工人');
     expect(script.buffOptions[0]).toBe('灵感加持');
+    expect(script.openingMessages[0]?.content).toBe('开场');
     expect(script.attributeRanges.strength?.min).toBe(20);
     expect(script.attributePointBudget).toBe(460);
     expect(script.skillLimit).toBe(4);
@@ -89,5 +97,7 @@ describe('serializeCharacterPayload', () => {
     const data = serializeCharacterPayload(baseCharacter);
     expect(data.inventory_json).toContain('速记本');
     expect(data.attributes_json).toContain('strength');
+    expect(data.avatar).toBe('data:image/png;base64,avatar');
+    expect(data.luck).toBe(55);
   });
 });

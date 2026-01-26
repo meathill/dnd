@@ -30,10 +30,16 @@ export type CharacterCreatorStepContentProps = {
   onApplyAverage: () => void;
   onApplyRandom: () => void;
   skillOptions: SkillOption[];
+  skillBaseValues: Record<string, number>;
+  skillPointBudget: number;
+  skillPointsUsed: number;
+  skillMaxValue: number;
+  skillPointError?: string;
   equipmentOptions: string[];
   selectedEquipment: string[];
   selectedSkills: SkillOption[];
   onToggleSkill: (skillId: SkillId) => void;
+  onUpdateSkillValue: (skillId: SkillId, value: number) => void;
   onToggleEquipment: (item: string) => void;
   skillLimit: number;
   equipmentLimit: number;
@@ -60,10 +66,16 @@ export default function CharacterCreatorStepContent({
   onApplyAverage,
   onApplyRandom,
   skillOptions,
+  skillBaseValues,
+  skillPointBudget,
+  skillPointsUsed,
+  skillMaxValue,
+  skillPointError,
   equipmentOptions,
   selectedEquipment,
   selectedSkills,
   onToggleSkill,
+  onUpdateSkillValue,
   onToggleEquipment,
   skillLimit,
   equipmentLimit,
@@ -102,15 +114,21 @@ export default function CharacterCreatorStepContent({
         <CharacterCreatorStepSkills
           formState={formState}
           skillOptions={skillOptions}
+          skillBaseValues={skillBaseValues}
+          skillPointBudget={skillPointBudget}
+          skillPointsUsed={skillPointsUsed}
+          skillMaxValue={skillMaxValue}
           equipmentOptions={equipmentOptions}
           selectedEquipment={selectedEquipment}
           selectedSkills={selectedSkills}
           onToggleSkill={onToggleSkill}
+          onUpdateSkillValue={onUpdateSkillValue}
           onToggleEquipment={onToggleEquipment}
           onFieldChange={onFieldChange}
           skillLimit={skillLimit}
           equipmentLimit={equipmentLimit}
           skillError={fieldErrors.skills}
+          skillPointError={skillPointError}
           equipmentError={fieldErrors.inventory}
         />
       ) : null}

@@ -13,6 +13,8 @@ const sampleCharacter: CharacterRecord = {
   appearance: '穿着黑色风衣',
   background: '曾经报道邪教案件的记者。',
   motivation: '拯救被附身的小孩。',
+  avatar: 'data:image/png;base64,avatar',
+  luck: 55,
   attributes: {
     strength: 55,
     dexterity: 60,
@@ -24,8 +26,8 @@ const sampleCharacter: CharacterRecord = {
     education: 75,
   },
   skills: {
-    spotHidden: true,
-    listen: true,
+    spotHidden: 60,
+    listen: 45,
   },
   inventory: ['左轮手枪', '速记本'],
   buffs: ['灵感加持'],
@@ -53,14 +55,18 @@ describe('人物卡面板', () => {
           { id: 'spotHidden', label: '侦查', group: '调查' },
           { id: 'listen', label: '聆听', group: '调查' },
         ]}
+        rules={{}}
       />,
     );
 
     expect(screen.getByText('沈砚')).toBeInTheDocument();
     expect(screen.getByText(/调查记者/)).toBeInTheDocument();
-    expect(screen.getByText('侦查')).toBeInTheDocument();
+    expect(screen.getByText('侦查 60')).toBeInTheDocument();
     expect(screen.getByText('左轮手枪')).toBeInTheDocument();
     expect(screen.getByText('灵感加持')).toBeInTheDocument();
+    expect(screen.getByText('9 / 9')).toBeInTheDocument();
+    expect(screen.getByText('55 / 55')).toBeInTheDocument();
+    expect(screen.getByAltText('沈砚 头像')).toBeInTheDocument();
   });
 
   it('没有人物卡时显示占位提示', () => {

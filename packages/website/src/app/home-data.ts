@@ -1,3 +1,5 @@
+import type { ChatMessage } from '../lib/game/types';
+
 export type StatTone = 'moss' | 'brass' | 'ember' | 'river';
 
 export type Stat = {
@@ -15,16 +17,6 @@ export type Attribute = {
 export type Skill = {
   label: string;
   value: number;
-};
-
-export type ChatRole = 'dm' | 'player' | 'system';
-
-export type ChatMessage = {
-  id: string;
-  role: ChatRole;
-  speaker: string;
-  time: string;
-  content: string;
 };
 
 export type MapNodeStatus = 'current' | 'known' | 'unknown';

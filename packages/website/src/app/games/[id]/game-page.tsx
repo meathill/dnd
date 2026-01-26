@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '../../app-shell';
 import GameStage from '../../game-stage';
-import type { CharacterRecord, GameRecord, ScriptDefinition } from '../../../lib/game/types';
+import type {
+  CharacterRecord,
+  ChatMessage,
+  GameMessageRecord,
+  GameRecord,
+  ScriptDefinition,
+} from '../../../lib/game/types';
 import { useGameStore } from '../../../lib/game/game-store';
 
 type GamePageProps = {
@@ -15,8 +21,14 @@ type GameFetchResponse = {
   game?: GameRecord;
   script?: ScriptDefinition;
   character?: CharacterRecord;
+  messages?: GameMessageRecord[];
   error?: string;
 };
+
+function formatTime(value: string): string {
+  const date = new Date(value);
+  return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+}
 
 function GamePageContent({ gameId }: GamePageProps) {
   const router = useRouter();
@@ -25,6 +37,7 @@ function GamePageContent({ gameId }: GamePageProps) {
   const setActiveGameId = useGameStore((state) => state.setActiveGameId);
   const setCharacter = useGameStore((state) => state.setCharacter);
   const [script, setScript] = useState<ScriptDefinition | null>(null);
+  const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const [statusMessage, setStatusMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,6 +54,7 @@ function GamePageContent({ gameId }: GamePageProps) {
       }
       if (!data.game || !data.script || !data.character) {
         setScript(null);
+        setInitialMessages([]);
         setStatusMessage('游戏数据不完整，请重新进入。');
         return;
       }
@@ -48,8 +62,18 @@ function GamePageContent({ gameId }: GamePageProps) {
       selectScript(data.script.id);
       setCharacter(data.character);
       setActiveGameId(data.game.id);
+      const messages = (data.messages ?? []).map((message) => ({
+        id: message.id,
+        role: message.role,
+        speaker: message.speaker,
+        time: formatTime(message.createdAt),
+        content: message.content,
+        modules: message.modules,
+      }));
+      setInitialMessages(messages);
     } catch {
       setScript(null);
+      setInitialMessages([]);
       setStatusMessage('游戏读取失败，请稍后重试。');
     } finally {
       setIsLoading(false);
@@ -86,7 +110,7 @@ function GamePageContent({ gameId }: GamePageProps) {
     );
   }
 
-  return <GameStage script={script} />;
+  return <GameStage script={script} initialMessages={initialMessages} />;
 }
 
 export default function GamePage({ gameId }: GamePageProps) {

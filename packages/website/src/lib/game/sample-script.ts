@@ -6,6 +6,22 @@ export const SAMPLE_SCRIPT: ScriptDefinition = {
   summary: '郊外孤宅传来哭声，被邪灵附身的孩子被锁在地下室。',
   setting: '1996 年郊外小镇 · 暴雨夜',
   difficulty: '中等',
+  openingMessages: [
+    {
+      role: 'system',
+      content: '剧本《破门驱邪》开场。你们受旧教堂委托，前往格林家老宅调查孩童疑似被邪灵附身的传闻。',
+    },
+    {
+      role: 'dm',
+      speaker: '肉团长',
+      content: '暴雨夜的松柏镇郊外，老宅在闪电里忽明忽暗。院子里散落着被撕裂的符纸，盐圈被雨水冲成断裂的弧线。',
+    },
+    {
+      role: 'dm',
+      speaker: '肉团长',
+      content: '木门被木板钉死，门缝里透出微弱的烛光。地下室的哭声断断续续，你还能听见更深处的低语。',
+    },
+  ],
   skillOptions: [
     { id: 'spotHidden', label: '侦查', group: '调查' },
     { id: 'listen', label: '聆听', group: '调查' },
@@ -44,6 +60,7 @@ export const SAMPLE_SCRIPT: ScriptDefinition = {
   equipmentLimit: 5,
   buffLimit: 1,
   debuffLimit: 1,
+  rules: {},
   scenes: [
     {
       id: 'scene-mansion',
