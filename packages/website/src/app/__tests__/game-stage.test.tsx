@@ -97,7 +97,6 @@ describe('GameStage', () => {
             modules: [
               { type: 'narrative', content: '叙事内容' },
               { type: 'dice', content: '侦查 1D100 → 22 / 60，成功。' },
-              { type: 'suggestions', items: ['继续搜索', '询问同伴'] },
             ],
           },
         ]}
@@ -106,7 +105,5 @@ describe('GameStage', () => {
 
     expect(screen.getByText('掷骰结果')).toBeInTheDocument();
     expect(screen.getByText('侦查 1D100 → 22 / 60，成功。')).toBeInTheDocument();
-    expect(screen.getByText('行动建议')).toBeInTheDocument();
-    expect(screen.getByText('继续搜索')).toBeInTheDocument();
   });
 });

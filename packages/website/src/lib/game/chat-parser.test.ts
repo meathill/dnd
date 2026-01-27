@@ -17,7 +17,7 @@ describe('parseChatModules', () => {
 2. 询问屋内的人`);
     expect(result.modules[0]).toEqual({ type: 'narrative', content: '你推开门，一阵冷风扑面而来。' });
     expect(result.modules[1]).toEqual({ type: 'dice', content: '侦查 1D100 → 37 / 60，成功。' });
-    expect(result.modules[2]).toEqual({ type: 'suggestions', items: ['继续搜索房间', '询问屋内的人'] });
+    expect(result.modules.length).toBe(2);
   });
 });
 

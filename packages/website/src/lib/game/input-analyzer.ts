@@ -79,8 +79,20 @@ function normalizeText(value: string): string {
 }
 
 function extractJson(text: string): string | null {
-  const match = text.match(/\{[\s\S]*\}/);
-  return match ? match[0] : null;
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced?.[1]) {
+    return fenced[1].trim();
+  }
+  const first = trimmed.indexOf('{');
+  const last = trimmed.lastIndexOf('}');
+  if (first >= 0 && last > first) {
+    return trimmed.slice(first, last + 1);
+  }
+  return null;
 }
 
 function parseCheckDc(value: unknown): number {

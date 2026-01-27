@@ -15,7 +15,9 @@ import {
 } from '../../../lib/db/repositories';
 import { buildMessageContentFromModules, parseChatModules } from '../../../lib/game/chat-parser';
 import { executeActionPlan } from '../../../lib/game/action-executor';
+import type { InputAnalysis } from '../../../lib/game/input-analyzer';
 import { buildAnalysisPrompts, parseInputAnalysis } from '../../../lib/game/input-analyzer';
+import { resolveTrainedSkillValue, resolveUntrainedSkillValue } from '../../../lib/game/rules';
 import type {
   ChatMessage,
   ChatRole,
@@ -88,6 +90,20 @@ function buildHistoryMessages(messages: GameMessageRecord[]): AiMessage[] {
   }));
 }
 
+function buildInvalidAnalysis(reason: string): InputAnalysis {
+  return {
+    allowed: false,
+    reason,
+    intent: 'invalid',
+    needsDice: false,
+    diceType: 'none',
+    diceTarget: '',
+    difficulty: 'normal',
+    tags: [],
+    actions: [],
+  };
+}
+
 async function analyzeInput({
   provider,
   model,
@@ -100,33 +116,69 @@ async function analyzeInput({
   input: string;
   script: ScriptDefinition;
   character: CharacterRecord;
-}): Promise<ReturnType<typeof parseInputAnalysis>> {
+}): Promise<InputAnalysis> {
   const { systemPrompt, userPrompt } = buildAnalysisPrompts(script, character, input);
+  const messages: AiMessage[] = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ];
   try {
     const result = await generateChatCompletion({
       provider,
       model,
+      messages,
+      maxOutputTokens: 600,
+    });
+    let parsed = parseInputAnalysis(result.text, input);
+    if (parsed.intent !== 'invalid') {
+      return parsed;
+    }
+    console.warn('[api/chat] 意图解析失败，尝试重试。', result.text.slice(0, 400));
+    const retry = await generateChatCompletion({
+      provider,
+      model,
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: `${systemPrompt}\n仅输出 JSON，对象外不要任何文字。` },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0,
+      maxOutputTokens: 600,
     });
-    return parseInputAnalysis(result.text, input);
-  } catch {
-    return parseInputAnalysis('', input);
+    parsed = parseInputAnalysis(retry.text, input);
+    if (parsed.intent === 'invalid') {
+      console.warn('[api/chat] 重试解析失败。', retry.text.slice(0, 400));
+    }
+    return parsed;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '意图解析失败';
+    console.error('[api/chat] 意图解析失败', error);
+    return buildInvalidAnalysis(`意图解析失败：${message}`);
   }
 }
 
-function buildCharacterSummary(character: CharacterRecord): string {
+function buildCharacterSummary(script: ScriptDefinition, character: CharacterRecord): string {
   const parts: string[] = [];
   parts.push(`角色：${character.name}（${character.occupation} / ${character.origin}）`);
   if (character.age.trim()) {
     parts.push(`年龄：${character.age}`);
   }
-  const skillList = Object.entries(character.skills)
-    .filter(([, enabled]) => enabled)
-    .map(([skillId]) => skillId);
+  const labelMap = new Map(script.skillOptions.map((skill) => [skill.id, skill.label]));
+  const trainedValue = resolveTrainedSkillValue(script.rules);
+  const untrainedValue = resolveUntrainedSkillValue(script.rules);
+  const skillBaseValues = script.rules.skillBaseValues ?? {};
+  const skillList = Object.entries(character.skills as Record<string, unknown>)
+    .map(([skillId, rawValue]) => {
+      const baseValue =
+        typeof skillBaseValues[skillId] === 'number' && Number.isFinite(skillBaseValues[skillId])
+          ? (skillBaseValues[skillId] as number)
+          : untrainedValue;
+      const value =
+        typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : rawValue ? trainedValue : baseValue;
+      if (value <= baseValue) {
+        return null;
+      }
+      return labelMap.get(skillId) ?? skillId;
+    })
+    .filter((item): item is string => Boolean(item));
   if (skillList.length > 0) {
     parts.push(`技能：${skillList.join('、')}`);
   }
@@ -150,9 +202,12 @@ function buildSystemPrompt(
 ): string {
   return [
     '你是“肉团长”，负责主持 COC 跑团。请用中文叙事并推动剧情。',
+    '掷骰由系统函数执行，已执行动作内包含结果，请勿自行掷骰或编造掷骰结果。',
+    '准则：遵循剧本与房规优先级；保持克苏鲁氛围；每次回复简洁有推进。',
+    '不要输出行动建议列表或项目符号清单。',
     `剧本：${script.title}（${script.setting} / 难度：${script.difficulty}）`,
     `简介：${script.summary}`,
-    buildCharacterSummary(character),
+    buildCharacterSummary(script, character),
     `玩家意图：${analysis.intent}`,
     `检定需求：${analysis.needsDice ? '是' : '否'}（${analysis.diceType}${analysis.diceTarget ? ` / ${analysis.diceTarget}` : ''}）`,
     `难度：${analysis.difficulty}`,
@@ -160,13 +215,8 @@ function buildSystemPrompt(
     '请按以下格式输出：',
     '【叙事】',
     '...剧情描述...',
-    '【掷骰】',
-    analysis.needsDice ? '...掷骰结果...' : '无',
     '【绘图】',
     '无',
-    '【建议】',
-    '1. ...',
-    '2. ...',
     '不要输出多余的解释或前后缀。',
   ].join('\n');
 }
@@ -299,7 +349,6 @@ export async function POST(request: Request) {
             provider,
             model,
             messages,
-            temperature: 0.7,
             maxOutputTokens: 800,
           })) {
             fullText += chunk;
@@ -307,10 +356,11 @@ export async function POST(request: Request) {
           }
 
           const parsed = parseChatModules(fullText);
+          const filteredModules = parsed.modules.filter(
+            (module) => module.type !== 'dice' && module.type !== 'suggestions',
+          );
           const mergedModules =
-            parsed.modules.find((module) => module.type === 'dice') || actionExecution.modules.length === 0
-              ? parsed.modules
-              : [...actionExecution.modules, ...parsed.modules];
+            actionExecution.modules.length > 0 ? [...actionExecution.modules, ...filteredModules] : filteredModules;
           const assistantContent = buildMessageContentFromModules(mergedModules, fullText);
           const assistantRecord = await createGameMessage(db, {
             gameId: game.id,

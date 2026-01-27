@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import CharacterCardPanel from './character-card-panel';
 import SceneMapPanel from './scene-map-panel';
@@ -73,16 +73,7 @@ function renderModules(modules: ChatModule[]) {
     <div className="space-y-2">
       {modules.map((module, index) => {
         if (module.type === 'suggestions') {
-          return (
-            <div className="rounded-lg border border-[rgba(27,20,12,0.12)] bg-white/70 px-3 py-2" key={`m-${index}`}>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--ink-soft)]">行动建议</p>
-              <ul className="mt-2 list-disc pl-4 text-sm text-[var(--ink-strong)]">
-                {module.items.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          );
+          return null;
         }
         const label =
           module.type === 'dice'
@@ -111,6 +102,8 @@ type GameStageProps = {
 export default function GameStage({ script = null, initialMessages = [] }: GameStageProps) {
   const character = useGameStore((state) => state.character);
   const gameId = useGameStore((state) => state.activeGameId);
+  const messageListRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
   const openingMessages = useMemo(() => {
     return script?.openingMessages?.length ? buildOpeningChatMessages(script.openingMessages) : null;
   }, [script]);
@@ -132,7 +125,19 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
     setMessages(baseMessages);
     setInputText('');
     setSendError('');
+    shouldAutoScrollRef.current = true;
   }, [baseMessages]);
+
+  useEffect(() => {
+    const container = messageListRef.current;
+    if (!container) {
+      return;
+    }
+    if (!shouldAutoScrollRef.current) {
+      return;
+    }
+    container.scrollTop = container.scrollHeight;
+  }, [messages]);
 
   function handleInputChange(event: ChangeEvent<HTMLTextAreaElement>) {
     setInputText(event.target.value);
@@ -140,6 +145,16 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
 
   function handleQuickAction(action: string) {
     setInputText(action);
+  }
+
+  function handleMessageScroll() {
+    const container = messageListRef.current;
+    if (!container) {
+      return;
+    }
+    const threshold = 80;
+    const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
+    shouldAutoScrollRef.current = distance <= threshold;
   }
 
   async function handleSendMessage() {
@@ -258,7 +273,11 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
         style={{ animationDelay: '0.1s' }}
       >
         <SceneMapPanel />
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden pt-4">
+        <div
+          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pt-4 input-area"
+          ref={messageListRef}
+          onScroll={handleMessageScroll}
+        >
           {messages.map((message) => {
             const styles = messageToneStyles[message.role];
             const align = message.role === 'player' ? 'items-end' : 'items-start';

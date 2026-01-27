@@ -74,6 +74,7 @@
   --color-border: var(--border);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+
   @keyframes skeleton {
     to {
       background-position: -200% 0;
@@ -180,7 +181,13 @@ a {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.input-area {
+  max-height: calc(100dvh - 42rem);
+  overflow: auto;
 }

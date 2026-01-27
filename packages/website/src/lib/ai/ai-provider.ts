@@ -1,3 +1,4 @@
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import type { AiGenerateRequest, AiGenerateResponse, AiMessage } from './ai-types';
 
 type OpenAiChatMessage = {
@@ -24,14 +25,6 @@ const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_OPENAI_MODEL = 'gpt-5-mini';
 const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview';
-
-function getRequiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`缺少环境变量：${name}`);
-  }
-  return value;
-}
 
 function normalizeOpenAiMessages(messages: AiMessage[]): OpenAiChatMessage[] {
   return messages
@@ -76,9 +69,14 @@ async function* streamTextChunks(text: string, chunkSize = 24): AsyncGenerator<s
 }
 
 async function requestOpenAiCompletion(request: AiGenerateRequest): Promise<AiGenerateResponse> {
-  const apiKey = getRequiredEnv('OPENAI_API_KEY');
-  const model = request.model ?? process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
+  const { env } = await getCloudflareContext({ async: true });
+  const apiKey = env.OPENAI_API_KEY;
+  const model = request.model ?? env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
   const messages = normalizeOpenAiMessages(request.messages);
+
+  if (!apiKey) {
+    throw new Error('缺少环境变量：OPENAI_API_KEY');
+  }
 
   const response = await fetch(OPENAI_ENDPOINT, {
     method: 'POST',
@@ -94,7 +92,8 @@ async function requestOpenAiCompletion(request: AiGenerateRequest): Promise<AiGe
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI 请求失败：${response.status}`);
+    const text = await response.text();
+    throw new Error(`OpenAI 请求失败：${response.status} ${text}`);
   }
 
   const data = (await response.json()) as OpenAiResponse;
@@ -112,9 +111,14 @@ async function requestOpenAiCompletion(request: AiGenerateRequest): Promise<AiGe
 }
 
 async function* streamOpenAiCompletion(request: AiGenerateRequest): AsyncGenerator<string> {
-  const apiKey = getRequiredEnv('OPENAI_API_KEY');
-  const model = request.model ?? process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
+  const { env } = await getCloudflareContext({ async: true });
+  const apiKey = env.OPENAI_API_KEY;
+  const model = request.model ?? env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
   const messages = normalizeOpenAiMessages(request.messages);
+
+  if (!apiKey) {
+    throw new Error('缺少环境变量：OPENAI_API_KEY');
+  }
 
   const response = await fetch(OPENAI_ENDPOINT, {
     method: 'POST',
@@ -174,10 +178,15 @@ async function* streamOpenAiCompletion(request: AiGenerateRequest): AsyncGenerat
 }
 
 async function requestGeminiCompletion(request: AiGenerateRequest): Promise<AiGenerateResponse> {
-  const apiKey = getRequiredEnv('GEMINI_API_KEY');
-  const model = request.model ?? process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
+  const { env } = await getCloudflareContext({ async: true });
+  const apiKey = env.GEMINI_API_KEY;
+  const model = request.model ?? env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
   const contents = buildGeminiContents(request.messages);
   const systemInstruction = buildGeminiSystemInstruction(request.messages);
+
+  if (!apiKey) {
+    throw new Error('缺少环境变量：GEMINI_API_KEY');
+  }
 
   const response = await fetch(`${GEMINI_ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
@@ -215,10 +224,15 @@ async function requestGeminiCompletion(request: AiGenerateRequest): Promise<AiGe
 }
 
 async function* streamGeminiCompletion(request: AiGenerateRequest): AsyncGenerator<string> {
-  const apiKey = getRequiredEnv('GEMINI_API_KEY');
-  const model = request.model ?? process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
+  const { env } = await getCloudflareContext({ async: true });
+  const apiKey = env.GEMINI_API_KEY;
+  const model = request.model ?? env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
   const contents = buildGeminiContents(request.messages);
   const systemInstruction = buildGeminiSystemInstruction(request.messages);
+
+  if (!apiKey) {
+    throw new Error('缺少环境变量：GEMINI_API_KEY');
+  }
 
   const response = await fetch(`${GEMINI_ENDPOINT}/${encodeURIComponent(model)}:streamGenerateContent`, {
     method: 'POST',

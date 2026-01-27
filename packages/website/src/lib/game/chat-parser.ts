@@ -8,26 +8,16 @@ type ParsedChatModules = {
 const sectionLabels = ['叙事', '掷骰', '绘图', '建议'] as const;
 type SectionLabel = (typeof sectionLabels)[number];
 
-const sectionTypeMap: Record<SectionLabel, ChatModule['type']> = {
+const sectionTypeMap: Record<Exclude<SectionLabel, '建议'>, ChatModule['type']> = {
   叙事: 'narrative',
   掷骰: 'dice',
   绘图: 'map',
-  建议: 'suggestions',
 };
 
 const sectionRegex = /【(叙事|掷骰|绘图|建议)】/g;
 
 function normalizeText(value: string): string {
   return value.replace(/\r\n/g, '\n').trim();
-}
-
-function parseSuggestionItems(content: string): string[] {
-  return content
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.replace(/^[-*•]\s*/, '').replace(/^\d+[.)]\s*/, ''))
-    .filter(Boolean);
 }
 
 function buildModulesFromSections(sections: Array<{ label: SectionLabel; content: string }>): ChatModule[] {
@@ -37,14 +27,10 @@ function buildModulesFromSections(sections: Array<{ label: SectionLabel; content
     if (!cleaned || cleaned === '无') {
       continue;
     }
-    const moduleType = sectionTypeMap[section.label];
-    if (moduleType === 'suggestions') {
-      const items = parseSuggestionItems(cleaned);
-      if (items.length > 0) {
-        modules.push({ type: 'suggestions', items });
-      }
+    if (section.label === '建议') {
       continue;
     }
+    const moduleType = sectionTypeMap[section.label];
     modules.push({ type: moduleType, content: cleaned });
   }
   return modules;
