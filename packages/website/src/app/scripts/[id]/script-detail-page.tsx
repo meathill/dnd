@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import AppShell from '../../app-shell';
 import CharacterCreator from '../../character-creator';
 import ScriptDetailStage from '../../script-detail-stage';
+import ConfirmDialog from '../../confirm-dialog';
+import { Button } from '../../../components/ui/button';
 import type { CharacterFieldErrors, CharacterRecord, GameRecord, ScriptDefinition } from '../../../lib/game/types';
 import { SAMPLE_SCRIPT } from '../../../lib/game/sample-script';
 import { resolveAttributePointBudget, resolveAttributeRanges } from '../../../lib/game/rules';
@@ -21,6 +23,13 @@ type ScriptFetchResponse = {
   error?: string;
 };
 
+type CharacterOption = CharacterRecord & { isUsed: boolean; gameId: string | null };
+
+type CharacterListResponse = {
+  characters?: CharacterOption[];
+  error?: string;
+};
+
 function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
   const router = useRouter();
   const { session, requestAuth } = useSession();
@@ -30,6 +39,13 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
   const character = useGameStore((state) => state.character);
   const setCharacter = useGameStore((state) => state.setCharacter);
   const [script, setScript] = useState<ScriptDefinition | null>(null);
+  const [characterOptions, setCharacterOptions] = useState<CharacterOption[]>([]);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [editorMode, setEditorMode] = useState<'create' | 'edit' | 'copy'>('create');
+  const [editorTargetId, setEditorTargetId] = useState<string | null>(null);
+  const [editorFormState, setEditorFormState] = useState<FormState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CharacterOption | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +64,9 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
     setPhase('script');
     setActiveGameId(null);
     selectScript(scriptId);
+    setCharacterOptions([]);
+    setSelectedCharacterId(null);
+    setCharacter(null);
   }, [scriptId, selectScript, setActiveGameId, setPhase]);
 
   const loadScript = useCallback(async () => {
@@ -85,16 +104,57 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
     loadScript();
   }, [loadScript]);
 
+  const fetchCharacters = useCallback(async () => {
+    if (!script || !session) {
+      setCharacterOptions([]);
+      setSelectedCharacterId(null);
+      setCharacter(null);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/characters?scriptId=${script.id}`, { cache: 'no-store' });
+      const data = (await response.json()) as CharacterListResponse;
+      if (!response.ok) {
+        setCharacterOptions([]);
+        setSelectedCharacterId(null);
+        setCharacter(null);
+        setStatusMessage(data.error ?? '人物卡读取失败');
+        return;
+      }
+      const list = data.characters ?? [];
+      setCharacterOptions(list);
+      const currentSelected = selectedCharacterId;
+      const stillExists = currentSelected ? list.some((item) => item.id === currentSelected) : false;
+      const storedId = useGameStore.getState().character?.id ?? null;
+      const nextSelectedId = stillExists
+        ? currentSelected
+        : storedId && list.some((item) => item.id === storedId)
+          ? storedId
+          : null;
+      setSelectedCharacterId(nextSelectedId);
+      const nextRecord = list.find((item) => item.id === nextSelectedId);
+      setCharacter(nextRecord ?? null);
+    } catch {
+      setCharacterOptions([]);
+      setSelectedCharacterId(null);
+      setCharacter(null);
+      setStatusMessage('人物卡读取失败，请稍后重试。');
+    }
+  }, [script, session, selectedCharacterId, setCharacter]);
+
+  useEffect(() => {
+    fetchCharacters();
+  }, [fetchCharacters]);
+
   function handleBackToHome() {
     router.push('/');
   }
 
-  function handleEditCharacter() {
-    setOpenRequestId((value) => value + 1);
-  }
-
   function handleRequestCharacterOpen() {
     requestAuth(() => {
+      setEditorMode('create');
+      setEditorTargetId(null);
+      setEditorFormState(null);
       setOpenRequestId((value) => value + 1);
     });
   }
@@ -108,13 +168,17 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
       setStatusMessage('请先登录后创建人物卡。');
       return { ok: false, message: '请先登录后创建人物卡。' };
     }
-    setStatusMessage('正在保存人物卡...');
+    setStatusMessage(editorMode === 'edit' ? '正在更新人物卡...' : '正在保存人物卡...');
     try {
-      const response = await fetch('/api/characters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formState, scriptId: script.id }),
-      });
+      const payload = { ...formState, scriptId: script.id };
+      const response = await fetch(
+        editorMode === 'edit' && editorTargetId ? `/api/characters/${editorTargetId}` : '/api/characters',
+        {
+          method: editorMode === 'edit' && editorTargetId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      );
       const data = (await response.json()) as {
         character?: CharacterRecord;
         error?: string;
@@ -125,8 +189,14 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
         setStatusMessage(message);
         return { ok: false, fieldErrors: data.fieldErrors, message };
       }
-      setCharacter(data.character);
-      setStatusMessage('人物卡已保存，可以开始游戏。');
+      const nextCharacter = { ...data.character, isUsed: false, gameId: null };
+      setCharacter(nextCharacter);
+      setCharacterOptions((current) => [nextCharacter, ...current.filter((item) => item.id !== data.character.id)]);
+      setSelectedCharacterId(data.character.id);
+      setEditorMode('create');
+      setEditorTargetId(null);
+      setEditorFormState(null);
+      setStatusMessage(editorMode === 'edit' ? '人物卡已更新。' : '人物卡已保存，可以开始游戏。');
       return { ok: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : '人物卡保存失败';
@@ -137,7 +207,7 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
 
   async function handleStartGame() {
     if (!script || !character) {
-      setStatusMessage('请先选择剧本并创建人物卡。');
+      setStatusMessage('请先创建或选择人物卡。');
       return;
     }
     if (!session) {
@@ -168,8 +238,101 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
     }
   }
 
-  const characterSummary = character ? { name: character.name, occupation: character.occupation } : null;
   const displayMessage = statusMessage || (!session ? '请先登录后创建人物卡。' : '');
+
+  function buildFormStateFromCharacter(target: CharacterRecord): FormState {
+    return {
+      name: target.name,
+      occupation: target.occupation,
+      age: target.age,
+      origin: target.origin,
+      appearance: target.appearance,
+      background: target.background,
+      motivation: target.motivation,
+      avatar: target.avatar,
+      luck: target.luck,
+      attributes: { ...target.attributes },
+      skills: { ...(target.skills as Record<string, number>) },
+      inventory: target.inventory.join('、'),
+      buffs: [...target.buffs],
+      debuffs: [...target.debuffs],
+      note: target.note,
+    };
+  }
+
+  function handleSelectCharacter(characterId: string) {
+    const selected = characterOptions.find((option) => option.id === characterId);
+    if (!selected) {
+      return;
+    }
+    setSelectedCharacterId(characterId);
+    setCharacter(selected);
+    setStatusMessage('');
+  }
+
+  function handleEditCharacter(characterId: string) {
+    const target = characterOptions.find((option) => option.id === characterId);
+    if (!target) {
+      return;
+    }
+    setEditorMode('edit');
+    setEditorTargetId(target.id);
+    setEditorFormState(buildFormStateFromCharacter(target));
+    setOpenRequestId((value) => value + 1);
+  }
+
+  function handleCopyCharacter(characterId: string) {
+    const target = characterOptions.find((option) => option.id === characterId);
+    if (!target) {
+      return;
+    }
+    const seed = buildFormStateFromCharacter(target);
+    setEditorMode('copy');
+    setEditorTargetId(null);
+    setEditorFormState({
+      ...seed,
+      name: seed.name ? `${seed.name}（副本）` : seed.name,
+    });
+    setOpenRequestId((value) => value + 1);
+  }
+
+  async function handleDeleteCharacter(characterId: string) {
+    const target = characterOptions.find((option) => option.id === characterId);
+    if (!target) {
+      return;
+    }
+    setDeleteTarget(target);
+  }
+
+  function handleCancelDeleteCharacter() {
+    setDeleteTarget(null);
+  }
+
+  async function handleConfirmDeleteCharacter() {
+    if (!deleteTarget) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/characters/${deleteTarget.id}`, { method: 'DELETE' });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error ?? '人物卡删除失败');
+      }
+      if (selectedCharacterId === deleteTarget.id) {
+        setSelectedCharacterId(null);
+        setCharacter(null);
+      }
+      await fetchCharacters();
+      setStatusMessage('人物卡已删除。');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '人物卡删除失败';
+      setStatusMessage(message);
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+    }
+  }
 
   if (!script) {
     return (
@@ -180,13 +343,9 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
             {isLoading ? '正在读取剧本...' : '无法进入剧本'}
           </h2>
           <p className="text-sm text-[var(--ink-muted)]">{statusMessage || '请返回首页重新选择剧本。'}</p>
-          <button
-            className="mt-auto rounded-lg border border-[rgba(27,20,12,0.12)] px-4 py-2 text-xs text-[var(--ink-muted)]"
-            onClick={handleBackToHome}
-            type="button"
-          >
+          <Button className="mt-auto" onClick={handleBackToHome} size="sm" variant="outline">
             返回首页
-          </button>
+          </Button>
         </section>
       </div>
     );
@@ -195,10 +354,15 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
   return (
     <ScriptDetailStage
       script={script}
-      characterSummary={characterSummary}
       onBack={handleBackToHome}
       onStartGame={handleStartGame}
+      onSelectCharacter={handleSelectCharacter}
       onEditCharacter={handleEditCharacter}
+      onCopyCharacter={handleCopyCharacter}
+      onDeleteCharacter={handleDeleteCharacter}
+      characterOptions={characterOptions}
+      selectedCharacterId={selectedCharacterId}
+      isLoggedIn={Boolean(session)}
       isStarting={isStarting}
       statusMessage={displayMessage}
     >
@@ -207,6 +371,8 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
         onComplete={handleCharacterComplete}
         variant="compact"
         openRequestId={openRequestId}
+        mode={editorMode}
+        initialFormState={editorFormState ?? undefined}
         skillOptions={script.skillOptions}
         equipmentOptions={script.equipmentOptions}
         occupationOptions={script.occupationOptions}
@@ -221,6 +387,15 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
         debuffLimit={script.debuffLimit}
         isDisabled={!session}
         onRequestOpen={handleRequestCharacterOpen}
+      />
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        title="删除人物卡"
+        description={deleteTarget ? `确定要删除「${deleteTarget.name}」吗？` : ''}
+        confirmLabel="删除人物卡"
+        isProcessing={isDeleting}
+        onCancel={handleCancelDeleteCharacter}
+        onConfirm={handleConfirmDeleteCharacter}
       />
     </ScriptDetailStage>
   );

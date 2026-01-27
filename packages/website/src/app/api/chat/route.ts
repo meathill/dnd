@@ -31,6 +31,11 @@ type ChatRequest = {
   input: string;
 };
 
+type StatusEvent = {
+  type: 'status';
+  text: string;
+};
+
 const DEFAULT_PROVIDER: AiProvider = 'openai';
 const DEFAULT_MODELS: Record<AiProvider, string> = {
   openai: 'gpt-5-mini',
@@ -84,10 +89,12 @@ function mapRoleToAiRole(role: ChatRole): AiMessage['role'] {
 }
 
 function buildHistoryMessages(messages: GameMessageRecord[]): AiMessage[] {
-  return messages.map((message) => ({
-    role: mapRoleToAiRole(message.role),
-    content: message.content,
-  }));
+  return messages
+    .filter((message) => message.role !== 'system')
+    .map((message) => ({
+      role: mapRoleToAiRole(message.role),
+      content: message.content,
+    }));
 }
 
 function buildInvalidAnalysis(reason: string): InputAnalysis {
@@ -110,14 +117,16 @@ async function analyzeInput({
   input,
   script,
   character,
+  recentHistory,
 }: {
   provider: AiProvider;
   model: string;
   input: string;
   script: ScriptDefinition;
   character: CharacterRecord;
+  recentHistory?: string;
 }): Promise<InputAnalysis> {
-  const { systemPrompt, userPrompt } = buildAnalysisPrompts(script, character, input);
+  const { systemPrompt, userPrompt } = buildAnalysisPrompts(script, character, input, recentHistory);
   const messages: AiMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
@@ -153,6 +162,18 @@ async function analyzeInput({
     console.error('[api/chat] 意图解析失败', error);
     return buildInvalidAnalysis(`意图解析失败：${message}`);
   }
+}
+
+function buildRecentHistoryText(messages: GameMessageRecord[]): string {
+  const visibleMessages = messages.filter((message) => message.role !== 'system');
+  if (visibleMessages.length === 0) {
+    return '无';
+  }
+  const labeled = visibleMessages.map((message) => {
+    const roleLabel = message.role === 'player' ? '玩家' : '肉团长';
+    return `${roleLabel}：${message.content}`;
+  });
+  return labeled.join('\n');
 }
 
 function buildCharacterSummary(script: ScriptDefinition, character: CharacterRecord): string {
@@ -204,7 +225,7 @@ function buildSystemPrompt(
     '你是“肉团长”，负责主持 COC 跑团。请用中文叙事并推动剧情。',
     '掷骰由系统函数执行，已执行动作内包含结果，请勿自行掷骰或编造掷骰结果。',
     '准则：遵循剧本与房规优先级；保持克苏鲁氛围；每次回复简洁有推进。',
-    '不要输出行动建议列表或项目符号清单。',
+    '不要输出行动建议列表或项目符号清单，叙事中不要复述掷骰结果。',
     `剧本：${script.title}（${script.setting} / 难度：${script.difficulty}）`,
     `简介：${script.summary}`,
     buildCharacterSummary(script, character),
@@ -224,6 +245,10 @@ function buildSystemPrompt(
 function buildSseEvent(payload: unknown): Uint8Array {
   const text = `data: ${JSON.stringify(payload)}\n\n`;
   return new TextEncoder().encode(text);
+}
+
+function buildStatusEvent(text: string): StatusEvent {
+  return { type: 'status', text };
 }
 
 export async function POST(request: Request) {
@@ -284,67 +309,74 @@ export async function POST(request: Request) {
       );
     }
 
-    const analysis = await analyzeInput({
-      provider,
-      model: fastModel,
-      input: chatRequest.input,
-      script,
-      character,
-    });
-
-    const playerSpeaker = `玩家 · ${character.name}`;
-    await createGameMessage(db, {
-      gameId: game.id,
-      role: 'player',
-      speaker: playerSpeaker,
-      content: chatRequest.input,
-      modules: [],
-    });
-
-    if (!analysis.allowed || analysis.intent === 'invalid') {
-      const noticeText = analysis.reason || '该指令不符合当前剧本，请换一种表达方式。';
-      const modules = [{ type: 'notice', content: noticeText }] as const;
-      const assistantRecord = await createGameMessage(db, {
-        gameId: game.id,
-        role: 'system',
-        speaker: '系统',
-        content: noticeText,
-        modules: [...modules],
-      });
-      return new Response(buildSseEvent({ type: 'done', message: buildChatMessage(assistantRecord) }), {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache, no-transform',
-          Connection: 'keep-alive',
-        },
-      });
-    }
-
-    const actionExecution = executeActionPlan({
-      analysis,
-      script,
-      character,
-      gameRules: game.ruleOverrides,
-    });
-    if (Object.keys(actionExecution.ruleUpdates).length > 0) {
-      const mergedOverrides = {
-        ...(game.ruleOverrides.checkDcOverrides ?? {}),
-        ...actionExecution.ruleUpdates,
-      };
-      await updateGameRuleOverrides(db, game.id, mergedOverrides);
-      game.ruleOverrides.checkDcOverrides = mergedOverrides;
-    }
-    const historyMessages = await listGameMessages(db, game.id);
-    const recentHistory = historyMessages.slice(-18);
-    const messages: AiMessage[] = [
-      { role: 'system', content: buildSystemPrompt(script, character, analysis, actionExecution.summary) },
-      ...buildHistoryMessages(recentHistory),
-    ];
-
     const stream = new ReadableStream({
       async start(controller) {
         let fullText = '';
         try {
+          controller.enqueue(buildSseEvent(buildStatusEvent('理解玩家指令')));
+
+          const playerSpeaker = `玩家 · ${character.name}`;
+          await createGameMessage(db, {
+            gameId: game.id,
+            role: 'player',
+            speaker: playerSpeaker,
+            content: chatRequest.input,
+            modules: [],
+          });
+
+          const historyMessages = await listGameMessages(db, game.id);
+          const historyForAnalysis = historyMessages.slice(-8);
+          const analysis = await analyzeInput({
+            provider,
+            model: fastModel,
+            input: chatRequest.input,
+            script,
+            character,
+            recentHistory: buildRecentHistoryText(historyForAnalysis),
+          });
+
+          if (!analysis.allowed || analysis.intent === 'invalid') {
+            const noticeText = analysis.reason || '该指令不符合当前剧本，请换一种表达方式。';
+            controller.enqueue(buildSseEvent(buildStatusEvent(`玩家指令超出可行范围：${noticeText}`)));
+            const modules = [{ type: 'notice', content: noticeText }] as const;
+            const assistantRecord = await createGameMessage(db, {
+              gameId: game.id,
+              role: 'system',
+              speaker: '系统',
+              content: noticeText,
+              modules: [...modules],
+            });
+            controller.enqueue(buildSseEvent({ type: 'done', message: buildChatMessage(assistantRecord) }));
+            return;
+          }
+
+          controller.enqueue(buildSseEvent(buildStatusEvent('玩家指令合法，世界因你而变')));
+          controller.enqueue(buildSseEvent(buildStatusEvent('执行投骰操作')));
+
+          const actionExecution = executeActionPlan({
+            analysis,
+            script,
+            character,
+            gameRules: game.ruleOverrides,
+          });
+          if (Object.keys(actionExecution.ruleUpdates).length > 0) {
+            const mergedOverrides = {
+              ...(game.ruleOverrides.checkDcOverrides ?? {}),
+              ...actionExecution.ruleUpdates,
+            };
+            await updateGameRuleOverrides(db, game.id, mergedOverrides);
+            game.ruleOverrides.checkDcOverrides = mergedOverrides;
+          }
+
+          controller.enqueue(buildSseEvent(buildStatusEvent('开始生成结果')));
+          controller.enqueue(buildSseEvent(buildStatusEvent('交给通用AI大模型结合剧本生成内容')));
+
+          const recentHistory = historyMessages.slice(-18);
+          const messages: AiMessage[] = [
+            { role: 'system', content: buildSystemPrompt(script, character, analysis, actionExecution.summary) },
+            ...buildHistoryMessages(recentHistory),
+          ];
+
           for await (const chunk of streamChatCompletion({
             provider,
             model,

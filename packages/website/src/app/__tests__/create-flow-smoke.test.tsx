@@ -7,26 +7,42 @@ import type { FormState } from '../character-creator-data';
 import ScriptDetailStage from '../script-detail-stage';
 import { SAMPLE_SCRIPT } from '../../lib/game/sample-script';
 
-type CharacterSummary = { name: string; occupation: string } | null;
+type CharacterOption = { id: string; name: string; occupation: string; isUsed?: boolean; gameId?: string | null };
 
 type FlowHarnessProps = {
   onStartGame: () => void;
 };
 
 function FlowHarness({ onStartGame }: FlowHarnessProps) {
-  const [summary, setSummary] = useState<CharacterSummary>(null);
+  const [characters, setCharacters] = useState<CharacterOption[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   async function handleComplete(formState: FormState) {
-    setSummary({ name: formState.name, occupation: formState.occupation });
+    const nextId = `character-${Date.now()}`;
+    const nextCharacter = {
+      id: nextId,
+      name: formState.name || '未命名角色',
+      occupation: formState.occupation || '未知职业',
+      isUsed: false,
+      gameId: null,
+    };
+    setCharacters((current) => [nextCharacter, ...current]);
+    setSelectedId(nextId);
     return { ok: true };
   }
 
   return (
     <ScriptDetailStage
       script={SAMPLE_SCRIPT}
-      characterSummary={summary}
       onBack={vi.fn()}
       onStartGame={onStartGame}
+      onSelectCharacter={setSelectedId}
+      onEditCharacter={vi.fn()}
+      onCopyCharacter={vi.fn()}
+      onDeleteCharacter={vi.fn()}
+      characterOptions={characters}
+      selectedCharacterId={selectedId}
+      isLoggedIn
       isStarting={false}
       statusMessage=""
     >
@@ -67,7 +83,8 @@ describe('创建流程走查', () => {
     const createButtons = screen.getAllByRole('button', { name: '创建角色' });
     await user.click(createButtons[createButtons.length - 1]);
 
-    expect(await screen.findByText('已创建：')).toBeInTheDocument();
+    expect(await screen.findByText('已有角色')).toBeInTheDocument();
+    expect(await screen.findByText('已选择')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '开始游戏' })).toBeEnabled();
 
     await user.click(screen.getByRole('button', { name: '开始游戏' }));

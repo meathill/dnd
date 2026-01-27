@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuth } from '../../../lib/auth/auth';
 import { getDatabase } from '../../../lib/db/db';
-import {
-  createGame,
-  getCharacterByIdForUser,
-  getGameByCharacterId,
-  getScriptById,
-  listGamesByUser,
-} from '../../../lib/db/repositories';
+import { createGame, getCharacterByIdForUser, getScriptById, listGamesByUser } from '../../../lib/db/repositories';
 import { parseCreateGamePayload } from '../../../lib/game/validators';
 
 export async function GET(request: Request) {
@@ -71,11 +65,6 @@ export async function POST(request: Request) {
     }
     if (character.scriptId !== payload.scriptId) {
       return NextResponse.json({ error: '人物卡不属于该剧本' }, { status: 400 });
-    }
-
-    const existingGame = await getGameByCharacterId(db, payload.characterId);
-    if (existingGame) {
-      return NextResponse.json({ error: '人物卡已用于其他游戏' }, { status: 400 });
     }
 
     const game = await createGame(db, userId, payload);

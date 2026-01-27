@@ -128,7 +128,8 @@ function formatCheckLine({
   baseValue: number;
   dc: number;
 }): string {
-  return `${label}检定 1D100 → ${roll} / ${threshold}，${outcome}（${difficultyLabel}，${baseLabel} ${baseValue}，DC ${dc}）`;
+  const dcText = dc === DEFAULT_CHECK_DC ? '' : `，DC ${dc}`;
+  return `${label}检定 1D100 → ${roll} / ${threshold}，${outcome}（${difficultyLabel}，${baseLabel} ${baseValue}${dcText}）`;
 }
 
 function formatAttackLine({
@@ -148,7 +149,8 @@ function formatAttackLine({
   baseValue: number;
   dc: number;
 }): string {
-  return `攻击判定（${label}）1D100 → ${roll} / ${threshold}，${outcome}（${difficultyLabel}，技能值 ${baseValue}，DC ${dc}）`;
+  const dcText = dc === DEFAULT_CHECK_DC ? '' : `，DC ${dc}`;
+  return `攻击判定（${label}）1D100 → ${roll} / ${threshold}，${outcome}（${difficultyLabel}，技能值 ${baseValue}${dcText}）`;
 }
 
 function executeCheck({

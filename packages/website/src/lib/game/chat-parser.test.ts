@@ -11,10 +11,7 @@ describe('parseChatModules', () => {
     const result = parseChatModules(`【叙事】
 你推开门，一阵冷风扑面而来。
 【掷骰】
-侦查 1D100 → 37 / 60，成功。
-【建议】
-1. 继续搜索房间
-2. 询问屋内的人`);
+侦查 1D100 → 37 / 60，成功。`);
     expect(result.modules[0]).toEqual({ type: 'narrative', content: '你推开门，一阵冷风扑面而来。' });
     expect(result.modules[1]).toEqual({ type: 'dice', content: '侦查 1D100 → 37 / 60，成功。' });
     expect(result.modules.length).toBe(2);

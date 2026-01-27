@@ -42,6 +42,8 @@ type CharacterCreatorProps = {
   onComplete?: (formState: FormState) => SubmitResult | Promise<SubmitResult>;
   variant?: 'full' | 'compact';
   openRequestId?: number;
+  mode?: 'create' | 'edit' | 'copy';
+  initialFormState?: FormState;
   skillOptions?: SkillOption[];
   equipmentOptions?: string[];
   occupationOptions?: string[];
@@ -63,6 +65,8 @@ export default function CharacterCreator({
   onComplete,
   variant = 'full',
   openRequestId,
+  mode = 'create',
+  initialFormState,
   skillOptions,
   equipmentOptions = [],
   occupationOptions = [],
@@ -108,8 +112,8 @@ export default function CharacterCreator({
     });
     return map;
   }, [activeSkillOptions, rules?.skillBaseValues, untrainedSkillValue]);
-  const [formState, setFormState] = useState<FormState>(() =>
-    buildDefaultFormState({
+  const seedFormState = useMemo(() => {
+    const base = buildDefaultFormState({
       attributeOptions: activeAttributeOptions,
       attributePointBudget: effectiveAttributePointBudget,
       skillOptions: activeSkillOptions,
@@ -120,8 +124,38 @@ export default function CharacterCreator({
       inventory: equipmentOptions.length > 0 ? '' : undefined,
       buffOptions: activeBuffOptions,
       debuffOptions: activeDebuffOptions,
-    }),
-  );
+    });
+    if (!initialFormState) {
+      return base;
+    }
+    return {
+      ...base,
+      ...initialFormState,
+      attributes: {
+        ...base.attributes,
+        ...initialFormState.attributes,
+      },
+      skills: {
+        ...base.skills,
+        ...initialFormState.skills,
+      },
+      buffs: initialFormState.buffs ?? base.buffs,
+      debuffs: initialFormState.debuffs ?? base.debuffs,
+    };
+  }, [
+    activeAttributeOptions,
+    activeSkillOptions,
+    activeBuffOptions,
+    activeDebuffOptions,
+    effectiveAttributePointBudget,
+    equipmentOptions.length,
+    initialFormState,
+    occupationOptions,
+    originOptions,
+    rules,
+    skillLimit,
+  ]);
+  const [formState, setFormState] = useState<FormState>(seedFormState);
   const showSecondaryActions = variant === 'full';
   const selectedSkills = useMemo<SkillOption[]>(
     () =>
@@ -180,20 +214,7 @@ export default function CharacterCreator({
   }
 
   function resetCreator() {
-    setFormState(
-      buildDefaultFormState({
-        attributeOptions: activeAttributeOptions,
-        attributePointBudget: effectiveAttributePointBudget,
-        skillOptions: activeSkillOptions,
-        skillLimit,
-        rules,
-        occupationOptions,
-        originOptions,
-        inventory: equipmentOptions.length > 0 ? '' : undefined,
-        buffOptions: activeBuffOptions,
-        debuffOptions: activeDebuffOptions,
-      }),
-    );
+    setFormState(seedFormState);
     setFieldErrors({});
     setSubmitError('');
     setCurrentStep(0);
@@ -452,34 +473,25 @@ export default function CharacterCreator({
     if (!openRequestId) {
       return;
     }
+    setFormState(seedFormState);
+    setFieldErrors({});
+    setSubmitError('');
+    setCurrentStep(0);
     openCreator(true);
-  }, [openRequestId]);
+  }, [openRequestId, seedFormState]);
 
   return (
     <div className="flex flex-wrap gap-3">
-      <Button
-        className={`px-4 py-2 text-sm text-white shadow-[0_12px_30px_-18px_var(--accent-brass)] transition ${
-          isDisabled ? 'bg-[rgba(182,121,46,0.4)]' : 'bg-[var(--accent-brass)] hover:-translate-y-0.5'
-        }`}
-        onClick={handleRequestOpen}
-        disabled={shouldDisableButton}
-        aria-disabled={isDisabled}
-      >
+      <Button onClick={handleRequestOpen} disabled={shouldDisableButton} aria-disabled={isDisabled} size="sm">
         创建角色
       </Button>
       {showSecondaryActions ? (
-        <Button
-          className="border border-[var(--ring-soft)] bg-[rgba(255,255,255,0.7)] px-4 py-2 text-sm text-[var(--ink-strong)] transition hover:-translate-y-0.5 hover:border-[var(--accent-brass)]"
-          variant="outline"
-        >
+        <Button size="sm" variant="outline">
           载入模组
         </Button>
       ) : null}
       {showSecondaryActions ? (
-        <Button
-          className="border border-[var(--ring-soft)] bg-[rgba(255,255,255,0.7)] px-4 py-2 text-sm text-[var(--ink-strong)] transition hover:-translate-y-0.5 hover:border-[var(--accent-brass)]"
-          variant="outline"
-        >
+        <Button size="sm" variant="outline">
           开始冒险
         </Button>
       ) : null}
@@ -495,6 +507,8 @@ export default function CharacterCreator({
         onNext={goNextStep}
         onComplete={handleComplete}
         isNextDisabled={(currentStep === 1 && isOverAttributeBudget) || (currentStep === 2 && isOverSkillBudget)}
+        submitLabel={mode === 'edit' ? '保存修改' : mode === 'copy' ? '创建副本' : '创建角色'}
+        title={mode === 'edit' ? '编辑人物卡' : mode === 'copy' ? '复制人物卡' : '创建人物卡'}
       >
         <CharacterCreatorStepContent
           currentStep={currentStep}

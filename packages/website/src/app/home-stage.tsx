@@ -1,33 +1,17 @@
-import type { GameRecordSummary, ScriptDefinition } from '../lib/game/types';
+import type { ScriptDefinition } from '../lib/game/types';
+import { Button } from '../components/ui/button';
 
 const sectionTitleClassName = 'text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]';
 
 export type HomeStageProps = {
   scripts: ScriptDefinition[];
-  games: GameRecordSummary[];
   onSelectScript: (scriptId: string) => void;
-  onContinueGame: (gameId: string) => void;
   statusMessage?: string;
-  gamesMessage?: string;
 };
 
-function formatUpdatedAt(value: string): string {
-  if (!value) {
-    return '';
-  }
-  return value.replace('T', ' ').slice(0, 16);
-}
-
-export default function HomeStage({
-  scripts,
-  games,
-  onSelectScript,
-  onContinueGame,
-  statusMessage,
-  gamesMessage,
-}: HomeStageProps) {
+export default function HomeStage({ scripts, onSelectScript, statusMessage }: HomeStageProps) {
   return (
-    <div className="grid h-full gap-4 overflow-hidden p-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="grid h-full gap-4 overflow-hidden p-4">
       <section className="panel-card flex h-full flex-col gap-4 rounded-xl p-4">
         <div>
           <p className={sectionTitleClassName}>首页</p>
@@ -62,52 +46,13 @@ export default function HomeStage({
                   {script.encounters.map((encounter) => encounter.title).join(' / ')}
                 </div>
               </div>
-              <button
-                className="mt-4 w-full rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-2 text-xs text-[var(--ink-muted)] transition hover:border-[var(--accent-brass)]"
-                onClick={() => onSelectScript(script.id)}
-                type="button"
-              >
+              <Button className="mt-4 w-full" onClick={() => onSelectScript(script.id)} size="sm" variant="outline">
                 查看剧本
-              </button>
+              </Button>
             </div>
           ))}
         </div>
       </section>
-
-      <aside className="panel-card flex h-full flex-col gap-4 rounded-xl p-4">
-        <div>
-          <p className={sectionTitleClassName}>记录</p>
-          <h2 className="text-xl font-semibold text-[var(--ink-strong)]">游戏记录</h2>
-          <p className="text-sm text-[var(--ink-muted)]">继续上一次的冒险。</p>
-          {gamesMessage ? <p className="mt-2 text-xs text-[var(--accent-ember)]">{gamesMessage}</p> : null}
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-          {games.length === 0 ? (
-            <p className="rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] p-4 text-xs text-[var(--ink-soft)]">
-              暂无游戏记录
-            </p>
-          ) : (
-            games.map((game) => (
-              <div
-                className="rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-4 text-sm"
-                key={game.id}
-              >
-                <p className="text-sm font-semibold text-[var(--ink-strong)]">{game.scriptTitle}</p>
-                <p className="text-xs text-[var(--ink-muted)]">角色：{game.characterName}</p>
-                <p className="mt-2 text-[10px] text-[var(--ink-soft)]">更新：{formatUpdatedAt(game.updatedAt)}</p>
-                <button
-                  className="mt-3 w-full rounded-lg bg-[var(--accent-brass)] px-3 py-2 text-xs text-white"
-                  onClick={() => onContinueGame(game.id)}
-                  type="button"
-                >
-                  继续游戏
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </aside>
     </div>
   );
 }

@@ -8,6 +8,8 @@ export type CharacterCreatorModalProps = {
   currentStep: number;
   steps: StepItem[];
   submitError: string;
+  title?: string;
+  submitLabel?: string;
   onClose: () => void;
   onReset: () => void;
   onPrevious: () => void;
@@ -22,6 +24,8 @@ export default function CharacterCreatorModal({
   currentStep,
   steps,
   submitError,
+  title = '创建人物卡',
+  submitLabel = '创建角色',
   onClose,
   onReset,
   onPrevious,
@@ -38,13 +42,13 @@ export default function CharacterCreatorModal({
       <DialogPopup className="h-[min(88vh,820px)] max-w-5xl" showCloseButton={false}>
         <DialogHeader className="flex flex-row items-start justify-between gap-3 border-b border-[rgba(27,20,12,0.08)]">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">创建人物卡</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">{title}</p>
             <DialogTitle className="font-[var(--font-display)] text-2xl text-[var(--ink-strong)]">
               {steps[currentStep].title}
             </DialogTitle>
             <p className="text-sm text-[var(--ink-muted)]">{steps[currentStep].description}</p>
           </div>
-          <Button className="text-xs text-[var(--ink-muted)]" onClick={onClose} size="sm" variant="outline">
+          <Button onClick={onClose} size="sm" variant="outline">
             关闭
           </Button>
         </DialogHeader>
@@ -90,20 +94,11 @@ export default function CharacterCreatorModal({
               上一步
             </Button>
             {isLastStep ? (
-              <Button
-                className="bg-[var(--accent-brass)] text-white hover:bg-[var(--accent-brass)]/90"
-                onClick={onComplete}
-                size="sm"
-              >
-                创建角色
+              <Button onClick={onComplete} size="sm">
+                {submitLabel}
               </Button>
             ) : (
-              <Button
-                className="bg-[var(--accent-brass)] text-white hover:bg-[var(--accent-brass)]/90"
-                disabled={isNextDisabled}
-                onClick={onNext}
-                size="sm"
-              >
+              <Button disabled={isNextDisabled} onClick={onNext} size="sm">
                 下一步
               </Button>
             )}

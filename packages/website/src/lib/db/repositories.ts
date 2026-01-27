@@ -76,6 +76,8 @@ type GameRow = {
   updated_at: string;
 };
 
+type CharacterListRow = CharacterRow & { game_id: string | null };
+
 function parseRuleOverridesJson(value: string | null): Record<string, number> {
   if (!value) {
     return {};
@@ -324,6 +326,75 @@ export async function getCharacterByIdForUser(
   return mapCharacterRow(row);
 }
 
+export async function updateCharacter(
+  db: D1Database,
+  characterId: string,
+  userId: string,
+  payload: CharacterPayload,
+): Promise<CharacterRecord | null> {
+  const now = new Date().toISOString();
+  const data = serializeCharacterPayload(payload);
+
+  await db
+    .prepare(
+      `UPDATE characters SET
+				name = ?, occupation = ?, age = ?, origin = ?, appearance = ?, background = ?, motivation = ?, avatar = ?, luck = ?,
+				attributes_json = ?, skills_json = ?, inventory_json = ?, buffs_json = ?, debuffs_json = ?, note = ?, updated_at = ?
+			 WHERE id = ? AND user_id = ?`,
+    )
+    .bind(
+      data.name,
+      data.occupation,
+      data.age,
+      data.origin,
+      data.appearance,
+      data.background,
+      data.motivation,
+      data.avatar,
+      data.luck,
+      data.attributes_json,
+      data.skills_json,
+      data.inventory_json,
+      data.buffs_json,
+      data.debuffs_json,
+      data.note,
+      now,
+      characterId,
+      userId,
+    )
+    .run();
+
+  return getCharacterByIdForUser(db, characterId, userId);
+}
+
+export async function deleteCharacter(db: D1Database, characterId: string, userId: string): Promise<void> {
+  await db.prepare(`DELETE FROM characters WHERE id = ? AND user_id = ?`).bind(characterId, userId).run();
+}
+
+export async function listCharactersByUserAndScript(
+  db: D1Database,
+  userId: string,
+  scriptId: string,
+): Promise<Array<CharacterRecord & { isUsed: boolean; gameId: string | null }>> {
+  const result = await db
+    .prepare(
+      `SELECT c.id, c.script_id, c.name, c.occupation, c.age, c.origin, c.appearance, c.background, c.motivation, c.avatar, c.luck,
+			c.attributes_json, c.skills_json, c.inventory_json, c.buffs_json, c.debuffs_json, c.note,
+			c.created_at, c.updated_at, g.id as game_id
+		 FROM characters c
+		 LEFT JOIN games g ON g.character_id = c.id
+		 WHERE c.user_id = ? AND c.script_id = ?
+		 ORDER BY c.created_at DESC`,
+    )
+    .bind(userId, scriptId)
+    .all();
+  return result.results.map((row) => {
+    const record = mapCharacterRow(row as CharacterRow);
+    const gameId = (row as CharacterListRow).game_id;
+    return { ...record, isUsed: Boolean(gameId), gameId: gameId ?? null };
+  });
+}
+
 export async function getGameByCharacterId(db: D1Database, characterId: string): Promise<GameRecord | null> {
   const row = await db
     .prepare(
@@ -389,6 +460,10 @@ export async function createGame(db: D1Database, userId: string, payload: Create
     createdAt: now,
     updatedAt: now,
   };
+}
+
+export async function deleteGame(db: D1Database, gameId: string, userId: string): Promise<void> {
+  await db.prepare(`DELETE FROM games WHERE id = ? AND user_id = ?`).bind(gameId, userId).run();
 }
 
 export async function updateGameRuleOverrides(

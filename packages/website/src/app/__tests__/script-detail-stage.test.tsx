@@ -9,9 +9,15 @@ describe('剧本详情', () => {
     render(
       <ScriptDetailStage
         script={SAMPLE_SCRIPT}
-        characterSummary={null}
         onBack={vi.fn()}
         onStartGame={vi.fn()}
+        onSelectCharacter={vi.fn()}
+        onEditCharacter={vi.fn()}
+        onCopyCharacter={vi.fn()}
+        onDeleteCharacter={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId={null}
+        isLoggedIn
         isStarting={false}
         statusMessage=""
       >
@@ -27,9 +33,23 @@ describe('剧本详情', () => {
     render(
       <ScriptDetailStage
         script={SAMPLE_SCRIPT}
-        characterSummary={{ name: '沈砚', occupation: '调查记者' }}
         onBack={vi.fn()}
         onStartGame={onStartGame}
+        onSelectCharacter={vi.fn()}
+        onEditCharacter={vi.fn()}
+        onCopyCharacter={vi.fn()}
+        onDeleteCharacter={vi.fn()}
+        characterOptions={[
+          {
+            id: 'character-1',
+            name: '沈砚',
+            occupation: '调查记者',
+            isUsed: false,
+            gameId: null,
+          },
+        ]}
+        selectedCharacterId="character-1"
+        isLoggedIn
         isStarting={false}
         statusMessage=""
       >
@@ -48,9 +68,15 @@ describe('剧本详情', () => {
     render(
       <ScriptDetailStage
         script={SAMPLE_SCRIPT}
-        characterSummary={null}
         onBack={onBack}
         onStartGame={vi.fn()}
+        onSelectCharacter={vi.fn()}
+        onEditCharacter={vi.fn()}
+        onCopyCharacter={vi.fn()}
+        onDeleteCharacter={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId={null}
+        isLoggedIn
         isStarting={false}
         statusMessage=""
       >

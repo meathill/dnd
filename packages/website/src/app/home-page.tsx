@@ -5,20 +5,15 @@ import { useRouter } from 'next/navigation';
 import AppShell from './app-shell';
 import HomeStage from './home-stage';
 import { SAMPLE_SCRIPT } from '../lib/game/sample-script';
-import type { GameRecordSummary, ScriptDefinition } from '../lib/game/types';
+import type { ScriptDefinition } from '../lib/game/types';
 import { useGameStore } from '../lib/game/game-store';
-import { useSession } from '../lib/session/session-context';
 
 export function HomeContent() {
   const router = useRouter();
-  const { session } = useSession();
   const setPhase = useGameStore((state) => state.setPhase);
   const [scripts, setScripts] = useState<ScriptDefinition[]>([]);
-  const [games, setGames] = useState<GameRecordSummary[]>([]);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
-  const [gamesLoaded, setGamesLoaded] = useState(false);
   const [homeMessage, setHomeMessage] = useState('');
-  const [gamesMessage, setGamesMessage] = useState('');
 
   const loadScripts = useCallback(async () => {
     try {
@@ -40,29 +35,6 @@ export function HomeContent() {
     }
   }, []);
 
-  const loadGames = useCallback(async () => {
-    if (!session) {
-      setGames([]);
-      setGamesLoaded(true);
-      setGamesMessage('登录后可查看游戏记录。');
-      return;
-    }
-    try {
-      setGamesMessage('');
-      const response = await fetch('/api/games', { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error('游戏记录获取失败');
-      }
-      const data = (await response.json()) as { games?: GameRecordSummary[] };
-      setGames(data.games ?? []);
-      setGamesLoaded(true);
-    } catch {
-      setGames([]);
-      setGamesLoaded(true);
-      setGamesMessage((prev) => (prev ? prev : '无法读取游戏记录，请稍后重试。'));
-    }
-  }, []);
-
   useEffect(() => {
     setPhase('home');
   }, [setPhase]);
@@ -71,26 +43,15 @@ export function HomeContent() {
     loadScripts();
   }, [loadScripts]);
 
-  useEffect(() => {
-    loadGames();
-  }, [loadGames]);
-
   function handleSelectScript(scriptId: string) {
     router.push(`/scripts/${scriptId}`);
-  }
-
-  function handleContinueGame(gameId: string) {
-    router.push(`/games/${gameId}`);
   }
 
   return (
     <HomeStage
       scripts={scriptsLoaded ? scripts : [SAMPLE_SCRIPT]}
-      games={gamesLoaded ? games : []}
       onSelectScript={handleSelectScript}
-      onContinueGame={handleContinueGame}
       statusMessage={homeMessage}
-      gamesMessage={gamesMessage}
     />
   );
 }

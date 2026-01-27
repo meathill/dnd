@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import GameStage from '../game-stage';
@@ -105,5 +105,58 @@ describe('GameStage', () => {
 
     expect(screen.getByText('掷骰结果')).toBeInTheDocument();
     expect(screen.getByText('侦查 1D100 → 22 / 60，成功。')).toBeInTheDocument();
+  });
+
+  it('会在流式响应中展示状态提示', async () => {
+    const user = userEvent.setup();
+    const encoder = new TextEncoder();
+    const statusChunk = encoder.encode(`data: ${JSON.stringify({ type: 'status', text: '理解玩家指令' })}\n\n`);
+    const doneMessage = {
+      id: 'msg-1',
+      role: 'dm',
+      speaker: '肉团长',
+      time: '10:01',
+      content: 'AI 回复',
+    };
+    const doneChunk = encoder.encode(`data: ${JSON.stringify({ type: 'done', message: doneMessage })}\n\n`);
+    let resolveDone: (() => void) | undefined;
+    const donePromise = new Promise<void>((resolve) => {
+      resolveDone = resolve;
+    });
+    let step = 0;
+    const reader = {
+      async read() {
+        if (step === 0) {
+          step += 1;
+          return { value: statusChunk, done: false };
+        }
+        if (step === 1) {
+          step += 1;
+          await donePromise;
+          return { value: doneChunk, done: false };
+        }
+        return { value: undefined, done: true };
+      },
+    };
+    const fetchMock = vi.fn(async () => {
+      return {
+        ok: true,
+        headers: new Headers({ 'content-type': 'text/event-stream' }),
+        body: { getReader: () => reader },
+      } as Response;
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    render(<GameStage script={sampleScript} />);
+
+    const input = screen.getByPlaceholderText('描述你要说的话或采取的行动，肉团长会结合规则做出回应。');
+    await user.type(input, '测试指令');
+    await user.click(screen.getByRole('button', { name: '发送指令' }));
+
+    expect(await screen.findByText('理解玩家指令')).toBeInTheDocument();
+    resolveDone?.();
+    expect(await screen.findByText('AI 回复')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('理解玩家指令')).not.toBeInTheDocument();
+    });
   });
 });

@@ -12,6 +12,7 @@ import type {
   ScriptDefinition,
 } from '../../../lib/game/types';
 import { useGameStore } from '../../../lib/game/game-store';
+import { Button } from '../../../components/ui/button';
 
 type GamePageProps = {
   gameId: string;
@@ -98,13 +99,9 @@ function GamePageContent({ gameId }: GamePageProps) {
             {isLoading ? '正在读取游戏...' : '无法进入游戏'}
           </h2>
           <p className="text-sm text-[var(--ink-muted)]">{statusMessage || '请返回首页重新选择游戏。'}</p>
-          <button
-            className="mt-auto rounded-lg border border-[rgba(27,20,12,0.12)] px-4 py-2 text-xs text-[var(--ink-muted)]"
-            onClick={() => router.push('/')}
-            type="button"
-          >
+          <Button className="mt-auto" onClick={() => router.push('/')} size="sm" variant="outline">
             返回首页
-          </button>
+          </Button>
         </section>
       </div>
     );

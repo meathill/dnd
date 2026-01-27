@@ -2,7 +2,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { HomeContent } from '../home-page';
 import { SessionProvider } from '../../lib/session/session-context';
-import type { SessionInfo } from '../../lib/session/session-types';
 import { resetGameStore } from '../../lib/game/game-store';
 
 vi.mock('next/navigation', () => ({
@@ -19,7 +18,7 @@ function createResponse(data: unknown, init?: { ok?: boolean; status?: number })
   } as Response;
 }
 
-describe('首页游戏记录加载', () => {
+describe('首页脚本加载', () => {
   beforeEach(() => {
     resetGameStore();
   });
@@ -29,14 +28,11 @@ describe('首页游戏记录加载', () => {
     vi.clearAllMocks();
   });
 
-  it('未登录时不请求游戏记录', async () => {
+  it('脚本为空时提示信息', async () => {
     const fetchMock = vi.fn(async (input) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === '/api/scripts') {
         return createResponse({ scripts: [] });
-      }
-      if (url === '/api/games') {
-        return createResponse({ games: [] });
       }
       return createResponse({}, { ok: false, status: 404 });
     });
@@ -49,40 +45,28 @@ describe('首页游戏记录加载', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('登录后可查看游戏记录。')).toBeInTheDocument();
+      expect(screen.getByText('脚本列表为空，暂时使用示例剧本。请先执行数据库迁移导入剧本。')).toBeInTheDocument();
     });
-
-    const gameCalls = fetchMock.mock.calls.filter(([input]) => String(input) === '/api/games');
-    expect(gameCalls).toHaveLength(0);
   });
 
-  it('登录后会请求游戏记录', async () => {
+  it('读取失败会提示错误', async () => {
     const fetchMock = vi.fn(async (input) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === '/api/scripts') {
-        return createResponse({ scripts: [] });
-      }
-      if (url === '/api/games') {
-        return createResponse({ games: [] });
+        return createResponse({}, { ok: false, status: 500 });
       }
       return createResponse({}, { ok: false, status: 404 });
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const session: SessionInfo = {
-      userId: 'user-1',
-      displayName: '测试玩家',
-      settings: null,
-    };
-
     render(
-      <SessionProvider value={{ session, reloadSession: vi.fn(), requestAuth: vi.fn() }}>
+      <SessionProvider value={{ session: null, reloadSession: vi.fn(), requestAuth: vi.fn() }}>
         <HomeContent />
       </SessionProvider>,
     );
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/games', { cache: 'no-store' });
+      expect(screen.getByText('无法读取脚本列表，暂时使用示例剧本。请检查数据库。')).toBeInTheDocument();
     });
   });
 });

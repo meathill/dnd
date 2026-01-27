@@ -267,7 +267,12 @@ function buildSelectedSkills(character: CharacterRecord, script: ScriptDefinitio
   return selected.join('、');
 }
 
-export function buildAnalysisPrompts(script: ScriptDefinition, character: CharacterRecord, input: string) {
+export function buildAnalysisPrompts(
+  script: ScriptDefinition,
+  character: CharacterRecord,
+  input: string,
+  recentHistory = '无',
+) {
   const trainedSkillValue = resolveTrainedSkillValue(script.rules);
   const untrainedSkillValue = resolveUntrainedSkillValue(script.rules);
   const dcOverrides = script.rules.checkDcOverrides ?? {};
@@ -321,6 +326,7 @@ export function buildAnalysisPrompts(script: ScriptDefinition, character: Charac
     `Buff：${buffText}`,
     `Debuff：${debuffText}`,
     `房规 DC 覆盖：${dcOverrideText}`,
+    `最近对话：${recentHistory || '无'}`,
     `玩家输入：${input}`,
     '仅输出 JSON。',
   ].join('\n');

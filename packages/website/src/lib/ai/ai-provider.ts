@@ -135,7 +135,8 @@ async function* streamOpenAiCompletion(request: AiGenerateRequest): AsyncGenerat
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI 请求失败：${response.status}`);
+    const text = await response.text();
+    throw new Error(`OpenAI 请求失败：${response.status} ${text}`);
   }
 
   if (!response.body) {
@@ -205,7 +206,8 @@ async function requestGeminiCompletion(request: AiGenerateRequest): Promise<AiGe
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini 请求失败：${response.status}`);
+    const text = await response.text();
+    throw new Error(`Gemini 请求失败：${response.status} ${text}`);
   }
 
   const data = (await response.json()) as GeminiResponse;

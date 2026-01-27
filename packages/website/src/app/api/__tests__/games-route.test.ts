@@ -3,13 +3,7 @@ import { GET, POST } from '../games/route';
 import type { CharacterRecord, ScriptDefinition } from '../../../lib/game/types';
 import { getAuth } from '../../../lib/auth/auth';
 import { getDatabase } from '../../../lib/db/db';
-import {
-  createGame,
-  getCharacterByIdForUser,
-  getGameByCharacterId,
-  getScriptById,
-  listGamesByUser,
-} from '../../../lib/db/repositories';
+import { createGame, getCharacterByIdForUser, getScriptById, listGamesByUser } from '../../../lib/db/repositories';
 
 vi.mock('../../../lib/auth/auth', () => ({
   getAuth: vi.fn(),
@@ -22,7 +16,6 @@ vi.mock('../../../lib/db/db', () => ({
 vi.mock('../../../lib/db/repositories', () => ({
   createGame: vi.fn(),
   getCharacterByIdForUser: vi.fn(),
-  getGameByCharacterId: vi.fn(),
   getScriptById: vi.fn(),
   listGamesByUser: vi.fn(),
 }));
@@ -151,7 +144,6 @@ describe('POST /api/games 权限', () => {
     vi.mocked(getDatabase).mockResolvedValue({} as D1Database);
     vi.mocked(getScriptById).mockResolvedValue(sampleScript);
     vi.mocked(getCharacterByIdForUser).mockResolvedValue(null);
-    vi.mocked(getGameByCharacterId).mockResolvedValue(null);
     vi.mocked(createGame).mockResolvedValue({
       id: 'game-1',
       scriptId: sampleScript.id,

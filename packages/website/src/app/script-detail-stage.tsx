@@ -1,14 +1,29 @@
 import type { ReactNode } from 'react';
 import type { ScriptDefinition } from '../lib/game/types';
+import { Button } from '../components/ui/button';
 
 const sectionTitleClassName = 'text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]';
 
+type CharacterOption = {
+  id: string;
+  name: string;
+  occupation: string;
+  avatar?: string;
+  isUsed?: boolean;
+  gameId?: string | null;
+};
+
 export type ScriptDetailStageProps = {
   script: ScriptDefinition;
-  characterSummary: { name: string; occupation: string } | null;
   onBack: () => void;
   onStartGame: () => void;
-  onEditCharacter?: () => void;
+  onSelectCharacter: (characterId: string) => void;
+  onEditCharacter: (characterId: string) => void;
+  onCopyCharacter: (characterId: string) => void;
+  onDeleteCharacter: (characterId: string) => void;
+  characterOptions: CharacterOption[];
+  selectedCharacterId: string | null;
+  isLoggedIn: boolean;
   isStarting: boolean;
   statusMessage: string;
   children: ReactNode;
@@ -20,15 +35,21 @@ function buildList(items: string[]): string {
 
 export default function ScriptDetailStage({
   script,
-  characterSummary,
   onBack,
   onStartGame,
+  onSelectCharacter,
   onEditCharacter,
+  onCopyCharacter,
+  onDeleteCharacter,
+  characterOptions,
+  selectedCharacterId,
+  isLoggedIn,
   isStarting,
   statusMessage,
   children,
 }: ScriptDetailStageProps) {
-  const canStart = Boolean(characterSummary);
+  const selectedCharacter = characterOptions.find((option) => option.id === selectedCharacterId);
+  const canStart = Boolean(selectedCharacter);
   return (
     <div className="grid h-full gap-4 overflow-hidden p-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <section className="panel-card flex h-full flex-col gap-4 rounded-xl p-4">
@@ -41,13 +62,9 @@ export default function ScriptDetailStage({
               {script.setting} · {script.difficulty}
             </p>
           </div>
-          <button
-            className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-muted)]"
-            onClick={onBack}
-            type="button"
-          >
+          <Button onClick={onBack} size="sm" variant="outline">
             返回首页
-          </button>
+          </Button>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
@@ -105,42 +122,96 @@ export default function ScriptDetailStage({
             <h2 className="text-xl font-semibold text-[var(--ink-strong)]">创建人物卡</h2>
             <p className="text-sm text-[var(--ink-muted)]">完成后即可开始冒险。</p>
           </div>
-          {characterSummary && onEditCharacter ? (
-            <button
-              className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-muted)]"
-              onClick={onEditCharacter}
-              type="button"
-            >
-              继续编辑人物卡
-            </button>
-          ) : null}
         </div>
 
         <div className="rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
           {children}
-          {characterSummary ? (
-            <div className="mt-3 text-xs text-[var(--ink-muted)]">
-              已创建：
-              <span className="ml-1 font-semibold text-[var(--ink-strong)]">{characterSummary.name}</span>
-              <span className="ml-2">{characterSummary.occupation}</span>
-            </div>
-          ) : (
-            <p className="mt-3 text-xs text-[var(--ink-soft)]">尚未完成人物卡。</p>
-          )}
+          <div className="mt-3 border-t border-[rgba(27,20,12,0.08)] pt-3">
+            <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">已有角色</p>
+            {!isLoggedIn ? (
+              <p className="mt-2 text-xs text-[var(--ink-soft)]">登录后可以查看并选择已有角色。</p>
+            ) : characterOptions.length === 0 ? (
+              <p className="mt-2 text-xs text-[var(--ink-soft)]">暂无可用角色。</p>
+            ) : (
+              <div className="mt-2 grid gap-2">
+                {characterOptions.map((option) => {
+                  const isSelected = option.id === selectedCharacterId;
+                  return (
+                    <div
+                      className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition ${
+                        isSelected
+                          ? 'border-[var(--accent-brass)] bg-[rgba(179,142,99,0.15)] text-[var(--ink-strong)]'
+                          : 'border-[rgba(27,20,12,0.12)] text-[var(--ink-muted)] hover:border-[var(--accent-brass)]'
+                      }`}
+                      key={option.id}
+                      onClick={() => onSelectCharacter(option.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onSelectCharacter(option.id);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-semibold">{option.name}</span>
+                        <span className="text-[11px] text-[var(--ink-soft)]">{option.occupation}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isSelected ? (
+                          <span className="rounded-lg bg-[var(--accent-brass)] px-2 py-0.5 text-[10px] text-white">
+                            已选择
+                          </span>
+                        ) : null}
+                        <Button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onEditCharacter(option.id);
+                          }}
+                          size="xs"
+                          variant="outline"
+                        >
+                          修改
+                        </Button>
+                        <Button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onCopyCharacter(option.id);
+                          }}
+                          size="xs"
+                          variant="outline"
+                        >
+                          复制
+                        </Button>
+                        <Button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteCharacter(option.id);
+                          }}
+                          size="xs"
+                          variant="outline"
+                        >
+                          删除
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
-        <button
-          className={`mt-auto rounded-lg px-3 py-2 text-sm ${
-            canStart && !isStarting
-              ? 'bg-[var(--accent-brass)] text-white'
-              : 'border border-[rgba(27,20,12,0.12)] text-[var(--ink-soft)]'
-          }`}
+        <Button
+          className="mt-auto"
           disabled={!canStart || isStarting}
           onClick={onStartGame}
-          type="button"
+          size="sm"
+          variant={canStart && !isStarting ? 'default' : 'outline'}
         >
           {isStarting ? '正在进入' : '开始游戏'}
-        </button>
+        </Button>
         {statusMessage ? <p className="text-xs text-[var(--ink-soft)]">{statusMessage}</p> : null}
       </aside>
     </div>

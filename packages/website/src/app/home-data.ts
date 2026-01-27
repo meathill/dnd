@@ -92,7 +92,7 @@ export const chatMessages: ChatMessage[] = [
   },
 ];
 
-export const quickActions: string[] = ['观察周围', '整理线索', '请求掷骰', '记录手帐', '切换视角'];
+export const quickActions: string[] = ['观察周围', '整理线索', '请求掷骰'];
 
 export const mapNodes: MapNode[] = [
   { id: 'inn', name: '河口旅店', x: 24, y: 18, status: 'current' },

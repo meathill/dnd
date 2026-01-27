@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import HomeStage from '../home-stage';
-import type { GameRecordSummary, ScriptDefinition } from '../../lib/game/types';
+import type { ScriptDefinition } from '../../lib/game/types';
 
 const sampleScript: ScriptDefinition = {
   id: 'script-1',
@@ -27,49 +28,14 @@ const sampleScript: ScriptDefinition = {
   encounters: [{ id: 'encounter-1', title: '邪灵现身', summary: '紧张战斗。', enemies: [], danger: '高' }],
 };
 
-const sampleGame: GameRecordSummary = {
-  id: 'game-1',
-  scriptId: 'script-1',
-  scriptTitle: '风暴旧宅',
-  characterId: 'char-1',
-  characterName: '沈砚',
-  status: 'active',
-  updatedAt: '2024-01-01T00:00:00.000Z',
-};
-
 describe('首页面板', () => {
-  it('点击剧本与继续游戏会触发回调', async () => {
+  it('点击剧本会触发回调', async () => {
     const user = userEvent.setup();
     const handleSelectScript = vi.fn();
-    const handleContinueGame = vi.fn();
 
-    render(
-      <HomeStage
-        scripts={[sampleScript]}
-        games={[sampleGame]}
-        onSelectScript={handleSelectScript}
-        onContinueGame={handleContinueGame}
-      />,
-    );
+    render(<HomeStage scripts={[sampleScript]} onSelectScript={handleSelectScript} />);
 
     await user.click(screen.getByRole('button', { name: '查看剧本' }));
     expect(handleSelectScript).toHaveBeenCalledWith('script-1');
-
-    await user.click(screen.getByRole('button', { name: '继续游戏' }));
-    expect(handleContinueGame).toHaveBeenCalledWith('game-1');
-  });
-
-  it('显示游戏记录提示信息', () => {
-    render(
-      <HomeStage
-        scripts={[sampleScript]}
-        games={[]}
-        onSelectScript={() => {}}
-        onContinueGame={() => {}}
-        gamesMessage="登录后可查看游戏记录。"
-      />,
-    );
-
-    expect(screen.getByText('登录后可查看游戏记录。')).toBeInTheDocument();
   });
 });

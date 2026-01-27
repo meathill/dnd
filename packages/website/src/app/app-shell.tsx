@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AuthModal from './auth-modal';
 import SettingsModal from './settings-modal';
 import { authClient } from '../lib/auth/auth-client';
 import type { SessionInfo, UserSettings } from '../lib/session/session-types';
 import { SessionProvider } from '../lib/session/session-context';
+import { Button } from '../components/ui/button';
 
 const sidebarTitleClassName = 'text-xs uppercase tracking-[0.3em] text-[var(--ink-soft)]';
 
@@ -17,22 +19,11 @@ const defaultSettings: UserSettings = {
 };
 
 type AppShellProps = {
-  activeNav: 'home' | 'script' | 'game';
+  activeNav: 'home' | 'script' | 'game' | 'games';
   scriptId?: string | null;
   gameId?: string | null;
   children: ReactNode;
 };
-
-function buildNavItemClass(isActive: boolean, isDisabled: boolean): string {
-  if (isDisabled) {
-    return 'w-full rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.5)] px-3 py-2 text-left text-xs text-[var(--ink-soft)]';
-  }
-  return `w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-    isActive
-      ? 'bg-[var(--accent-brass)] text-white'
-      : 'border border-[rgba(27,20,12,0.12)] text-[var(--ink-muted)] hover:border-[var(--accent-brass)]'
-  }`;
-}
 
 export default function AppShell({ activeNav, scriptId, gameId, children }: AppShellProps) {
   const router = useRouter();
@@ -73,22 +64,10 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
     loadSession();
   }, [loadSession]);
 
-  function handleBackToHome() {
-    router.push('/');
-  }
-
-  function handleOpenScriptDetail() {
-    if (!scriptId) {
-      return;
-    }
-    router.push(`/scripts/${scriptId}`);
-  }
-
-  function handleOpenGameStage() {
-    if (!gameId) {
-      return;
-    }
-    router.push(`/games/${gameId}`);
+  function handleOpenGames() {
+    handleRequestAuth(() => {
+      router.push('/games');
+    });
   }
 
   function handleOpenSettings() {
@@ -224,33 +203,32 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
 
           <div className="space-y-3">
             <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">导航</p>
-            <button className={buildNavItemClass(activeNav === 'home', false)} onClick={handleBackToHome} type="button">
+            <Button
+              className="w-full justify-start"
+              render={<Link href="/" />}
+              size="sm"
+              variant={activeNav === 'home' ? 'default' : 'outline'}
+            >
               首页
-            </button>
-            <button
-              className={buildNavItemClass(activeNav === 'script', !scriptId)}
-              disabled={!scriptId}
-              onClick={handleOpenScriptDetail}
-              type="button"
-            >
-              剧本详情
-            </button>
-            <button
-              className={buildNavItemClass(activeNav === 'game', !gameId)}
-              disabled={!gameId}
-              onClick={handleOpenGameStage}
-              type="button"
-            >
-              游戏现场
-            </button>
-            <button
-              className={buildNavItemClass(false, !isLoggedIn)}
+            </Button>
+            <Button
+              className="w-full justify-start"
+              onClick={handleOpenGames}
               disabled={!isLoggedIn}
+              size="sm"
+              variant={activeNav === 'games' ? 'default' : 'outline'}
+            >
+              游戏记录
+            </Button>
+            <Button
+              className="w-full justify-start"
               onClick={handleOpenSettings}
-              type="button"
+              disabled={!isLoggedIn}
+              size="sm"
+              variant="outline"
             >
               设置
-            </button>
+            </Button>
           </div>
 
           <div className="mt-auto space-y-2 text-xs text-[var(--ink-soft)]">
@@ -260,21 +238,13 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
               <p className="mt-1">登录后可使用设置与保存记录。</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {isLoggedIn ? (
-                  <button
-                    className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-muted)]"
-                    onClick={handleSignOut}
-                    type="button"
-                  >
+                  <Button onClick={handleSignOut} size="xs" variant="outline">
                     退出登录
-                  </button>
+                  </Button>
                 ) : (
-                  <button
-                    className="rounded-lg bg-[var(--accent-brass)] px-3 py-1 text-xs text-white"
-                    onClick={handleOpenAuth}
-                    type="button"
-                  >
+                  <Button onClick={handleOpenAuth} size="xs">
                     登录 / 注册
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

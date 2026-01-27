@@ -7,6 +7,7 @@ import SceneMapPanel from './scene-map-panel';
 import { chatMessages, quickActions } from './home-data';
 import { useGameStore } from '../lib/game/game-store';
 import type { ChatMessage, ChatModule, ChatRole, ScriptDefinition, ScriptOpeningMessage } from '../lib/game/types';
+import { Button } from '../components/ui/button';
 
 const messageToneStyles = {
   dm: {
@@ -46,10 +47,12 @@ function formatTimeValue(date: Date): string {
 type StreamEvent =
   | { type: 'delta'; text: string }
   | { type: 'done'; message: ChatMessage }
-  | { type: 'error'; error: string };
+  | { type: 'error'; error: string }
+  | { type: 'status'; text: string };
 
 function consumeSseBuffer(buffer: string): { events: StreamEvent[]; rest: string } {
-  const chunks = buffer.split('\n\n');
+  const normalized = buffer.replace(/\r/g, '');
+  const chunks = normalized.split('\n\n');
   const rest = chunks.pop() ?? '';
   const events: StreamEvent[] = [];
   for (const chunk of chunks) {
@@ -104,6 +107,10 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
   const gameId = useGameStore((state) => state.activeGameId);
   const messageListRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
+  const statusMessageIdRef = useRef<string | null>(null);
+  const statusStepsRef = useRef<string[]>([]);
+  const streamMessageIdRef = useRef<string | null>(null);
+  const hasDmOutputStartedRef = useRef(false);
   const openingMessages = useMemo(() => {
     return script?.openingMessages?.length ? buildOpeningChatMessages(script.openingMessages) : null;
   }, [script]);
@@ -119,12 +126,20 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
   const [messages, setMessages] = useState<ChatMessage[]>(baseMessages);
   const [inputText, setInputText] = useState('');
   const [sendError, setSendError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [statusSteps, setStatusSteps] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     setMessages(baseMessages);
     setInputText('');
     setSendError('');
+    setStatusMessage('');
+    setStatusSteps([]);
+    statusStepsRef.current = [];
+    statusMessageIdRef.current = null;
+    streamMessageIdRef.current = null;
+    hasDmOutputStartedRef.current = false;
     shouldAutoScrollRef.current = true;
   }, [baseMessages]);
 
@@ -145,6 +160,71 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
 
   function handleQuickAction(action: string) {
     setInputText(action);
+  }
+
+  function clearStatusIndicators() {
+    setStatusMessage('');
+    setStatusSteps([]);
+    statusStepsRef.current = [];
+    const statusId = statusMessageIdRef.current;
+    statusMessageIdRef.current = null;
+    if (statusId) {
+      setMessages((current) => current.filter((message) => message.id !== statusId));
+    }
+  }
+
+  function markDmOutputStarted() {
+    if (hasDmOutputStartedRef.current) {
+      return;
+    }
+    hasDmOutputStartedRef.current = true;
+    clearStatusIndicators();
+  }
+
+  function updateStatusIndicators(text: string) {
+    if (hasDmOutputStartedRef.current) {
+      return;
+    }
+    const nextSteps = statusStepsRef.current.includes(text)
+      ? statusStepsRef.current
+      : [...statusStepsRef.current, text];
+    statusStepsRef.current = nextSteps;
+    setStatusMessage(text);
+    setStatusSteps(nextSteps);
+    const statusId = statusMessageIdRef.current ?? `status-${Date.now()}`;
+    statusMessageIdRef.current = statusId;
+    const statusContent = `执行状态：${nextSteps.join(' → ')}`;
+    setMessages((current) => {
+      const index = current.findIndex((message) => message.id === statusId);
+      if (index >= 0) {
+        const previous = current[index];
+        const next = [...current];
+        next[index] = {
+          ...previous,
+          role: 'system',
+          speaker: defaultSpeakerMap.system,
+          content: statusContent,
+        };
+        return next;
+      }
+      const statusMessage: ChatMessage = {
+        id: statusId,
+        role: 'system',
+        speaker: defaultSpeakerMap.system,
+        time: formatTimeValue(new Date()),
+        content: statusContent,
+      };
+      const streamId = streamMessageIdRef.current;
+      if (streamId) {
+        const streamIndex = current.findIndex((message) => message.id === streamId);
+        if (streamIndex >= 0) {
+          const next = [...current];
+          next.splice(streamIndex, 0, statusMessage);
+          return next;
+        }
+      }
+      return [...current, statusMessage];
+    });
   }
 
   function handleMessageScroll() {
@@ -170,6 +250,8 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
       return;
     }
     setSendError('');
+    clearStatusIndicators();
+    hasDmOutputStartedRef.current = false;
 
     const speakerName = character?.name ? `玩家 · ${character.name}` : '玩家';
     const now = new Date();
@@ -215,11 +297,13 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
           time: formatTimeValue(replyTime),
           content: data.text,
         };
+        markDmOutputStarted();
         setMessages((current) => [...current, assistantMessage]);
         return;
       }
 
       const streamId = `dm-stream-${Date.now()}`;
+      streamMessageIdRef.current = streamId;
       const streamMessage: ChatMessage = {
         id: streamId,
         role: 'dm',
@@ -243,15 +327,22 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
         buffer = rest;
         for (const event of events) {
           if (event.type === 'delta') {
+            markDmOutputStarted();
             setMessages((current) =>
               current.map((message) =>
                 message.id === streamId ? { ...message, content: `${message.content}${event.text}` } : message,
               ),
             );
           } else if (event.type === 'done') {
-            setMessages((current) =>
-              current.map((message) => (message.id === streamId ? { ...event.message, isStreaming: false } : message)),
-            );
+            markDmOutputStarted();
+            setMessages((current) => {
+              streamMessageIdRef.current = null;
+              return current.map((message) =>
+                message.id === streamId ? { ...event.message, isStreaming: false } : message,
+              );
+            });
+          } else if (event.type === 'status') {
+            updateStatusIndicators(event.text);
           } else if (event.type === 'error') {
             throw new Error(event.error);
           }
@@ -261,6 +352,7 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
       const message = error instanceof Error ? error.message : 'AI 请求失败';
       setSendError(message);
       setInputText(content);
+      clearStatusIndicators();
     } finally {
       setIsSending(false);
     }
@@ -307,14 +399,9 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
         <div className="border-t border-[rgba(27,20,12,0.08)] pt-4">
           <div className="flex flex-wrap gap-2">
             {quickActions.map((action) => (
-              <button
-                className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-muted)] transition hover:-translate-y-0.5 hover:border-[var(--accent-brass)]"
-                key={action}
-                onClick={() => handleQuickAction(action)}
-                type="button"
-              >
+              <Button key={action} onClick={() => handleQuickAction(action)} size="xs" variant="outline">
                 {action}
-              </button>
+              </Button>
             ))}
           </div>
           <div className="mt-4 flex flex-col gap-3 rounded-xl border border-[rgba(27,20,12,0.1)] bg-[rgba(255,255,255,0.6)] p-4">
@@ -327,25 +414,24 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
               onChange={handleInputChange}
             ></textarea>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className={`text-xs ${sendError ? 'text-[var(--accent-ember)]' : 'text-[var(--ink-soft)]'}`}>
-                {sendError || '提示：区分“说的话”和“动作”，让叙事更清晰。'}
+              <p
+                className={`text-xs ${
+                  sendError
+                    ? 'text-[var(--accent-ember)]'
+                    : statusMessage
+                      ? 'text-[var(--accent-river)]'
+                      : 'text-[var(--ink-soft)]'
+                }`}
+              >
+                {sendError || statusMessage || '提示：区分“说的话”和“动作”，让叙事更清晰。'}
               </p>
               <div className="flex gap-2">
-                <button
-                  className="rounded-lg border border-[rgba(27,20,12,0.12)] px-4 py-1.5 text-xs text-[var(--ink-muted)]"
-                  disabled={isSending}
-                  type="button"
-                >
+                <Button disabled={isSending} size="sm" variant="outline">
                   记录回合
-                </button>
-                <button
-                  className="rounded-lg bg-[var(--accent-brass)] px-4 py-1.5 text-xs text-white disabled:opacity-70"
-                  disabled={isSending || !inputText.trim()}
-                  onClick={handleSendMessage}
-                  type="button"
-                >
+                </Button>
+                <Button disabled={isSending || !inputText.trim()} onClick={handleSendMessage} size="sm">
                   {isSending ? '指令发送中...' : '发送指令'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

@@ -1,8 +1,41 @@
 import { NextResponse } from 'next/server';
 import { getAuth } from '../../../lib/auth/auth';
 import { getDatabase } from '../../../lib/db/db';
-import { createCharacter, getScriptById } from '../../../lib/db/repositories';
+import { createCharacter, getScriptById, listCharactersByUserAndScript } from '../../../lib/db/repositories';
 import { parseCharacterPayload, validateCharacterAgainstScript } from '../../../lib/game/validators';
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const scriptId = url.searchParams.get('scriptId')?.trim();
+  if (!scriptId) {
+    return NextResponse.json({ error: '缺少剧本编号' }, { status: 400 });
+  }
+
+  const cookie = request.headers.get('cookie');
+  if (!cookie) {
+    return NextResponse.json({ error: '未登录无法读取人物卡' }, { status: 401 });
+  }
+
+  try {
+    const auth = await getAuth();
+    const authSession = await auth.api.getSession({ headers: request.headers });
+    if (!authSession?.user) {
+      return NextResponse.json({ error: '未登录无法读取人物卡' }, { status: 401 });
+    }
+    const userId = authSession.user.id;
+    const db = await getDatabase();
+    const characters = await listCharactersByUserAndScript(db, userId, scriptId);
+    return NextResponse.json({ characters });
+  } catch (error) {
+    console.error('[api/characters] 人物卡读取失败', error);
+    const message = error instanceof Error ? error.message : '人物卡读取失败';
+    const payload: { error: string; stack?: string } = { error: message };
+    if (process.env.NODE_ENV !== 'production' && error instanceof Error && error.stack) {
+      payload.stack = error.stack;
+    }
+    return NextResponse.json(payload, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   let body: unknown;

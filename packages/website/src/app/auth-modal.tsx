@@ -51,7 +51,7 @@ export default function AuthModal({
             <DialogTitle className="text-xl font-semibold text-[var(--ink-strong)]">{title}</DialogTitle>
             <p className="text-sm text-[var(--ink-muted)]">{hint}</p>
           </div>
-          <Button className="text-xs text-[var(--ink-muted)]" onClick={onClose} size="sm" variant="outline">
+          <Button onClick={onClose} size="sm" variant="outline">
             关闭
           </Button>
         </DialogHeader>
@@ -105,24 +105,14 @@ export default function AuthModal({
         </DialogPanel>
 
         <DialogFooter className="items-center justify-between" variant="bare">
-          <Button
-            className="text-xs text-[var(--ink-soft)]"
-            onClick={() => onModeChange(isSignUp ? 'signIn' : 'signUp')}
-            size="sm"
-            variant="ghost"
-          >
+          <Button onClick={() => onModeChange(isSignUp ? 'signIn' : 'signUp')} size="sm" variant="ghost">
             {toggleLabel}
           </Button>
           <div className="flex gap-2">
             <Button onClick={onClose} size="sm" variant="outline">
               取消
             </Button>
-            <Button
-              className="bg-[var(--accent-brass)] text-white hover:bg-[var(--accent-brass)]/90"
-              disabled={isSubmitting}
-              onClick={onSubmit}
-              size="sm"
-            >
+            <Button disabled={isSubmitting} onClick={onSubmit} size="sm">
               {isSubmitting ? '处理中...' : submitLabel}
             </Button>
           </div>

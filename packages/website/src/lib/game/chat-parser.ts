@@ -5,16 +5,16 @@ type ParsedChatModules = {
   modules: ChatModule[];
 };
 
-const sectionLabels = ['叙事', '掷骰', '绘图', '建议'] as const;
+const sectionLabels = ['叙事', '掷骰', '绘图'] as const;
 type SectionLabel = (typeof sectionLabels)[number];
 
-const sectionTypeMap: Record<Exclude<SectionLabel, '建议'>, ChatModule['type']> = {
+const sectionTypeMap: Record<SectionLabel, ChatModule['type']> = {
   叙事: 'narrative',
   掷骰: 'dice',
   绘图: 'map',
 };
 
-const sectionRegex = /【(叙事|掷骰|绘图|建议)】/g;
+const sectionRegex = /【(叙事|掷骰|绘图)】/g;
 
 function normalizeText(value: string): string {
   return value.replace(/\r\n/g, '\n').trim();
@@ -25,9 +25,6 @@ function buildModulesFromSections(sections: Array<{ label: SectionLabel; content
   for (const section of sections) {
     const cleaned = normalizeText(section.content);
     if (!cleaned || cleaned === '无') {
-      continue;
-    }
-    if (section.label === '建议') {
       continue;
     }
     const moduleType = sectionTypeMap[section.label];
