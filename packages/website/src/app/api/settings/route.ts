@@ -13,12 +13,13 @@ function parseSettingsPayload(payload: unknown): UserSettings | null {
   if (!payload || typeof payload !== 'object') {
     return null;
   }
-  const data = payload as { provider?: unknown; model?: unknown };
+  const data = payload as { provider?: unknown; model?: unknown; dmProfileId?: unknown };
   if (typeof data.provider !== 'string' || !isAiProvider(data.provider)) {
     return null;
   }
   const model = typeof data.model === 'string' ? data.model.trim() : '';
-  return { provider: data.provider, model };
+  const dmProfileId = typeof data.dmProfileId === 'string' ? data.dmProfileId.trim() : '';
+  return { provider: data.provider, model, dmProfileId: dmProfileId || null };
 }
 
 export async function POST(request: Request) {

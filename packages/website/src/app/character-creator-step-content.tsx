@@ -4,6 +4,8 @@ import CharacterCreatorStepBackground from './character-creator-step-background'
 import CharacterCreatorStepBasic from './character-creator-step-basic';
 import CharacterCreatorStepSkills from './character-creator-step-skills';
 import CharacterCreatorStepSummary from './character-creator-step-summary';
+import type { QuickstartAssignments, QuickstartSkillConfig } from '../lib/game/rules';
+import type { SkillAllocationMode } from '../lib/game/types';
 import type {
   AttributeOption,
   BuffId,
@@ -34,6 +36,11 @@ export type CharacterCreatorStepContentProps = {
   skillPointBudget: number;
   skillPointsUsed: number;
   skillMaxValue: number;
+  skillAllocationMode: SkillAllocationMode;
+  quickstartConfig: QuickstartSkillConfig;
+  quickstartAssignments: QuickstartAssignments;
+  onUpdateQuickstartCore: (skillId: SkillId, value: number | null) => void;
+  onToggleQuickstartInterest: (skillId: SkillId) => void;
   skillPointError?: string;
   equipmentOptions: string[];
   selectedEquipment: string[];
@@ -49,6 +56,8 @@ export type CharacterCreatorStepContentProps = {
   onToggleDebuff: (debuff: DebuffId) => void;
   buffLimit: number;
   debuffLimit: number;
+  buffError?: string;
+  debuffError?: string;
 };
 
 export default function CharacterCreatorStepContent({
@@ -70,6 +79,11 @@ export default function CharacterCreatorStepContent({
   skillPointBudget,
   skillPointsUsed,
   skillMaxValue,
+  skillAllocationMode,
+  quickstartConfig,
+  quickstartAssignments,
+  onUpdateQuickstartCore,
+  onToggleQuickstartInterest,
   skillPointError,
   equipmentOptions,
   selectedEquipment,
@@ -85,6 +99,8 @@ export default function CharacterCreatorStepContent({
   onToggleDebuff,
   buffLimit,
   debuffLimit,
+  buffError,
+  debuffError,
 }: CharacterCreatorStepContentProps) {
   return (
     <>
@@ -118,6 +134,11 @@ export default function CharacterCreatorStepContent({
           skillPointBudget={skillPointBudget}
           skillPointsUsed={skillPointsUsed}
           skillMaxValue={skillMaxValue}
+          skillAllocationMode={skillAllocationMode}
+          quickstartConfig={quickstartConfig}
+          quickstartAssignments={quickstartAssignments}
+          onUpdateQuickstartCore={onUpdateQuickstartCore}
+          onToggleQuickstartInterest={onToggleQuickstartInterest}
           equipmentOptions={equipmentOptions}
           selectedEquipment={selectedEquipment}
           selectedSkills={selectedSkills}
@@ -142,8 +163,8 @@ export default function CharacterCreatorStepContent({
           debuffOptions={debuffOptions}
           buffLimit={buffLimit}
           debuffLimit={debuffLimit}
-          buffError={fieldErrors.buffs}
-          debuffError={fieldErrors.debuffs}
+          buffError={buffError ?? fieldErrors.buffs}
+          debuffError={debuffError ?? fieldErrors.debuffs}
         />
       ) : null}
       {currentStep === 4 ? (

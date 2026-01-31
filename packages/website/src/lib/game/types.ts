@@ -34,6 +34,10 @@ export type ScriptRuleOverrides = {
   skillPointBudget?: number;
   skillMaxValue?: number;
   skillBaseValues?: Record<string, number>;
+  skillAllocationMode?: SkillAllocationMode;
+  quickstartCoreValues?: number[];
+  quickstartInterestCount?: number;
+  quickstartInterestBonus?: number;
 };
 
 export type GameRuleOverrides = {
@@ -72,6 +76,45 @@ export type ChatMessage = {
   content: string;
   modules?: ChatModule[];
   isStreaming?: boolean;
+};
+
+export type DmGuidePhase = 'analysis' | 'narration';
+
+export type DmProfile = {
+  id: string;
+  name: string;
+  summary: string;
+  analysisGuide: string;
+  narrationGuide: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DmProfileSummary = {
+  id: string;
+  name: string;
+  summary: string;
+  isDefault: boolean;
+};
+
+export type DmProfileRule = {
+  id: string;
+  dmProfileId: string;
+  phase: DmGuidePhase;
+  category: string;
+  title: string;
+  content: string;
+  order: number;
+  isEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SkillAllocationMode = 'budget' | 'selection' | 'quickstart';
+
+export type DmProfileDetail = DmProfile & {
+  rules: DmProfileRule[];
 };
 
 export type AttributeKey =

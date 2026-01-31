@@ -35,6 +35,7 @@ export default function CharacterCreatorStepBackground({
   onToggleBuff,
   onToggleDebuff,
 }: CharacterCreatorStepBackgroundProps) {
+  const shouldShowDebuff = debuffOptions.length > 0 && debuffLimit > 0;
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-5">
@@ -68,35 +69,35 @@ export default function CharacterCreatorStepBackground({
           {buffError ? <p className="mt-2 text-xs text-[var(--accent-ember)]">{buffError}</p> : null}
         </div>
 
-        <div>
-          <div className="flex items-center justify-between">
-            <p className={fieldLabelClassName}>减益状态</p>
-            {debuffLimit > 0 ? (
+        {shouldShowDebuff ? (
+          <div>
+            <div className="flex items-center justify-between">
+              <p className={fieldLabelClassName}>减益状态</p>
               <span className="text-xs text-[var(--ink-soft)]">
                 已选 {formState.debuffs.length} / {debuffLimit}
               </span>
-            ) : null}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {debuffOptions.map((debuff) => (
+                <Button
+                  className={`h-auto rounded-lg px-3 py-1 text-xs transition ${
+                    formState.debuffs.includes(debuff)
+                      ? 'bg-[rgba(176,74,53,0.16)] text-[var(--accent-ember)]'
+                      : 'bg-[rgba(255,255,255,0.7)] text-[var(--ink-muted)]'
+                  }`}
+                  onClick={() => onToggleDebuff(debuff)}
+                  type="button"
+                  title={getDebuffTooltip(debuff)}
+                  key={debuff}
+                  variant="ghost"
+                >
+                  {debuff}
+                </Button>
+              ))}
+            </div>
+            {debuffError ? <p className="mt-2 text-xs text-[var(--accent-ember)]">{debuffError}</p> : null}
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {debuffOptions.map((debuff) => (
-              <Button
-                className={`h-auto rounded-lg px-3 py-1 text-xs transition ${
-                  formState.debuffs.includes(debuff)
-                    ? 'bg-[rgba(176,74,53,0.16)] text-[var(--accent-ember)]'
-                    : 'bg-[rgba(255,255,255,0.7)] text-[var(--ink-muted)]'
-                }`}
-                onClick={() => onToggleDebuff(debuff)}
-                type="button"
-                title={getDebuffTooltip(debuff)}
-                key={debuff}
-                variant="ghost"
-              >
-                {debuff}
-              </Button>
-            ))}
-          </div>
-          {debuffError ? <p className="mt-2 text-xs text-[var(--accent-ember)]">{debuffError}</p> : null}
-        </div>
+        ) : null}
 
         <div>
           <p className={fieldLabelClassName}>行为习惯</p>

@@ -2,6 +2,7 @@ import type { AttributeKey, AttributeRangeMap, CharacterFieldErrors, ScriptRuleO
 import {
   DEFAULT_ATTRIBUTE_RANGES,
   resolveAttributePointBudget,
+  resolveSkillAllocationMode,
   resolveSkillPointBudget,
   resolveTrainedSkillValue,
   resolveUntrainedSkillValue,
@@ -278,17 +279,20 @@ export function buildDefaultSkills(
   skillOptions: SkillOption[] = defaultSkillOptions,
   defaultSelectedCount = 4,
   rules?: ScriptRuleOverrides,
+  attributes?: Partial<Record<AttributeKey, number>>,
 ): Record<SkillId, number> {
   const result: Record<SkillId, number> = {};
   const trainedValue = resolveTrainedSkillValue(rules);
   const untrainedValue = resolveUntrainedSkillValue(rules);
-  const skillPointBudget = resolveSkillPointBudget(rules);
+  const allocationMode = resolveSkillAllocationMode(rules);
+  const skillPointBudget = allocationMode === 'budget' ? resolveSkillPointBudget(rules, attributes) : 0;
+  const shouldAutoSelect = allocationMode === 'selection' && skillPointBudget <= 0;
   skillOptions.forEach((skill, index) => {
     const baseValue =
       typeof rules?.skillBaseValues?.[skill.id] === 'number' && Number.isFinite(rules.skillBaseValues[skill.id])
         ? (rules.skillBaseValues[skill.id] as number)
         : untrainedValue;
-    if (skillPointBudget <= 0 && index < defaultSelectedCount) {
+    if (shouldAutoSelect && index < defaultSelectedCount) {
       result[skill.id] = Math.max(baseValue, trainedValue);
     } else {
       result[skill.id] = baseValue;
@@ -308,10 +312,19 @@ type FormStateSeed = {
   inventory?: string;
   buffOptions?: string[];
   debuffOptions?: string[];
+  debuffLimit?: number;
 };
 
 export function buildDefaultFormState(seed: FormStateSeed = {}): FormState {
   const effectiveAttributePointBudget = resolveAttributePointBudget(seed.attributePointBudget);
+  const defaultAttributes = buildDefaultAttributes(seed.attributeOptions, effectiveAttributePointBudget);
+  const debuffOptions = seed.debuffOptions ?? [];
+  const debuffLimit =
+    typeof seed.debuffLimit === 'number' && Number.isFinite(seed.debuffLimit)
+      ? Math.max(0, Math.floor(seed.debuffLimit))
+      : 0;
+  const shouldRequireDebuffs = debuffOptions.length > 0 && debuffLimit > 0;
+  const defaultDebuffs = shouldRequireDebuffs ? debuffOptions.slice(0, Math.min(debuffLimit, debuffOptions.length)) : [];
   return {
     name: '沈砚',
     occupation: seed.occupationOptions?.[0] ?? '调查记者',
@@ -322,15 +335,16 @@ export function buildDefaultFormState(seed: FormStateSeed = {}): FormState {
     motivation: '找出旅店里隐藏的真相，保护同伴。',
     avatar: '',
     luck: rollLuck(),
-    attributes: buildDefaultAttributes(seed.attributeOptions, effectiveAttributePointBudget),
+    attributes: defaultAttributes,
     skills: buildDefaultSkills(
       seed.skillOptions,
       seed.skillLimit && seed.skillLimit > 0 ? seed.skillLimit : 4,
       seed.rules,
+      defaultAttributes,
     ),
     inventory: seed.inventory ?? '黑色风衣、左轮手枪、速记本、银质怀表',
     buffs: seed.buffOptions?.slice(0, 1) ?? ['灵感加持'],
-    debuffs: seed.debuffOptions?.slice(0, 1) ?? ['噩梦缠身'],
+    debuffs: defaultDebuffs,
     note: '习惯在行动前整理线索，并标记可疑人物。',
   };
 }

@@ -7,6 +7,11 @@ import type {
   ChatRole,
   ChatModule,
   GameMessageRecord,
+  DmProfile,
+  DmProfileSummary,
+  DmProfileRule,
+  DmGuidePhase,
+  DmProfileDetail,
 } from '../game/types';
 import type { CharacterPayload, CreateGamePayload } from '../game/validators';
 import { DEFAULT_TRAINED_SKILL_VALUE, DEFAULT_UNTRAINED_SKILL_VALUE } from '../game/rules';
@@ -53,6 +58,42 @@ type CharacterRow = {
 type UserSettingsRow = {
   ai_provider: string;
   ai_model: string;
+  dm_profile_id: string | null;
+};
+
+type DmProfileRow = {
+  id: string;
+  name: string;
+  summary: string;
+  analysis_guide: string;
+  narration_guide: string;
+  is_default: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type DmProfileSummaryRow = {
+  id: string;
+  name: string;
+  summary: string;
+  is_default: number;
+};
+
+type DmProfileRuleRow = {
+  id: string;
+  dm_profile_id: string;
+  phase: string;
+  category: string;
+  title: string;
+  content: string;
+  order_num: number;
+  is_enabled: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type UserRoleRow = {
+  role: string;
 };
 
 type GameMessageRow = {
@@ -98,6 +139,68 @@ function parseRuleOverridesJson(value: string | null): Record<string, number> {
   } catch {
     return {};
   }
+}
+
+function mapDmProfileRow(row: DmProfileRow): DmProfile {
+  return {
+    id: row.id,
+    name: row.name,
+    summary: row.summary,
+    analysisGuide: row.analysis_guide,
+    narrationGuide: row.narration_guide,
+    isDefault: Boolean(row.is_default),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapDmProfileSummaryRow(row: DmProfileSummaryRow): DmProfileSummary {
+  return {
+    id: row.id,
+    name: row.name,
+    summary: row.summary,
+    isDefault: Boolean(row.is_default),
+  };
+}
+
+function isDmGuidePhase(value: string): value is DmGuidePhase {
+  return value === 'analysis' || value === 'narration';
+}
+
+function mapDmProfileRuleRow(row: DmProfileRuleRow): DmProfileRule {
+  const parsedOrder = typeof row.order_num === 'number' ? row.order_num : Number(row.order_num);
+  const order = Number.isFinite(parsedOrder) ? parsedOrder : 0;
+  return {
+    id: row.id,
+    dmProfileId: row.dm_profile_id,
+    phase: isDmGuidePhase(row.phase) ? row.phase : 'narration',
+    category: row.category ?? '',
+    title: row.title,
+    content: row.content,
+    order,
+    isEnabled: Boolean(row.is_enabled),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function buildGuideText(base: string, rules: DmProfileRule[], phase: DmGuidePhase): string {
+  const lines: string[] = [];
+  const trimmedBase = base.trim();
+  if (trimmedBase) {
+    lines.push(trimmedBase);
+  }
+  const filtered = rules.filter((rule) => rule.phase === phase && rule.isEnabled).sort((a, b) => a.order - b.order);
+  if (filtered.length === 0) {
+    return lines.join('\n');
+  }
+  lines.push('补充原则：');
+  filtered.forEach((rule, index) => {
+    const category = rule.category.trim();
+    const label = category ? `【${category}】${rule.title}` : rule.title;
+    lines.push(`${index + 1}) ${label}：${rule.content}`);
+  });
+  return lines.join('\n');
 }
 
 type CreateGameMessagePayload = {
@@ -561,7 +664,7 @@ function parseProvider(value: string | null): UserSettings['provider'] {
 
 export async function getUserSettings(db: D1Database, userId: string): Promise<UserSettings | null> {
   const row = await db
-    .prepare('SELECT ai_provider, ai_model FROM user_settings WHERE user_id = ? LIMIT 1')
+    .prepare('SELECT ai_provider, ai_model, dm_profile_id FROM user_settings WHERE user_id = ? LIMIT 1')
     .bind(userId)
     .first<UserSettingsRow>();
   if (!row) {
@@ -570,6 +673,7 @@ export async function getUserSettings(db: D1Database, userId: string): Promise<U
   return {
     provider: parseProvider(row.ai_provider),
     model: row.ai_model ?? '',
+    dmProfileId: row.dm_profile_id ?? null,
   };
 }
 
@@ -581,11 +685,302 @@ export async function upsertUserSettings(
   const now = new Date().toISOString();
   await db
     .prepare(
-      `INSERT INTO user_settings (user_id, ai_provider, ai_model, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?)
-			 ON CONFLICT(user_id) DO UPDATE SET ai_provider = excluded.ai_provider, ai_model = excluded.ai_model, updated_at = excluded.updated_at`,
+      `INSERT INTO user_settings (user_id, ai_provider, ai_model, dm_profile_id, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?)
+			 ON CONFLICT(user_id) DO UPDATE SET ai_provider = excluded.ai_provider, ai_model = excluded.ai_model, dm_profile_id = excluded.dm_profile_id, updated_at = excluded.updated_at`,
     )
-    .bind(userId, settings.provider, settings.model, now, now)
+    .bind(userId, settings.provider, settings.model, settings.dmProfileId ?? null, now, now)
     .run();
   return settings;
+}
+
+export async function listDmProfiles(db: D1Database): Promise<DmProfileSummary[]> {
+  const rows = await db
+    .prepare('SELECT id, name, summary, is_default FROM dm_profiles ORDER BY is_default DESC, name ASC')
+    .all<DmProfileSummaryRow>();
+  return (rows.results ?? []).map(mapDmProfileSummaryRow);
+}
+
+export async function getDmProfileById(db: D1Database, id: string): Promise<DmProfile | null> {
+  if (!id) {
+    return null;
+  }
+  const row = await db
+    .prepare(
+      'SELECT id, name, summary, analysis_guide, narration_guide, is_default, created_at, updated_at FROM dm_profiles WHERE id = ? LIMIT 1',
+    )
+    .bind(id)
+    .first<DmProfileRow>();
+  return row ? mapDmProfileRow(row) : null;
+}
+
+export async function getDmProfileWithRules(db: D1Database, id: string): Promise<DmProfileDetail | null> {
+  const profile = await getDmProfileById(db, id);
+  if (!profile) {
+    return null;
+  }
+  const rules = await listDmProfileRules(db, id);
+  return {
+    ...profile,
+    rules,
+  };
+}
+
+export async function getDefaultDmProfile(db: D1Database): Promise<DmProfile | null> {
+  const row = await db
+    .prepare(
+      'SELECT id, name, summary, analysis_guide, narration_guide, is_default, created_at, updated_at FROM dm_profiles WHERE is_default = 1 LIMIT 1',
+    )
+    .first<DmProfileRow>();
+  return row ? mapDmProfileRow(row) : null;
+}
+
+export async function getActiveDmProfile(db: D1Database, dmProfileId?: string | null): Promise<DmProfile | null> {
+  if (dmProfileId) {
+    const profile = await getDmProfileWithRules(db, dmProfileId);
+    if (profile) {
+      return {
+        ...profile,
+        analysisGuide: buildGuideText(profile.analysisGuide, profile.rules, 'analysis'),
+        narrationGuide: buildGuideText(profile.narrationGuide, profile.rules, 'narration'),
+      };
+    }
+  }
+  const fallback = await getDefaultDmProfile(db);
+  if (!fallback) {
+    return null;
+  }
+  const rules = await listDmProfileRules(db, fallback.id);
+  return {
+    ...fallback,
+    analysisGuide: buildGuideText(fallback.analysisGuide, rules, 'analysis'),
+    narrationGuide: buildGuideText(fallback.narrationGuide, rules, 'narration'),
+  };
+}
+
+export async function listDmProfileRules(db: D1Database, dmProfileId: string): Promise<DmProfileRule[]> {
+  if (!dmProfileId) {
+    return [];
+  }
+  const rows = await db
+    .prepare(
+      'SELECT id, dm_profile_id, phase, category, title, content, order_num, is_enabled, created_at, updated_at FROM dm_profile_rules WHERE dm_profile_id = ? ORDER BY order_num ASC',
+    )
+    .bind(dmProfileId)
+    .all<DmProfileRuleRow>();
+  return (rows.results ?? []).map(mapDmProfileRuleRow);
+}
+
+export async function createDmProfile(
+  db: D1Database,
+  payload: {
+    name: string;
+    summary: string;
+    analysisGuide?: string;
+    narrationGuide?: string;
+    isDefault?: boolean;
+  },
+): Promise<DmProfile> {
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const isDefault = payload.isDefault ? 1 : 0;
+  if (isDefault) {
+    await db.prepare('UPDATE dm_profiles SET is_default = 0').run();
+  }
+  await db
+    .prepare(
+      `INSERT INTO dm_profiles (id, name, summary, analysis_guide, narration_guide, is_default, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      id,
+      payload.name,
+      payload.summary,
+      payload.analysisGuide ?? '',
+      payload.narrationGuide ?? '',
+      isDefault,
+      now,
+      now,
+    )
+    .run();
+  return {
+    id,
+    name: payload.name,
+    summary: payload.summary,
+    analysisGuide: payload.analysisGuide ?? '',
+    narrationGuide: payload.narrationGuide ?? '',
+    isDefault: Boolean(isDefault),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export async function updateDmProfile(
+  db: D1Database,
+  id: string,
+  payload: {
+    name?: string;
+    summary?: string;
+    analysisGuide?: string;
+    narrationGuide?: string;
+    isDefault?: boolean;
+  },
+): Promise<DmProfile | null> {
+  if (!id) {
+    return null;
+  }
+  const existing = await getDmProfileById(db, id);
+  if (!existing) {
+    return null;
+  }
+  const now = new Date().toISOString();
+  const name = payload.name ?? existing.name;
+  const summary = payload.summary ?? existing.summary;
+  const analysisGuide = payload.analysisGuide ?? existing.analysisGuide;
+  const narrationGuide = payload.narrationGuide ?? existing.narrationGuide;
+  const isDefault = typeof payload.isDefault === 'boolean' ? (payload.isDefault ? 1 : 0) : existing.isDefault ? 1 : 0;
+  if (payload.isDefault === true) {
+    await db.prepare('UPDATE dm_profiles SET is_default = 0').run();
+  }
+  await db
+    .prepare(
+      `UPDATE dm_profiles
+       SET name = ?, summary = ?, analysis_guide = ?, narration_guide = ?, is_default = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(name, summary, analysisGuide, narrationGuide, isDefault, now, id)
+    .run();
+  return {
+    ...existing,
+    name,
+    summary,
+    analysisGuide,
+    narrationGuide,
+    isDefault: Boolean(isDefault),
+    updatedAt: now,
+  };
+}
+
+export async function deleteDmProfile(db: D1Database, id: string): Promise<boolean> {
+  if (!id) {
+    return false;
+  }
+  const result = await db.prepare('DELETE FROM dm_profiles WHERE id = ?').bind(id).run();
+  return result.success;
+}
+
+export async function createDmProfileRule(
+  db: D1Database,
+  payload: {
+    dmProfileId: string;
+    phase: DmGuidePhase;
+    category?: string;
+    title: string;
+    content: string;
+    order?: number;
+    isEnabled?: boolean;
+  },
+): Promise<DmProfileRule> {
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const order = typeof payload.order === 'number' ? payload.order : 0;
+  const isEnabled = payload.isEnabled === false ? 0 : 1;
+  await db
+    .prepare(
+      `INSERT INTO dm_profile_rules (id, dm_profile_id, phase, category, title, content, order_num, is_enabled, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      id,
+      payload.dmProfileId,
+      payload.phase,
+      payload.category ?? '',
+      payload.title,
+      payload.content,
+      order,
+      isEnabled,
+      now,
+      now,
+    )
+    .run();
+  return {
+    id,
+    dmProfileId: payload.dmProfileId,
+    phase: payload.phase,
+    category: payload.category ?? '',
+    title: payload.title,
+    content: payload.content,
+    order,
+    isEnabled: Boolean(isEnabled),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export async function updateDmProfileRule(
+  db: D1Database,
+  id: string,
+  payload: {
+    phase?: DmGuidePhase;
+    category?: string;
+    title?: string;
+    content?: string;
+    order?: number;
+    isEnabled?: boolean;
+  },
+): Promise<DmProfileRule | null> {
+  if (!id) {
+    return null;
+  }
+  const row = await db
+    .prepare(
+      'SELECT id, dm_profile_id, phase, category, title, content, order_num, is_enabled, created_at, updated_at FROM dm_profile_rules WHERE id = ? LIMIT 1',
+    )
+    .bind(id)
+    .first<DmProfileRuleRow>();
+  if (!row) {
+    return null;
+  }
+  const current = mapDmProfileRuleRow(row);
+  const now = new Date().toISOString();
+  const phase = payload.phase ?? current.phase;
+  const category = payload.category ?? current.category;
+  const title = payload.title ?? current.title;
+  const content = payload.content ?? current.content;
+  const order = typeof payload.order === 'number' ? payload.order : current.order;
+  const isEnabled = typeof payload.isEnabled === 'boolean' ? payload.isEnabled : current.isEnabled;
+  await db
+    .prepare(
+      `UPDATE dm_profile_rules
+       SET phase = ?, category = ?, title = ?, content = ?, order_num = ?, is_enabled = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(phase, category, title, content, order, isEnabled ? 1 : 0, now, id)
+    .run();
+  return {
+    ...current,
+    phase,
+    category,
+    title,
+    content,
+    order,
+    isEnabled,
+    updatedAt: now,
+  };
+}
+
+export async function deleteDmProfileRule(db: D1Database, id: string): Promise<boolean> {
+  if (!id) {
+    return false;
+  }
+  const result = await db.prepare('DELETE FROM dm_profile_rules WHERE id = ?').bind(id).run();
+  return result.success;
+}
+
+export async function getUserRole(db: D1Database, userId: string): Promise<string | null> {
+  const row = await db
+    .prepare('SELECT role FROM user_roles WHERE user_id = ? LIMIT 1')
+    .bind(userId)
+    .first<UserRoleRow>();
+  return row?.role ?? null;
 }

@@ -53,13 +53,13 @@ export const SAMPLE_SCRIPT: ScriptDefinition = {
   occupationOptions: ['神父', '刑警', '民俗学者', '退伍军人', '私家侦探', '记者'],
   originOptions: ['松柏镇', '灰木镇', '旧教堂区', '码头区', '郊外农场'],
   buffOptions: ['灵感加持', '沉着冷静', '仪式专注', '团队支援', '直觉敏锐'],
-  debuffOptions: ['噩梦缠身', '精神负荷', '轻微受伤', '恐惧残留', '信念动摇'],
+  debuffOptions: [],
   attributeRanges: {},
   attributePointBudget: 0,
   skillLimit: 4,
   equipmentLimit: 5,
   buffLimit: 1,
-  debuffLimit: 1,
+  debuffLimit: 0,
   rules: {},
   scenes: [
     {

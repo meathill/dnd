@@ -2,6 +2,10 @@ import type { AttributeKey, CharacterFieldErrors, ScriptDefinition } from './typ
 import {
   resolveAttributePointBudget,
   resolveAttributeRanges,
+  deriveQuickstartAssignments,
+  normalizeQuickstartSkillConfig,
+  resolveQuickstartSkillConfig,
+  resolveSkillAllocationMode,
   resolveSkillMaxValue,
   resolveSkillPointBudget,
   resolveUntrainedSkillValue,
@@ -198,19 +202,31 @@ export function validateCharacterAgainstScript(
     }
   }
 
-  const skillPointBudget = resolveSkillPointBudget(script.rules);
+  const skillAllocationMode = resolveSkillAllocationMode(script.rules);
+  const skillPointBudget =
+    skillAllocationMode === 'budget' ? resolveSkillPointBudget(script.rules, payload.attributes) : 0;
   const untrainedSkillValue = resolveUntrainedSkillValue(script.rules);
   const skillMaxValue = resolveSkillMaxValue(script.rules);
   const skillBaseValues = script.rules.skillBaseValues ?? {};
+  const resolvedSkillBaseValues: Record<string, number> = {};
+  script.skillOptions.forEach((skill) => {
+    const baseValue = skillBaseValues[skill.id];
+    resolvedSkillBaseValues[skill.id] =
+      typeof baseValue === 'number' && Number.isFinite(baseValue) ? baseValue : untrainedSkillValue;
+  });
   const skillValues = payload.skills;
   const skillEntries = Object.entries(skillValues);
   let allocatedPoints = 0;
   let selectedSkillCount = 0;
+  let quickstartSelectedCount = 0;
+  const quickstartConfig = normalizeQuickstartSkillConfig(
+    resolveQuickstartSkillConfig(script.rules),
+    script.skillOptions.length,
+  );
+  const quickstartAllowedCoreValues = new Set(quickstartConfig.coreValues);
+  let quickstartValueError = '';
   for (const [skillId, value] of skillEntries) {
-    const baseValue =
-      typeof skillBaseValues[skillId] === 'number' && Number.isFinite(skillBaseValues[skillId])
-        ? (skillBaseValues[skillId] as number)
-        : untrainedSkillValue;
+    const baseValue = resolvedSkillBaseValues[skillId] ?? untrainedSkillValue;
     if (value < baseValue) {
       errors.skills = '技能值低于基础值';
       break;
@@ -220,15 +236,75 @@ export function validateCharacterAgainstScript(
       break;
     }
     if (value > baseValue) {
-      selectedSkillCount += 1;
-      allocatedPoints += value - baseValue;
+      if (skillAllocationMode === 'quickstart') {
+        quickstartSelectedCount += 1;
+        const isCoreValue = quickstartAllowedCoreValues.has(value);
+        const isInterestValue = value === baseValue + quickstartConfig.interestBonus;
+        if (!isCoreValue && !isInterestValue) {
+          quickstartValueError = '技能值不符合快速分配规则';
+          break;
+        }
+      } else {
+        selectedSkillCount += 1;
+        allocatedPoints += value - baseValue;
+      }
     }
   }
-  if (skillPointBudget > 0) {
+  if (!errors.skills && quickstartValueError) {
+    errors.skills = quickstartValueError;
+  }
+  if (!errors.skills && skillAllocationMode === 'quickstart') {
+    const requiredSelected = quickstartConfig.coreValues.length + quickstartConfig.interestCount;
+    if (quickstartSelectedCount > requiredSelected) {
+      errors.skills = '技能分配超出快速分配数量';
+    } else if (quickstartSelectedCount < requiredSelected) {
+      errors.skills = '技能分配不足';
+    }
+  }
+  if (!errors.skills && skillAllocationMode === 'quickstart') {
+    const assignments = deriveQuickstartAssignments(
+      script.skillOptions.map((option) => option.id),
+      skillValues,
+      resolvedSkillBaseValues,
+      quickstartConfig,
+    );
+    const coreLimits: Record<number, number> = {};
+    quickstartConfig.coreValues.forEach((value) => {
+      coreLimits[value] = (coreLimits[value] ?? 0) + 1;
+    });
+    const coreUsage: Record<number, number> = {};
+    Object.values(assignments.core).forEach((value) => {
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return;
+      }
+      coreUsage[value] = (coreUsage[value] ?? 0) + 1;
+    });
+    for (const [value, used] of Object.entries(coreUsage)) {
+      const limit = coreLimits[Number(value)] ?? 0;
+      if (used > limit) {
+        errors.skills = '核心技能分配超出可用值';
+        break;
+      }
+    }
+    const coreSelected = Object.values(assignments.core).filter(
+      (value) => typeof value === 'number' && Number.isFinite(value) && value > 0,
+    ).length;
+    const interestSelected = Object.values(assignments.interest).filter(Boolean).length;
+    if (!errors.skills && coreSelected < quickstartConfig.coreValues.length) {
+      errors.skills = '核心技能分配不足';
+    }
+    if (!errors.skills && interestSelected > quickstartConfig.interestCount) {
+      errors.skills = `兴趣技能最多选择 ${quickstartConfig.interestCount} 项`;
+    }
+    if (!errors.skills && interestSelected < quickstartConfig.interestCount) {
+      errors.skills = '兴趣技能分配不足';
+    }
+  }
+  if (skillAllocationMode === 'budget') {
     if (allocatedPoints > skillPointBudget) {
       errors.skills = `技能点数超出预算 ${skillPointBudget}`;
     }
-  } else if (script.skillLimit > 0 && selectedSkillCount > script.skillLimit) {
+  } else if (skillAllocationMode === 'selection' && script.skillLimit > 0 && selectedSkillCount > script.skillLimit) {
     errors.skills = `技能最多选择 ${script.skillLimit} 项`;
   }
 
@@ -272,6 +348,9 @@ export function validateCharacterAgainstScript(
 
   if (script.debuffLimit > 0 && payload.debuffs.length > script.debuffLimit) {
     errors.debuffs = `减益状态最多选择 ${script.debuffLimit} 个`;
+  }
+  if (!errors.debuffs && script.debuffLimit > 0 && payload.debuffs.length < script.debuffLimit) {
+    errors.debuffs = `减益状态需要选择 ${script.debuffLimit} 个`;
   }
 
   const attributeErrors: Partial<Record<AttributeKey, string>> = {};

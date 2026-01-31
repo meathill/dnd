@@ -39,6 +39,7 @@ describe('character-creator-data', () => {
     const formState = buildDefaultFormState({
       skillOptions: defaultSkillOptions.slice(0, 3),
       skillLimit: 1,
+      rules: { skillAllocationMode: 'selection', skillPointBudget: 0 },
     });
     const untrainedValue = resolveUntrainedSkillValue();
     const selectedCount = Object.values(formState.skills).filter((value) => value > untrainedValue).length;

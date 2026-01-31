@@ -1,4 +1,5 @@
 import { Button } from '../components/ui/button';
+import { Checkbox } from '../components/ui/checkbox';
 import {
   NumberField,
   NumberFieldDecrement,
@@ -6,7 +7,10 @@ import {
   NumberFieldIncrement,
   NumberFieldInput,
 } from '../components/ui/number-field';
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Textarea } from '../components/ui/textarea';
+import type { QuickstartAssignments, QuickstartSkillConfig } from '../lib/game/rules';
+import type { SkillAllocationMode } from '../lib/game/types';
 import {
   fieldLabelClassName,
   type FormState,
@@ -23,6 +27,11 @@ type CharacterCreatorStepSkillsProps = {
   skillPointBudget: number;
   skillPointsUsed: number;
   skillMaxValue: number;
+  skillAllocationMode: SkillAllocationMode;
+  quickstartConfig: QuickstartSkillConfig;
+  quickstartAssignments: QuickstartAssignments;
+  onUpdateQuickstartCore: (skillId: SkillId, value: number | null) => void;
+  onToggleQuickstartInterest: (skillId: SkillId) => void;
   equipmentOptions: string[];
   selectedEquipment: string[];
   selectedSkills: SkillOption[];
@@ -44,6 +53,11 @@ export default function CharacterCreatorStepSkills({
   skillPointBudget,
   skillPointsUsed,
   skillMaxValue,
+  skillAllocationMode,
+  quickstartConfig,
+  quickstartAssignments,
+  onUpdateQuickstartCore,
+  onToggleQuickstartInterest,
   equipmentOptions,
   selectedEquipment,
   selectedSkills,
@@ -58,15 +72,39 @@ export default function CharacterCreatorStepSkills({
   equipmentError,
 }: CharacterCreatorStepSkillsProps) {
   const isEquipmentRestricted = equipmentOptions.length > 0;
+  const isQuickstart = skillAllocationMode === 'quickstart';
   const hasSkillBudget = skillPointBudget > 0;
   const remainingPoints = hasSkillBudget ? skillPointBudget - skillPointsUsed : 0;
   const isOverBudget = hasSkillBudget && remainingPoints < 0;
+  const coreValueLimits: Record<number, number> = {};
+  quickstartConfig.coreValues.forEach((value) => {
+    coreValueLimits[value] = (coreValueLimits[value] ?? 0) + 1;
+  });
+  const coreUsage: Record<number, number> = {};
+  Object.values(quickstartAssignments.core).forEach((value) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return;
+    }
+    coreUsage[value] = (coreUsage[value] ?? 0) + 1;
+  });
+  const coreSelectedCount = Object.values(quickstartAssignments.core).filter(
+    (value) => typeof value === 'number' && Number.isFinite(value) && value > 0,
+  ).length;
+  const interestSelectedCount = Object.values(quickstartAssignments.interest).filter(Boolean).length;
+  const uniqueCoreValues = Array.from(new Set(quickstartConfig.coreValues)).sort((a, b) => b - a);
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <p className={fieldLabelClassName}>{hasSkillBudget ? '技能点分配' : '技能选择'}</p>
-          {hasSkillBudget ? (
+          <p className={fieldLabelClassName}>
+            {isQuickstart ? '快速分配' : hasSkillBudget ? '技能点分配' : '技能选择'}
+          </p>
+          {isQuickstart ? (
+            <span className="text-xs text-[var(--ink-soft)]">
+              核心 {coreSelectedCount} / {quickstartConfig.coreValues.length} · 兴趣 {interestSelectedCount} /{' '}
+              {quickstartConfig.interestCount}
+            </span>
+          ) : hasSkillBudget ? (
             <span className={`text-xs ${isOverBudget ? 'text-[var(--accent-ember)]' : 'text-[var(--ink-soft)]'}`}>
               已用 {skillPointsUsed} / {skillPointBudget}
               {isOverBudget ? `，超出 ${Math.abs(remainingPoints)}` : `，剩余 ${remainingPoints}`}
@@ -77,7 +115,83 @@ export default function CharacterCreatorStepSkills({
             </span>
           ) : null}
         </div>
-        {hasSkillBudget ? (
+        {isQuickstart ? (
+          <div className="space-y-4">
+            <div className="panel-muted space-y-3 rounded-lg p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-soft)]">核心技能</p>
+              {skillOptions.map((skill) => {
+                const baseValue = skillBaseValues[skill.id] ?? 0;
+                const assignedValue = quickstartAssignments.core[skill.id];
+                return (
+                  <div className="flex items-center justify-between gap-3" key={skill.id}>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--ink-strong)]">{skill.label}</p>
+                      <p className="text-xs text-[var(--ink-soft)]">
+                        {skill.group} · 基础 {baseValue}
+                      </p>
+                    </div>
+                    <Select
+                      value={typeof assignedValue === 'number' ? String(assignedValue) : 'none'}
+                      onValueChange={(value) => onUpdateQuickstartCore(skill.id, value === 'none' ? null : Number(value))}
+                    >
+                      <SelectTrigger className="h-8 w-[140px] rounded-lg" size="sm" aria-label={`${skill.label}核心值`}>
+                        <SelectValue placeholder="核心值" />
+                      </SelectTrigger>
+                      <SelectPopup>
+                        <SelectItem value="none">不分配</SelectItem>
+                        {uniqueCoreValues.map((value) => {
+                          const limit = coreValueLimits[value] ?? 0;
+                          const used = coreUsage[value] ?? 0;
+                          const remaining = limit - used + (assignedValue === value ? 1 : 0);
+                          const disabled = remaining <= 0 && assignedValue !== value;
+                          const label = limit > 1 ? `${value}（剩 ${remaining}）` : `${value}`;
+                          return (
+                            <SelectItem key={`${skill.id}-${value}`} value={String(value)} disabled={disabled}>
+                              {label}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectPopup>
+                    </Select>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="panel-muted space-y-3 rounded-lg p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-soft)]">兴趣技能</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {skillOptions.map((skill) => {
+                  const baseValue = skillBaseValues[skill.id] ?? 0;
+                  const isCore = Boolean(quickstartAssignments.core[skill.id]);
+                  const isChecked = quickstartAssignments.interest[skill.id] ?? false;
+                  const disableToggle =
+                    isCore || (!isChecked && interestSelectedCount >= quickstartConfig.interestCount);
+                  return (
+                    <label
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs transition ${
+                        isChecked
+                          ? 'border-[rgba(61,82,56,0.4)] bg-[rgba(61,82,56,0.12)] text-[var(--accent-moss)]'
+                          : 'border-[rgba(27,20,12,0.1)] bg-[rgba(255,255,255,0.7)] text-[var(--ink-muted)]'
+                      } ${disableToggle ? 'cursor-not-allowed opacity-70' : ''}`}
+                      key={skill.id}
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        disabled={disableToggle}
+                        onCheckedChange={() => onToggleQuickstartInterest(skill.id)}
+                      />
+                      <span className="text-sm font-semibold text-[var(--ink-strong)]">{skill.label}</span>
+                      <span className="text-[10px] text-[var(--ink-soft)]">
+                        {baseValue} → {baseValue + quickstartConfig.interestBonus}
+                      </span>
+                      {isCore ? <span className="text-[10px] text-[var(--ink-soft)]">已为核心</span> : null}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : hasSkillBudget ? (
           <div className="space-y-3">
             {skillOptions.map((skill) => {
               const baseValue = skillBaseValues[skill.id] ?? 0;

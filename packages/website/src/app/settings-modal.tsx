@@ -1,7 +1,9 @@
 'use client';
 
 import AiProviderPanel from './ai-provider-panel';
+import DmProfilePanel from './dm-profile-panel';
 import type { UserSettings } from '../lib/session/session-types';
+import type { DmProfileSummary } from '../lib/game/types';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '../components/ui/dialog';
 
@@ -10,6 +12,8 @@ export type SettingsModalProps = {
   isSaving: boolean;
   settings: UserSettings;
   message: string;
+  dmProfiles: DmProfileSummary[];
+  dmProfilesMessage: string;
   onClose: () => void;
   onSave: () => void;
   onSettingsChange: (settings: UserSettings) => void;
@@ -20,6 +24,8 @@ export default function SettingsModal({
   isSaving,
   settings,
   message,
+  dmProfiles,
+  dmProfilesMessage,
   onClose,
   onSave,
   onSettingsChange,
@@ -39,13 +45,21 @@ export default function SettingsModal({
         </DialogHeader>
 
         <DialogPanel className="space-y-3">
-          <div className="rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-4">
+          <div className="rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-4">
             <AiProviderPanel
               provider={settings.provider}
               model={settings.model}
               onProviderChange={(provider) => onSettingsChange({ ...settings, provider })}
               onModelChange={(model) => onSettingsChange({ ...settings, model })}
             />
+          </div>
+          <div className="rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-4">
+            <DmProfilePanel
+              profiles={dmProfiles}
+              value={settings.dmProfileId}
+              onChange={(dmProfileId) => onSettingsChange({ ...settings, dmProfileId })}
+            />
+            {dmProfilesMessage ? <p className="mt-2 text-xs text-[var(--accent-ember)]">{dmProfilesMessage}</p> : null}
           </div>
           {message ? <p className="text-xs text-[var(--accent-ember)]">{message}</p> : null}
         </DialogPanel>

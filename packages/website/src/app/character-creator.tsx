@@ -15,7 +15,6 @@ import {
   buildDefaultFormState,
   calculateAttributeTotal,
   defaultBuffOptions,
-  defaultDebuffOptions,
   defaultSkillOptions,
   steps,
   type AttributeKey,
@@ -29,14 +28,23 @@ import {
 } from './character-creator-data';
 import type { CharacterFieldErrors, ScriptRuleOverrides } from '../lib/game/types';
 import {
+  buildQuickstartSkillValues,
+  deriveQuickstartAssignments,
+  type QuickstartAssignments,
   resolveAttributePointBudget,
   resolveAttributeRanges,
+  normalizeQuickstartSkillConfig,
+  resolveQuickstartSkillConfig,
+  resolveSkillAllocationMode,
   resolveSkillMaxValue,
   resolveSkillPointBudget,
   resolveTrainedSkillValue,
   resolveUntrainedSkillValue,
   rollLuck,
 } from '../lib/game/rules';
+
+const DEFAULT_BUFF_OPTIONS = Array.from(defaultBuffOptions);
+const EMPTY_OPTIONS: string[] = [];
 
 type CharacterCreatorProps = {
   onComplete?: (formState: FormState) => SubmitResult | Promise<SubmitResult>;
@@ -68,9 +76,9 @@ export default function CharacterCreator({
   mode = 'create',
   initialFormState,
   skillOptions,
-  equipmentOptions = [],
-  occupationOptions = [],
-  originOptions = [],
+  equipmentOptions,
+  occupationOptions,
+  originOptions,
   buffOptions,
   debuffOptions,
   attributeRanges,
@@ -88,22 +96,30 @@ export default function CharacterCreator({
   const [fieldErrors, setFieldErrors] = useState<CharacterFieldErrors>({});
   const [submitError, setSubmitError] = useState('');
   const activeSkillOptions = skillOptions ?? defaultSkillOptions;
+  const activeEquipmentOptions = equipmentOptions ?? EMPTY_OPTIONS;
+  const activeOccupationOptions = occupationOptions ?? EMPTY_OPTIONS;
+  const activeOriginOptions = originOptions ?? EMPTY_OPTIONS;
   const effectiveAttributeRanges = useMemo(() => resolveAttributeRanges(attributeRanges), [attributeRanges]);
   const activeAttributeOptions = useMemo(
     () => buildAttributeOptions(effectiveAttributeRanges),
     [effectiveAttributeRanges],
   );
-  const activeBuffOptions = buffOptions && buffOptions.length > 0 ? buffOptions : Array.from(defaultBuffOptions);
-  const activeDebuffOptions =
-    debuffOptions && debuffOptions.length > 0 ? debuffOptions : Array.from(defaultDebuffOptions);
+  const activeBuffOptions = buffOptions && buffOptions.length > 0 ? buffOptions : DEFAULT_BUFF_OPTIONS;
+  const activeDebuffOptions = debuffOptions && debuffOptions.length > 0 ? debuffOptions : EMPTY_OPTIONS;
+  const shouldShowDebuff = debuffLimit > 0 && activeDebuffOptions.length > 0;
   const effectiveAttributePointBudget = useMemo(
     () => resolveAttributePointBudget(attributePointBudget),
     [attributePointBudget],
   );
-  const skillPointBudget = useMemo(() => resolveSkillPointBudget(rules), [rules]);
   const trainedSkillValue = useMemo(() => resolveTrainedSkillValue(rules), [rules]);
   const untrainedSkillValue = useMemo(() => resolveUntrainedSkillValue(rules), [rules]);
   const skillMaxValue = useMemo(() => resolveSkillMaxValue(rules), [rules]);
+  const skillAllocationMode = useMemo(() => resolveSkillAllocationMode(rules), [rules]);
+  const quickstartRawConfig = useMemo(() => resolveQuickstartSkillConfig(rules), [rules]);
+  const quickstartConfig = useMemo(
+    () => normalizeQuickstartSkillConfig(quickstartRawConfig, activeSkillOptions.length),
+    [activeSkillOptions.length, quickstartRawConfig],
+  );
   const skillBaseValueMap = useMemo(() => {
     const map: Record<string, number> = {};
     activeSkillOptions.forEach((skill) => {
@@ -119,11 +135,12 @@ export default function CharacterCreator({
       skillOptions: activeSkillOptions,
       skillLimit,
       rules,
-      occupationOptions,
-      originOptions,
-      inventory: equipmentOptions.length > 0 ? '' : undefined,
+      occupationOptions: activeOccupationOptions,
+      originOptions: activeOriginOptions,
+      inventory: activeEquipmentOptions.length > 0 ? '' : undefined,
       buffOptions: activeBuffOptions,
-      debuffOptions: activeDebuffOptions,
+      debuffOptions: shouldShowDebuff ? activeDebuffOptions : [],
+      debuffLimit: shouldShowDebuff ? debuffLimit : 0,
     });
     if (!initialFormState) {
       return base;
@@ -140,22 +157,64 @@ export default function CharacterCreator({
         ...initialFormState.skills,
       },
       buffs: initialFormState.buffs ?? base.buffs,
-      debuffs: initialFormState.debuffs ?? base.debuffs,
+      debuffs: shouldShowDebuff ? (initialFormState.debuffs ?? base.debuffs) : [],
     };
   }, [
     activeAttributeOptions,
     activeSkillOptions,
     activeBuffOptions,
     activeDebuffOptions,
+    activeEquipmentOptions.length,
+    activeOccupationOptions,
+    activeOriginOptions,
+    debuffLimit,
     effectiveAttributePointBudget,
-    equipmentOptions.length,
     initialFormState,
-    occupationOptions,
-    originOptions,
     rules,
     skillLimit,
+    shouldShowDebuff,
   ]);
   const [formState, setFormState] = useState<FormState>(seedFormState);
+  const [quickstartAssignments, setQuickstartAssignments] = useState<QuickstartAssignments>(() =>
+    deriveQuickstartAssignments(
+      activeSkillOptions.map((skill) => skill.id),
+      seedFormState.skills,
+      skillBaseValueMap,
+      quickstartConfig,
+    ),
+  );
+  useEffect(() => {
+    setQuickstartAssignments(
+      deriveQuickstartAssignments(
+        activeSkillOptions.map((skill) => skill.id),
+        seedFormState.skills,
+        skillBaseValueMap,
+        quickstartConfig,
+      ),
+    );
+  }, [activeSkillOptions, quickstartConfig, seedFormState.skills, skillBaseValueMap]);
+  const skillPointBudget = useMemo(
+    () => (skillAllocationMode === 'budget' ? resolveSkillPointBudget(rules, formState.attributes) : 0),
+    [formState.attributes, rules, skillAllocationMode],
+  );
+  useEffect(() => {
+    if (skillAllocationMode !== 'quickstart') {
+      return;
+    }
+    const nextSkills = buildQuickstartSkillValues(
+      activeSkillOptions.map((skill) => skill.id),
+      skillBaseValueMap,
+      quickstartAssignments,
+      quickstartConfig,
+    );
+    setFormState((current) => ({
+      ...current,
+      skills: {
+        ...current.skills,
+        ...nextSkills,
+      },
+    }));
+  }, [activeSkillOptions, quickstartAssignments, quickstartConfig, skillAllocationMode, skillBaseValueMap]);
   const showSecondaryActions = variant === 'full';
   const selectedSkills = useMemo<SkillOption[]>(
     () =>
@@ -166,6 +225,40 @@ export default function CharacterCreator({
       }),
     [activeSkillOptions, formState.skills, skillBaseValueMap, untrainedSkillValue],
   );
+  const quickstartCoreUsage = useMemo(() => {
+    const usage: Record<number, number> = {};
+    Object.values(quickstartAssignments.core).forEach((value) => {
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return;
+      }
+      usage[value] = (usage[value] ?? 0) + 1;
+    });
+    return usage;
+  }, [quickstartAssignments.core]);
+  const quickstartCoreLimits = useMemo(() => {
+    const limits: Record<number, number> = {};
+    quickstartConfig.coreValues.forEach((value) => {
+      limits[value] = (limits[value] ?? 0) + 1;
+    });
+    return limits;
+  }, [quickstartConfig.coreValues]);
+  const quickstartCoreSelected = useMemo(
+    () =>
+      Object.values(quickstartAssignments.core).filter(
+        (value) => typeof value === 'number' && Number.isFinite(value) && value > 0,
+      ).length,
+    [quickstartAssignments.core],
+  );
+  const quickstartInterestSelected = useMemo(
+    () => Object.values(quickstartAssignments.interest).filter(Boolean).length,
+    [quickstartAssignments.interest],
+  );
+  const quickstartCoreOverflow = useMemo(
+    () =>
+      Object.entries(quickstartCoreUsage).some(([value, count]) => count > (quickstartCoreLimits[Number(value)] ?? 0)),
+    [quickstartCoreLimits, quickstartCoreUsage],
+  );
+  const quickstartInterestOverflow = quickstartInterestSelected > quickstartConfig.interestCount;
   const inventoryList = useMemo(() => parseInventoryList(formState.inventory), [formState.inventory]);
   const attributePointTotal = useMemo(() => calculateAttributeTotal(formState.attributes), [formState.attributes]);
   const attributeBudgetErrorMessage =
@@ -183,9 +276,29 @@ export default function CharacterCreator({
       return sum + Math.max(0, value - baseValue);
     }, 0);
   }, [activeSkillOptions, formState.skills, skillBaseValueMap, skillPointBudget, untrainedSkillValue]);
+  const quickstartRequiredCore = quickstartConfig.coreValues.length;
+  const quickstartCoreMissing = Math.max(0, quickstartRequiredCore - quickstartCoreSelected);
+  const quickstartInterestMissing = Math.max(0, quickstartConfig.interestCount - quickstartInterestSelected);
+  const quickstartErrorMessage =
+    skillAllocationMode === 'quickstart'
+      ? quickstartCoreOverflow
+        ? '核心技能分配超出可用值'
+        : quickstartInterestOverflow
+          ? `兴趣技能最多选择 ${quickstartConfig.interestCount} 项`
+          : quickstartCoreMissing > 0
+            ? `核心技能还需分配 ${quickstartCoreMissing} 项`
+            : quickstartInterestMissing > 0
+              ? `兴趣技能还需选择 ${quickstartInterestMissing} 项`
+              : ''
+      : '';
   const skillPointErrorMessage =
-    skillPointBudget > 0 && skillPointsUsed > skillPointBudget ? `技能点数超出预算 ${skillPointBudget}` : '';
+    skillAllocationMode === 'budget' && skillPointBudget > 0 && skillPointsUsed > skillPointBudget
+      ? `技能点数超出预算 ${skillPointBudget}`
+      : quickstartErrorMessage;
   const isOverSkillBudget = Boolean(skillPointErrorMessage);
+  const debuffRequiredErrorMessage =
+    shouldShowDebuff && formState.debuffs.length < debuffLimit ? `减益状态需要选择 ${debuffLimit} 个` : '';
+  const debuffErrorMessage = fieldErrors.debuffs ?? debuffRequiredErrorMessage;
   const shouldDisableButton = isDisabled && !onRequestOpen;
 
   function openCreator(force = false) {
@@ -302,6 +415,74 @@ export default function CharacterCreator({
         return nextSkills;
       })(),
     }));
+  }
+
+  function updateQuickstartCore(skillId: SkillId, value: number | null) {
+    if (skillAllocationMode !== 'quickstart') {
+      return;
+    }
+    setQuickstartAssignments((current) => {
+      const currentValue = current.core[skillId];
+      if (currentValue === value) {
+        return current;
+      }
+      if (typeof value === 'number') {
+        const nextUsage: Record<number, number> = {};
+        Object.entries(current.core).forEach(([key, assigned]) => {
+          if (key === skillId) {
+            return;
+          }
+          if (typeof assigned === 'number' && Number.isFinite(assigned)) {
+            nextUsage[assigned] = (nextUsage[assigned] ?? 0) + 1;
+          }
+        });
+        const limit = quickstartCoreLimits[value] ?? 0;
+        const used = nextUsage[value] ?? 0;
+        if (used >= limit) {
+          return current;
+        }
+      }
+      const nextCore = { ...current.core, [skillId]: value };
+      const nextInterest = { ...current.interest };
+      if (value !== null) {
+        nextInterest[skillId] = false;
+      }
+      setFieldErrors((prev) => {
+        if (!prev.skills) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next.skills;
+        return next;
+      });
+      return { core: nextCore, interest: nextInterest };
+    });
+  }
+
+  function toggleQuickstartInterest(skillId: SkillId) {
+    if (skillAllocationMode !== 'quickstart') {
+      return;
+    }
+    setQuickstartAssignments((current) => {
+      if (current.core[skillId]) {
+        return current;
+      }
+      const isSelected = current.interest[skillId];
+      const selectedCount = Object.values(current.interest).filter(Boolean).length;
+      if (!isSelected && selectedCount >= quickstartConfig.interestCount) {
+        return current;
+      }
+      const nextInterest = { ...current.interest, [skillId]: !isSelected };
+      setFieldErrors((prev) => {
+        if (!prev.skills) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next.skills;
+        return next;
+      });
+      return { ...current, interest: nextInterest };
+    });
   }
 
   function updateSkillValue(skillId: SkillId, value: number) {
@@ -506,7 +687,11 @@ export default function CharacterCreator({
         onPrevious={goPreviousStep}
         onNext={goNextStep}
         onComplete={handleComplete}
-        isNextDisabled={(currentStep === 1 && isOverAttributeBudget) || (currentStep === 2 && isOverSkillBudget)}
+        isNextDisabled={
+          (currentStep === 1 && isOverAttributeBudget) ||
+          (currentStep === 2 && isOverSkillBudget) ||
+          (currentStep === 3 && Boolean(debuffRequiredErrorMessage))
+        }
         submitLabel={mode === 'edit' ? '保存修改' : mode === 'copy' ? '创建副本' : '创建角色'}
         title={mode === 'edit' ? '编辑人物卡' : mode === 'copy' ? '复制人物卡' : '创建人物卡'}
       >
@@ -514,8 +699,8 @@ export default function CharacterCreator({
           currentStep={currentStep}
           formState={formState}
           fieldErrors={fieldErrors}
-          occupationOptions={occupationOptions}
-          originOptions={originOptions}
+          occupationOptions={activeOccupationOptions}
+          originOptions={activeOriginOptions}
           attributeOptions={activeAttributeOptions}
           attributeErrorMessage={buildAttributeErrorMessage(fieldErrors, attributeBudgetErrorMessage)}
           attributePointBudget={effectiveAttributePointBudget}
@@ -529,8 +714,13 @@ export default function CharacterCreator({
           skillPointBudget={skillPointBudget}
           skillPointsUsed={skillPointsUsed}
           skillMaxValue={skillMaxValue}
+          skillAllocationMode={skillAllocationMode}
+          quickstartConfig={quickstartConfig}
+          quickstartAssignments={quickstartAssignments}
+          onUpdateQuickstartCore={updateQuickstartCore}
+          onToggleQuickstartInterest={toggleQuickstartInterest}
           skillPointError={skillPointErrorMessage}
-          equipmentOptions={equipmentOptions}
+          equipmentOptions={activeEquipmentOptions}
           selectedEquipment={inventoryList}
           selectedSkills={selectedSkills}
           onToggleSkill={toggleSkill}
@@ -539,11 +729,13 @@ export default function CharacterCreator({
           skillLimit={skillLimit}
           equipmentLimit={equipmentLimit}
           buffOptions={activeBuffOptions}
-          debuffOptions={activeDebuffOptions}
+          debuffOptions={shouldShowDebuff ? activeDebuffOptions : []}
           onToggleBuff={toggleBuff}
           onToggleDebuff={toggleDebuff}
           buffLimit={buffLimit}
-          debuffLimit={debuffLimit}
+          debuffLimit={shouldShowDebuff ? debuffLimit : 0}
+          buffError={fieldErrors.buffs}
+          debuffError={debuffErrorMessage}
         />
       </CharacterCreatorModal>
     </div>

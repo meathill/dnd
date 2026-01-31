@@ -49,7 +49,7 @@ const baseScript: ScriptDefinition = {
   equipmentLimit: 1,
   buffLimit: 1,
   debuffLimit: 1,
-  rules: {},
+  rules: { skillAllocationMode: 'selection', skillPointBudget: 0 },
   scenes: [],
   encounters: [],
 };
@@ -212,9 +212,62 @@ describe('validateCharacterAgainstScript', () => {
         skills: { spotHidden: 50, libraryUse: 50 },
         inventory: ['手电筒', '录音机'],
       },
-      baseScript,
+      {
+        ...baseScript,
+        skillOptions: [
+          ...baseScript.skillOptions,
+          { id: 'libraryUse', label: '图书馆使用', group: '调查' },
+        ],
+        rules: { skillAllocationMode: 'selection', skillPointBudget: 0 },
+      },
     );
     expect(errors.skills).toBe('技能最多选择 1 项');
     expect(errors.inventory).toBe('装备最多选择 1 件');
+  });
+
+  it('quick-start 规则会校验核心与兴趣技能', () => {
+    const quickstartScript: ScriptDefinition = {
+      ...baseScript,
+      skillOptions: [
+        { id: 'spotHidden', label: '侦查', group: '调查' },
+        { id: 'listen', label: '聆听', group: '调查' },
+        { id: 'stealth', label: '潜行', group: '行动' },
+      ],
+      rules: {
+        skillAllocationMode: 'quickstart',
+        quickstartCoreValues: [70, 60],
+        quickstartInterestCount: 1,
+        quickstartInterestBonus: 20,
+      },
+    };
+    const payload = {
+      ...basePayload,
+      skills: { spotHidden: 70, listen: 60, stealth: 40 },
+    };
+    const errors = validateCharacterAgainstScript(payload, quickstartScript);
+    expect(errors.skills).toBeUndefined();
+  });
+
+  it('quick-start 会拦截不符合的技能值', () => {
+    const quickstartScript: ScriptDefinition = {
+      ...baseScript,
+      skillOptions: [
+        { id: 'spotHidden', label: '侦查', group: '调查' },
+        { id: 'listen', label: '聆听', group: '调查' },
+        { id: 'stealth', label: '潜行', group: '行动' },
+      ],
+      rules: {
+        skillAllocationMode: 'quickstart',
+        quickstartCoreValues: [70, 60],
+        quickstartInterestCount: 1,
+        quickstartInterestBonus: 20,
+      },
+    };
+    const payload = {
+      ...basePayload,
+      skills: { spotHidden: 75, listen: 60, stealth: 40 },
+    };
+    const errors = validateCharacterAgainstScript(payload, quickstartScript);
+    expect(errors.skills).toBe('技能值不符合快速分配规则');
   });
 });

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import CharacterCreator from '../character-creator';
@@ -15,7 +15,7 @@ describe('人物卡创建', () => {
 
   it('完成创建会触发回调', async () => {
     const onComplete = vi.fn().mockResolvedValue({ ok: true });
-    render(<CharacterCreator onComplete={onComplete} />);
+    render(<CharacterCreator onComplete={onComplete} rules={{ skillAllocationMode: 'selection', skillPointBudget: 0 }} />);
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: '创建角色' }));
@@ -37,7 +37,7 @@ describe('人物卡创建', () => {
       fieldErrors: { occupation: '人物卡职业不在剧本允许范围内' },
       message: '人物卡字段不合法',
     });
-    render(<CharacterCreator onComplete={onComplete} />);
+    render(<CharacterCreator onComplete={onComplete} rules={{ skillAllocationMode: 'selection', skillPointBudget: 0 }} />);
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: '创建角色' }));
@@ -94,7 +94,7 @@ describe('人物卡创建', () => {
     render(
       <CharacterCreator
         skillOptions={[{ id: 'spotHidden', label: '侦查', group: '调查' }]}
-        rules={{ skillPointBudget: 10, skillMaxValue: 60 }}
+        rules={{ skillAllocationMode: 'budget', skillPointBudget: 10, skillMaxValue: 60 }}
       />,
     );
     const user = userEvent.setup();
@@ -110,6 +110,46 @@ describe('人物卡创建', () => {
     const nextButton = screen.getByRole('button', { name: '下一步' });
     expect(nextButton).toBeDisabled();
     expect(screen.getByText('技能点数超出预算 10')).toBeInTheDocument();
+  });
+
+  it('quick-start 需要分配核心与兴趣技能', async () => {
+    render(
+      <CharacterCreator
+        skillOptions={[
+          { id: 'spotHidden', label: '侦查', group: '调查' },
+          { id: 'listen', label: '聆听', group: '调查' },
+          { id: 'stealth', label: '潜行', group: '行动' },
+        ]}
+        rules={{
+          skillAllocationMode: 'quickstart',
+          quickstartCoreValues: [70, 60],
+          quickstartInterestCount: 1,
+          quickstartInterestBonus: 20,
+        }}
+      />,
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+
+    const nextButton = screen.getByRole('button', { name: '下一步' });
+    expect(nextButton).toBeDisabled();
+
+    const spotSelect = screen.getByRole('combobox', { name: '侦查核心值' });
+    await user.click(spotSelect);
+    await user.click(await screen.findByRole('option', { name: '70' }));
+
+    const listenSelect = screen.getByRole('combobox', { name: '聆听核心值' });
+    await user.click(listenSelect);
+    await user.click(await screen.findByRole('option', { name: '60' }));
+
+    const interestSection = screen.getByText('兴趣技能').closest('div');
+    expect(interestSection).toBeTruthy();
+    await user.click(within(interestSection as HTMLElement).getByText('潜行'));
+
+    expect(nextButton).toBeEnabled();
   });
 
   it('低于规则推荐最低值会显示提示', async () => {
@@ -132,6 +172,7 @@ describe('人物卡创建', () => {
         debuffOptions={['轻微受伤', '噩梦缠身']}
         buffLimit={1}
         debuffLimit={1}
+        rules={{ skillAllocationMode: 'selection', skillPointBudget: 0 }}
       />,
     );
     const user = userEvent.setup();
@@ -157,7 +198,14 @@ describe('人物卡创建', () => {
   });
 
   it('属性与状态有 tooltip 说明', async () => {
-    render(<CharacterCreator buffOptions={['灵感加持']} debuffOptions={['轻微受伤']} />);
+    render(
+      <CharacterCreator
+        buffOptions={['灵感加持']}
+        debuffOptions={['轻微受伤']}
+        debuffLimit={1}
+        rules={{ skillAllocationMode: 'selection', skillPointBudget: 0 }}
+      />,
+    );
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: '创建角色' }));

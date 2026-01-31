@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuth } from '../../../lib/auth/auth';
+import { isRootUser } from '../../../lib/auth/root';
 import { getDatabase } from '../../../lib/db/db';
 import { getUserSettings } from '../../../lib/db/repositories';
 import type { SessionInfo } from '../../../lib/session/session-types';
@@ -17,11 +18,12 @@ export async function GET(request: Request) {
     }
     const userId = authSession.user.id;
     const db = await getDatabase();
-    const settings = await getUserSettings(db, userId);
+    const [settings, rootAllowed] = await Promise.all([getUserSettings(db, userId), isRootUser(authSession.user)]);
     const session: SessionInfo = {
       userId,
       displayName: authSession.user.name ?? authSession.user.email ?? userId,
       settings,
+      isRoot: rootAllowed,
     };
     return NextResponse.json({ session });
   } catch (error) {

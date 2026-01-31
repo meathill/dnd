@@ -99,6 +99,16 @@ function parseNumberRecord(value: unknown): Record<string, number> | undefined {
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+function parseNumberArray(value: unknown): number[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const items = value
+    .filter((entry) => typeof entry === 'number' && Number.isFinite(entry))
+    .map((entry) => Math.floor(entry));
+  return items.length > 0 ? items : undefined;
+}
+
 function parseScriptRules(raw: string): ScriptRuleOverrides {
   const data = parseJsonRecord(raw);
   const rules: ScriptRuleOverrides = {};
@@ -124,6 +134,19 @@ function parseScriptRules(raw: string): ScriptRuleOverrides {
   const skillBaseValues = parseNumberRecord(data.skillBaseValues);
   if (skillBaseValues) {
     rules.skillBaseValues = skillBaseValues;
+  }
+  if (data.skillAllocationMode === 'budget' || data.skillAllocationMode === 'selection' || data.skillAllocationMode === 'quickstart') {
+    rules.skillAllocationMode = data.skillAllocationMode;
+  }
+  const quickstartCoreValues = parseNumberArray(data.quickstartCoreValues);
+  if (quickstartCoreValues) {
+    rules.quickstartCoreValues = quickstartCoreValues;
+  }
+  if (typeof data.quickstartInterestCount === 'number' && Number.isFinite(data.quickstartInterestCount)) {
+    rules.quickstartInterestCount = Math.max(0, Math.floor(data.quickstartInterestCount));
+  }
+  if (typeof data.quickstartInterestBonus === 'number' && Number.isFinite(data.quickstartInterestBonus)) {
+    rules.quickstartInterestBonus = Math.max(0, Math.floor(data.quickstartInterestBonus));
   }
   return rules;
 }

@@ -10,16 +10,18 @@ import { authClient } from '../lib/auth/auth-client';
 import type { SessionInfo, UserSettings } from '../lib/session/session-types';
 import { SessionProvider } from '../lib/session/session-context';
 import { Button } from '../components/ui/button';
+import type { DmProfileSummary } from '../lib/game/types';
 
 const sidebarTitleClassName = 'text-xs uppercase tracking-[0.3em] text-[var(--ink-soft)]';
 
 const defaultSettings: UserSettings = {
   provider: 'openai',
   model: '',
+  dmProfileId: null,
 };
 
 type AppShellProps = {
-  activeNav: 'home' | 'script' | 'game' | 'games';
+  activeNav: 'home' | 'script' | 'game' | 'games' | 'admin';
   scriptId?: string | null;
   gameId?: string | null;
   children: ReactNode;
@@ -32,6 +34,8 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
   const [settingsMessage, setSettingsMessage] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [dmProfiles, setDmProfiles] = useState<DmProfileSummary[]>([]);
+  const [dmProfilesMessage, setDmProfilesMessage] = useState('');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signIn' | 'signUp'>('signIn');
   const [authEmail, setAuthEmail] = useState('');
@@ -42,6 +46,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
   const [authSuccessAction, setAuthSuccessAction] = useState<null | (() => void)>(null);
 
   const isLoggedIn = Boolean(session);
+  const isRoot = session?.isRoot ?? false;
 
   const loadSession = useCallback(async () => {
     try {
@@ -60,9 +65,36 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
     }
   }, []);
 
+  const loadDmProfiles = useCallback(async () => {
+    try {
+      const response = await fetch('/api/dm-profiles', { cache: 'no-store' });
+      if (!response.ok) {
+        setDmProfiles([]);
+        setDmProfilesMessage('DM 风格列表加载失败。');
+        return [];
+      }
+      const data = (await response.json()) as { profiles?: DmProfileSummary[] };
+      const profiles = Array.isArray(data.profiles) ? data.profiles : [];
+      setDmProfiles(profiles);
+      setDmProfilesMessage('');
+      return profiles;
+    } catch {
+      setDmProfiles([]);
+      setDmProfilesMessage('DM 风格列表加载失败。');
+      return [];
+    }
+  }, []);
+
   useEffect(() => {
     loadSession();
   }, [loadSession]);
+
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      return;
+    }
+    loadDmProfiles();
+  }, [isSettingsOpen, loadDmProfiles]);
 
   function handleOpenGames() {
     handleRequestAuth(() => {
@@ -76,6 +108,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
     }
     setSettingsDraft(session.settings ?? defaultSettings);
     setSettingsMessage('');
+    setDmProfilesMessage('');
     setIsSettingsOpen(true);
   }
 
@@ -229,6 +262,16 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
             >
               设置
             </Button>
+            {isRoot ? (
+              <Button
+                className="w-full justify-start"
+                render={<Link href="/admin/dm-profiles" />}
+                size="sm"
+                variant={activeNav === 'admin' ? 'default' : 'outline'}
+              >
+                全局配置
+              </Button>
+            ) : null}
           </div>
 
           <div className="mt-auto space-y-2 text-xs text-[var(--ink-soft)]">
@@ -258,6 +301,8 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
           isSaving={isSavingSettings}
           settings={settingsDraft}
           message={settingsMessage}
+          dmProfiles={dmProfiles}
+          dmProfilesMessage={dmProfilesMessage}
           onClose={handleCloseSettings}
           onSave={handleSaveSettings}
           onSettingsChange={setSettingsDraft}

@@ -1,10 +1,14 @@
-import type { AttributeRangeMap, ScriptRuleOverrides } from './types';
+import type { AttributeKey, AttributeRangeMap, ScriptRuleOverrides, SkillAllocationMode } from './types';
 
 export const DEFAULT_ATTRIBUTE_POINT_BUDGET = 460;
 export const DEFAULT_TRAINED_SKILL_VALUE = 50;
 export const DEFAULT_UNTRAINED_SKILL_VALUE = 20;
 export const DEFAULT_CHECK_DC = 100;
-export const DEFAULT_SKILL_MAX_VALUE = 90;
+export const DEFAULT_SKILL_MAX_VALUE = 75;
+export const DEFAULT_SKILL_ALLOCATION_MODE: SkillAllocationMode = 'quickstart';
+export const DEFAULT_QUICKSTART_CORE_VALUES = [70, 60, 60, 50, 50, 50];
+export const DEFAULT_QUICKSTART_INTEREST_COUNT = 2;
+export const DEFAULT_QUICKSTART_INTEREST_BONUS = 20;
 export const RULEBOOK_CHECK_DC_OVERRIDES: Record<string, number> = {};
 
 export const DEFAULT_ATTRIBUTE_RANGES: AttributeRangeMap = {
@@ -149,11 +153,173 @@ export function resolveDefaultCheckDc(rules: ScriptRuleOverrides | undefined): n
   return resolveScriptRuleNumber(rules?.defaultCheckDc, DEFAULT_CHECK_DC);
 }
 
-export function resolveSkillPointBudget(rules: ScriptRuleOverrides | undefined): number {
+export function calculateCocSkillPointBudget(
+  attributes: Partial<Record<AttributeKey, number>> | undefined,
+): number {
+  if (!attributes) {
+    return 0;
+  }
+  const education = typeof attributes.education === 'number' && Number.isFinite(attributes.education) ? attributes.education : 0;
+  const intelligence =
+    typeof attributes.intelligence === 'number' && Number.isFinite(attributes.intelligence) ? attributes.intelligence : 0;
+  return Math.max(0, Math.floor(education * 4 + intelligence * 2));
+}
+
+export function resolveSkillPointBudget(
+  rules: ScriptRuleOverrides | undefined,
+  attributes?: Partial<Record<AttributeKey, number>>,
+): number {
   if (typeof rules?.skillPointBudget === 'number' && Number.isFinite(rules.skillPointBudget)) {
     return Math.max(0, Math.floor(rules.skillPointBudget));
   }
-  return 0;
+  return calculateCocSkillPointBudget(attributes);
+}
+
+export type QuickstartSkillConfig = {
+  coreValues: number[];
+  interestCount: number;
+  interestBonus: number;
+};
+
+export type QuickstartAssignments = {
+  core: Record<string, number | null>;
+  interest: Record<string, boolean>;
+};
+
+export function resolveSkillAllocationMode(rules?: ScriptRuleOverrides): SkillAllocationMode {
+  if (rules?.skillAllocationMode) {
+    return rules.skillAllocationMode;
+  }
+  return DEFAULT_SKILL_ALLOCATION_MODE;
+}
+
+export function resolveQuickstartSkillConfig(rules?: ScriptRuleOverrides): QuickstartSkillConfig {
+  const coreValues =
+    Array.isArray(rules?.quickstartCoreValues) && rules?.quickstartCoreValues.length > 0
+      ? rules.quickstartCoreValues.filter((value) => typeof value === 'number' && Number.isFinite(value) && value > 0)
+      : DEFAULT_QUICKSTART_CORE_VALUES;
+  const interestCount =
+    typeof rules?.quickstartInterestCount === 'number' && Number.isFinite(rules.quickstartInterestCount)
+      ? Math.max(0, Math.floor(rules.quickstartInterestCount))
+      : DEFAULT_QUICKSTART_INTEREST_COUNT;
+  const interestBonus =
+    typeof rules?.quickstartInterestBonus === 'number' && Number.isFinite(rules.quickstartInterestBonus)
+      ? Math.max(0, Math.floor(rules.quickstartInterestBonus))
+      : DEFAULT_QUICKSTART_INTEREST_BONUS;
+  return {
+    coreValues: coreValues.length > 0 ? coreValues.map((value) => Math.floor(value)) : DEFAULT_QUICKSTART_CORE_VALUES,
+    interestCount,
+    interestBonus,
+  };
+}
+
+export function normalizeQuickstartSkillConfig(config: QuickstartSkillConfig, skillCount: number): QuickstartSkillConfig {
+  const safeSkillCount = Math.max(0, Math.floor(skillCount));
+  const coreValues = config.coreValues.slice(0, safeSkillCount);
+  const remaining = Math.max(0, safeSkillCount - coreValues.length);
+  const interestCount = Math.min(config.interestCount, remaining);
+  return {
+    coreValues,
+    interestCount,
+    interestBonus: config.interestBonus,
+  };
+}
+
+function buildCoreValueCounter(values: number[]): Record<number, number> {
+  const result: Record<number, number> = {};
+  values.forEach((value) => {
+    result[value] = (result[value] ?? 0) + 1;
+  });
+  return result;
+}
+
+export function buildEmptyQuickstartAssignments(skillIds: string[]): QuickstartAssignments {
+  const core: Record<string, number | null> = {};
+  const interest: Record<string, boolean> = {};
+  skillIds.forEach((skillId) => {
+    core[skillId] = null;
+    interest[skillId] = false;
+  });
+  return { core, interest };
+}
+
+export function deriveQuickstartAssignments(
+  skillIds: string[],
+  skills: Record<string, number>,
+  baseValues: Record<string, number>,
+  config: QuickstartSkillConfig,
+): QuickstartAssignments {
+  const effectiveConfig = normalizeQuickstartSkillConfig(config, skillIds.length);
+  const assignment = buildEmptyQuickstartAssignments(skillIds);
+  const coreCounter = buildCoreValueCounter(effectiveConfig.coreValues);
+  let interestRemaining = effectiveConfig.interestCount;
+  const ambiguous: string[] = [];
+
+  skillIds.forEach((skillId) => {
+    const baseValue = baseValues[skillId] ?? 0;
+    const currentValue = skills[skillId] ?? baseValue;
+    if (currentValue <= baseValue) {
+      return;
+    }
+    const isInterestValue = currentValue === baseValue + effectiveConfig.interestBonus;
+    const coreSlots = coreCounter[currentValue] ?? 0;
+    if (coreSlots > 0 && !isInterestValue) {
+      assignment.core[skillId] = currentValue;
+      coreCounter[currentValue] = coreSlots - 1;
+      return;
+    }
+    if (isInterestValue && coreSlots === 0) {
+      if (interestRemaining > 0) {
+        assignment.interest[skillId] = true;
+        interestRemaining -= 1;
+      }
+      return;
+    }
+    if (isInterestValue && coreSlots > 0) {
+      ambiguous.push(skillId);
+    }
+  });
+
+  ambiguous.forEach((skillId) => {
+    const baseValue = baseValues[skillId] ?? 0;
+    const currentValue = skills[skillId] ?? baseValue;
+    const coreSlots = coreCounter[currentValue] ?? 0;
+    if (coreSlots > 0) {
+      assignment.core[skillId] = currentValue;
+      coreCounter[currentValue] = coreSlots - 1;
+      return;
+    }
+    if (interestRemaining > 0) {
+      assignment.interest[skillId] = true;
+      interestRemaining -= 1;
+    }
+  });
+
+  return assignment;
+}
+
+export function buildQuickstartSkillValues(
+  skillIds: string[],
+  baseValues: Record<string, number>,
+  assignments: QuickstartAssignments,
+  config: QuickstartSkillConfig,
+): Record<string, number> {
+  const normalizedConfig = normalizeQuickstartSkillConfig(config, skillIds.length);
+  const values: Record<string, number> = {};
+  skillIds.forEach((skillId) => {
+    const baseValue = baseValues[skillId] ?? 0;
+    const coreValue = assignments.core[skillId];
+    if (typeof coreValue === 'number' && Number.isFinite(coreValue) && coreValue > 0) {
+      values[skillId] = Math.max(baseValue, Math.floor(coreValue));
+      return;
+    }
+    if (assignments.interest[skillId]) {
+      values[skillId] = baseValue + normalizedConfig.interestBonus;
+      return;
+    }
+    values[skillId] = baseValue;
+  });
+  return values;
 }
 
 export type DcResolution = {

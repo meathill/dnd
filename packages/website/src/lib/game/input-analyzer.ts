@@ -272,6 +272,7 @@ export function buildAnalysisPrompts(
   character: CharacterRecord,
   input: string,
   recentHistory = '无',
+  analysisGuide = '',
 ) {
   const trainedSkillValue = resolveTrainedSkillValue(script.rules);
   const untrainedSkillValue = resolveUntrainedSkillValue(script.rules);
@@ -282,7 +283,7 @@ export function buildAnalysisPrompts(
           .map(([key, value]) => `${key}:${value}`)
           .join('、')
       : '无';
-  const systemPrompt = [
+  const systemPromptParts = [
     '你是 COC 跑团输入解析器，请严格输出 JSON（不要代码块）。',
     '字段：',
     'allowed: boolean，是否允许进入剧情处理；',
@@ -309,7 +310,11 @@ export function buildAnalysisPrompts(
     '7) 后续会调用 checkSkill/checkAttribute/checkLuck/checkSanity 执行掷骰与判定。',
     '8) 你只负责判断意图与参数，禁止自行掷骰或计算成功/失败。',
     '9) 若剧本明确覆盖规则，按剧本执行。',
-  ].join('\n');
+  ];
+  if (analysisGuide.trim()) {
+    systemPromptParts.push(analysisGuide.trim());
+  }
+  const systemPrompt = systemPromptParts.join('\n');
   const attributeSummary = buildAttributeSummary(character.attributes);
   const skillCatalog = buildSkillCatalog(script);
   const selectedSkills = buildSelectedSkills(character, script);

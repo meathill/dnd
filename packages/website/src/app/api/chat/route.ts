@@ -6,6 +6,7 @@ import { getDatabase } from '../../../lib/db/db';
 import {
   createGameMessage,
   createGameMessages,
+  getActiveDmProfile,
   getCharacterByIdForUser,
   getGameByIdForUser,
   getScriptById,
@@ -13,6 +14,7 @@ import {
   listGameMessages,
   updateGameRuleOverrides,
 } from '../../../lib/db/repositories';
+import { DEFAULT_ANALYSIS_GUIDE, DEFAULT_NARRATION_GUIDE, buildFallbackDmProfile } from '../../../lib/game/dm-profiles';
 import { buildMessageContentFromModules, parseChatModules } from '../../../lib/game/chat-parser';
 import { executeActionPlan } from '../../../lib/game/action-executor';
 import type { InputAnalysis } from '../../../lib/game/input-analyzer';
@@ -118,6 +120,7 @@ async function analyzeInput({
   script,
   character,
   recentHistory,
+  analysisGuide,
 }: {
   provider: AiProvider;
   model: string;
@@ -125,8 +128,9 @@ async function analyzeInput({
   script: ScriptDefinition;
   character: CharacterRecord;
   recentHistory?: string;
+  analysisGuide?: string;
 }): Promise<InputAnalysis> {
-  const { systemPrompt, userPrompt } = buildAnalysisPrompts(script, character, input, recentHistory);
+  const { systemPrompt, userPrompt } = buildAnalysisPrompts(script, character, input, recentHistory, analysisGuide);
   const messages: AiMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
@@ -220,8 +224,10 @@ function buildSystemPrompt(
   character: CharacterRecord,
   analysis: ReturnType<typeof parseInputAnalysis>,
   actionSummary: string,
+  narrationGuide: string,
 ): string {
-  return [
+  const guideText = narrationGuide.trim();
+  const promptParts = [
     '你是“肉团长”，负责主持 COC 跑团。请用中文叙事并推动剧情。',
     '掷骰由系统函数执行，已执行动作内包含结果，请勿自行掷骰或编造掷骰结果。',
     '准则：遵循剧本与房规优先级；保持克苏鲁氛围；每次回复简洁有推进。',
@@ -239,7 +245,11 @@ function buildSystemPrompt(
     '【绘图】',
     '无',
     '不要输出多余的解释或前后缀。',
-  ].join('\n');
+  ];
+  if (guideText) {
+    promptParts.splice(4, 0, guideText);
+  }
+  return promptParts.join('\n');
 }
 
 function buildSseEvent(payload: unknown): Uint8Array {
@@ -294,6 +304,9 @@ export async function POST(request: Request) {
     const provider = settings?.provider ?? DEFAULT_PROVIDER;
     const model = settings?.model?.trim() || DEFAULT_MODELS[provider];
     const fastModel = FAST_MODELS[provider];
+    const dmProfile = (await getActiveDmProfile(db, settings?.dmProfileId)) ?? buildFallbackDmProfile();
+    const analysisGuide = dmProfile.analysisGuide || DEFAULT_ANALYSIS_GUIDE;
+    const narrationGuide = dmProfile.narrationGuide || DEFAULT_NARRATION_GUIDE;
 
     const existingMessages = await listGameMessages(db, game.id);
     if (existingMessages.length === 0 && script.openingMessages.length > 0) {
@@ -333,6 +346,7 @@ export async function POST(request: Request) {
             script,
             character,
             recentHistory: buildRecentHistoryText(historyForAnalysis),
+            analysisGuide,
           });
 
           if (!analysis.allowed || analysis.intent === 'invalid') {
@@ -373,7 +387,10 @@ export async function POST(request: Request) {
 
           const recentHistory = historyMessages.slice(-18);
           const messages: AiMessage[] = [
-            { role: 'system', content: buildSystemPrompt(script, character, analysis, actionExecution.summary) },
+            {
+              role: 'system',
+              content: buildSystemPrompt(script, character, analysis, actionExecution.summary, narrationGuide),
+            },
             ...buildHistoryMessages(recentHistory),
           ];
 

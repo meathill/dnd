@@ -60,6 +60,7 @@ function FlowHarness({ onStartGame }: FlowHarnessProps) {
         equipmentLimit={SAMPLE_SCRIPT.equipmentLimit}
         buffLimit={SAMPLE_SCRIPT.buffLimit}
         debuffLimit={SAMPLE_SCRIPT.debuffLimit}
+        rules={{ skillAllocationMode: 'selection', skillPointBudget: 0 }}
       />
     </ScriptDetailStage>
   );
