@@ -324,7 +324,9 @@ export function buildDefaultFormState(seed: FormStateSeed = {}): FormState {
       ? Math.max(0, Math.floor(seed.debuffLimit))
       : 0;
   const shouldRequireDebuffs = debuffOptions.length > 0 && debuffLimit > 0;
-  const defaultDebuffs = shouldRequireDebuffs ? debuffOptions.slice(0, Math.min(debuffLimit, debuffOptions.length)) : [];
+  const defaultDebuffs = shouldRequireDebuffs
+    ? debuffOptions.slice(0, Math.min(debuffLimit, debuffOptions.length))
+    : [];
   return {
     name: '沈砚',
     occupation: seed.occupationOptions?.[0] ?? '调查记者',

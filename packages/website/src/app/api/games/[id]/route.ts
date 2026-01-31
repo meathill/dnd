@@ -5,9 +5,11 @@ import {
   deleteGame,
   getCharacterByIdForUser,
   getGameByIdForUser,
+  getGameMemory,
   getScriptById,
   listGameMessages,
 } from '../../../../lib/db/repositories';
+import { buildMemorySnapshot } from '../../../../lib/game/memory';
 
 type RouteContext = {
   params: Promise<{ id?: string }>;
@@ -36,15 +38,22 @@ export async function GET(request: Request, context: RouteContext) {
     if (!game) {
       return NextResponse.json({ error: '游戏不存在' }, { status: 404 });
     }
-    const [script, character, messages] = await Promise.all([
+    const [script, character, messages, memory] = await Promise.all([
       getScriptById(db, game.scriptId),
       getCharacterByIdForUser(db, game.characterId, userId),
       listGameMessages(db, game.id),
+      getGameMemory(db, game.id),
     ]);
     if (!script || !character) {
       return NextResponse.json({ error: '游戏数据不完整' }, { status: 404 });
     }
-    return NextResponse.json({ game, script, character, messages });
+    return NextResponse.json({
+      game,
+      script,
+      character,
+      messages,
+      memory: memory ? buildMemorySnapshot(memory.state) : null,
+    });
   } catch (error) {
     console.error('[api/games/:id] 游戏读取失败', error);
     const message = error instanceof Error ? error.message : '游戏读取失败';

@@ -9,6 +9,7 @@ import type {
   ChatMessage,
   GameMessageRecord,
   GameRecord,
+  GameMemorySnapshot,
   ScriptDefinition,
 } from '../../../lib/game/types';
 import { useGameStore } from '../../../lib/game/game-store';
@@ -22,6 +23,7 @@ type GameFetchResponse = {
   game?: GameRecord;
   script?: ScriptDefinition;
   character?: CharacterRecord;
+  memory?: GameMemorySnapshot | null;
   messages?: GameMessageRecord[];
   error?: string;
 };
@@ -37,6 +39,8 @@ function GamePageContent({ gameId }: GamePageProps) {
   const setPhase = useGameStore((state) => state.setPhase);
   const setActiveGameId = useGameStore((state) => state.setActiveGameId);
   const setCharacter = useGameStore((state) => state.setCharacter);
+  const setMemory = useGameStore((state) => state.setMemory);
+  const setMapText = useGameStore((state) => state.setMapText);
   const [script, setScript] = useState<ScriptDefinition | null>(null);
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const [statusMessage, setStatusMessage] = useState('');
@@ -62,6 +66,10 @@ function GamePageContent({ gameId }: GamePageProps) {
       setScript(data.script);
       selectScript(data.script.id);
       setCharacter(data.character);
+      setMemory(data.memory ?? null);
+      if (data.memory?.mapText) {
+        setMapText(data.memory.mapText);
+      }
       setActiveGameId(data.game.id);
       const messages = (data.messages ?? []).map((message) => ({
         id: message.id,
@@ -79,7 +87,7 @@ function GamePageContent({ gameId }: GamePageProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [gameId, selectScript, setActiveGameId, setCharacter]);
+  }, [gameId, selectScript, setActiveGameId, setCharacter, setMemory, setMapText]);
 
   useEffect(() => {
     setPhase('game');

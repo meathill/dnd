@@ -3,10 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import CharacterCardPanel from './character-card-panel';
+import DmMemoryPanel from './dm-memory-panel';
 import SceneMapPanel from './scene-map-panel';
 import { chatMessages, quickActions } from './home-data';
 import { useGameStore } from '../lib/game/game-store';
-import type { ChatMessage, ChatModule, ChatRole, ScriptDefinition, ScriptOpeningMessage } from '../lib/game/types';
+import type {
+  ChatMessage,
+  ChatModule,
+  ChatRole,
+  CharacterRecord,
+  GameMemorySnapshot,
+  ScriptDefinition,
+  ScriptOpeningMessage,
+} from '../lib/game/types';
 import { Button } from '../components/ui/button';
 
 const messageToneStyles = {
@@ -82,14 +91,20 @@ function renderModules(modules: ChatModule[]) {
           module.type === 'dice'
             ? '掷骰结果'
             : module.type === 'map'
-              ? '绘图提示'
+              ? '环境地图'
               : module.type === 'notice'
                 ? '提示'
                 : '叙事';
         return (
           <div className="rounded-lg border border-[rgba(27,20,12,0.12)] bg-white/70 px-3 py-2" key={`m-${index}`}>
             <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--ink-soft)]">{label}</p>
-            <p className="mt-2 whitespace-pre-line text-sm text-[var(--ink-strong)]">{module.content}</p>
+            {module.type === 'map' ? (
+              <pre className="mt-2 whitespace-pre-wrap font-mono text-xs leading-relaxed text-[var(--ink-strong)]">
+                {module.content}
+              </pre>
+            ) : (
+              <p className="mt-2 whitespace-pre-line text-sm text-[var(--ink-strong)]">{module.content}</p>
+            )}
           </div>
         );
       })}
@@ -105,12 +120,16 @@ type GameStageProps = {
 export default function GameStage({ script = null, initialMessages = [] }: GameStageProps) {
   const character = useGameStore((state) => state.character);
   const gameId = useGameStore((state) => state.activeGameId);
+  const setCharacter = useGameStore((state) => state.setCharacter);
+  const setMemory = useGameStore((state) => state.setMemory);
+  const setMapText = useGameStore((state) => state.setMapText);
   const messageListRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const statusMessageIdRef = useRef<string | null>(null);
   const statusStepsRef = useRef<string[]>([]);
   const streamMessageIdRef = useRef<string | null>(null);
   const hasDmOutputStartedRef = useRef(false);
+  const memorySyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openingMessages = useMemo(() => {
     return script?.openingMessages?.length ? buildOpeningChatMessages(script.openingMessages) : null;
   }, [script]);
@@ -130,6 +149,62 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
   const [statusSteps, setStatusSteps] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
 
+  function extractMapText(sourceMessages: ChatMessage[]): string | null {
+    for (let index = sourceMessages.length - 1; index >= 0; index -= 1) {
+      const message = sourceMessages[index];
+      if (message.role !== 'dm') {
+        continue;
+      }
+      if (!message.modules) {
+        continue;
+      }
+      const mapModule = message.modules.find((module) => module.type === 'map');
+      if (mapModule && mapModule.content?.trim()) {
+        return mapModule.content.trim();
+      }
+    }
+    return null;
+  }
+
+  function syncMapFromMessages(sourceMessages: ChatMessage[]) {
+    const nextMap = extractMapText(sourceMessages);
+    setMapText(nextMap);
+  }
+
+  async function syncMemorySilently() {
+    if (!gameId) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/games/${gameId}/memory`, { cache: 'no-store' });
+      if (!response.ok) {
+        return;
+      }
+      const data = (await response.json()) as {
+        memory?: GameMemorySnapshot | null;
+        character?: CharacterRecord;
+      };
+      if (data.character) {
+        setCharacter(data.character);
+      }
+      if (data.memory) {
+        setMemory(data.memory);
+        setMapText(data.memory.mapText || null);
+      }
+    } catch {
+      // ignore silent sync errors
+    }
+  }
+
+  function scheduleMemorySync(delay = 600) {
+    if (memorySyncTimerRef.current) {
+      clearTimeout(memorySyncTimerRef.current);
+    }
+    memorySyncTimerRef.current = setTimeout(() => {
+      void syncMemorySilently();
+    }, delay);
+  }
+
   useEffect(() => {
     setMessages(baseMessages);
     setInputText('');
@@ -141,6 +216,7 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
     streamMessageIdRef.current = null;
     hasDmOutputStartedRef.current = false;
     shouldAutoScrollRef.current = true;
+    syncMapFromMessages(baseMessages);
   }, [baseMessages]);
 
   useEffect(() => {
@@ -275,6 +351,10 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
         body: JSON.stringify({
           gameId,
           input: content,
+          history: nextMessages.slice(-40).map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
         }),
       });
 
@@ -299,6 +379,7 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
         };
         markDmOutputStarted();
         setMessages((current) => [...current, assistantMessage]);
+        scheduleMemorySync();
         return;
       }
 
@@ -337,10 +418,13 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
             markDmOutputStarted();
             setMessages((current) => {
               streamMessageIdRef.current = null;
-              return current.map((message) =>
+              const nextMessages = current.map((message) =>
                 message.id === streamId ? { ...event.message, isStreaming: false } : message,
               );
+              syncMapFromMessages(nextMessages);
+              return nextMessages;
             });
+            scheduleMemorySync();
           } else if (event.type === 'status') {
             updateStatusIndicators(event.text);
           } else if (event.type === 'error') {
@@ -364,7 +448,7 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
         className="panel-card animate-[fade-up_0.8s_ease-out_both] flex h-full flex-col rounded-xl p-4"
         style={{ animationDelay: '0.1s' }}
       >
-        <SceneMapPanel />
+        <SceneMapPanel script={script} />
         <div
           className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pt-4 input-area"
           ref={messageListRef}
@@ -426,9 +510,6 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
                 {sendError || statusMessage || '提示：区分“说的话”和“动作”，让叙事更清晰。'}
               </p>
               <div className="flex gap-2">
-                <Button disabled={isSending} size="sm" variant="outline">
-                  记录回合
-                </Button>
                 <Button disabled={isSending || !inputText.trim()} onClick={handleSendMessage} size="sm">
                   {isSending ? '指令发送中...' : '发送指令'}
                 </Button>
@@ -440,6 +521,7 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
 
       <aside className="flex min-h-0 flex-col gap-4 lg:overflow-y-auto">
         <CharacterCardPanel skillOptions={script?.skillOptions} rules={script?.rules} />
+        <DmMemoryPanel />
       </aside>
     </div>
   );

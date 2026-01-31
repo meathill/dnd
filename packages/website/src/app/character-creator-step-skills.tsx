@@ -132,7 +132,9 @@ export default function CharacterCreatorStepSkills({
                     </div>
                     <Select
                       value={typeof assignedValue === 'number' ? String(assignedValue) : 'none'}
-                      onValueChange={(value) => onUpdateQuickstartCore(skill.id, value === 'none' ? null : Number(value))}
+                      onValueChange={(value) =>
+                        onUpdateQuickstartCore(skill.id, value === 'none' ? null : Number(value))
+                      }
                     >
                       <SelectTrigger className="h-8 w-[140px] rounded-lg" size="sm" aria-label={`${skill.label}核心值`}>
                         <SelectValue placeholder="核心值" />

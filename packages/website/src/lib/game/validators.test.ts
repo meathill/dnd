@@ -214,10 +214,7 @@ describe('validateCharacterAgainstScript', () => {
       },
       {
         ...baseScript,
-        skillOptions: [
-          ...baseScript.skillOptions,
-          { id: 'libraryUse', label: '图书馆使用', group: '调查' },
-        ],
+        skillOptions: [...baseScript.skillOptions, { id: 'libraryUse', label: '图书馆使用', group: '调查' }],
         rules: { skillAllocationMode: 'selection', skillPointBudget: 0 },
       },
     );

@@ -15,7 +15,9 @@ describe('人物卡创建', () => {
 
   it('完成创建会触发回调', async () => {
     const onComplete = vi.fn().mockResolvedValue({ ok: true });
-    render(<CharacterCreator onComplete={onComplete} rules={{ skillAllocationMode: 'selection', skillPointBudget: 0 }} />);
+    render(
+      <CharacterCreator onComplete={onComplete} rules={{ skillAllocationMode: 'selection', skillPointBudget: 0 }} />,
+    );
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: '创建角色' }));
@@ -37,7 +39,9 @@ describe('人物卡创建', () => {
       fieldErrors: { occupation: '人物卡职业不在剧本允许范围内' },
       message: '人物卡字段不合法',
     });
-    render(<CharacterCreator onComplete={onComplete} rules={{ skillAllocationMode: 'selection', skillPointBudget: 0 }} />);
+    render(
+      <CharacterCreator onComplete={onComplete} rules={{ skillAllocationMode: 'selection', skillPointBudget: 0 }} />,
+    );
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: '创建角色' }));

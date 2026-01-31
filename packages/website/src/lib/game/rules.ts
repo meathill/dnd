@@ -153,15 +153,16 @@ export function resolveDefaultCheckDc(rules: ScriptRuleOverrides | undefined): n
   return resolveScriptRuleNumber(rules?.defaultCheckDc, DEFAULT_CHECK_DC);
 }
 
-export function calculateCocSkillPointBudget(
-  attributes: Partial<Record<AttributeKey, number>> | undefined,
-): number {
+export function calculateCocSkillPointBudget(attributes: Partial<Record<AttributeKey, number>> | undefined): number {
   if (!attributes) {
     return 0;
   }
-  const education = typeof attributes.education === 'number' && Number.isFinite(attributes.education) ? attributes.education : 0;
+  const education =
+    typeof attributes.education === 'number' && Number.isFinite(attributes.education) ? attributes.education : 0;
   const intelligence =
-    typeof attributes.intelligence === 'number' && Number.isFinite(attributes.intelligence) ? attributes.intelligence : 0;
+    typeof attributes.intelligence === 'number' && Number.isFinite(attributes.intelligence)
+      ? attributes.intelligence
+      : 0;
   return Math.max(0, Math.floor(education * 4 + intelligence * 2));
 }
 
@@ -213,7 +214,10 @@ export function resolveQuickstartSkillConfig(rules?: ScriptRuleOverrides): Quick
   };
 }
 
-export function normalizeQuickstartSkillConfig(config: QuickstartSkillConfig, skillCount: number): QuickstartSkillConfig {
+export function normalizeQuickstartSkillConfig(
+  config: QuickstartSkillConfig,
+  skillCount: number,
+): QuickstartSkillConfig {
   const safeSkillCount = Math.max(0, Math.floor(skillCount));
   const coreValues = config.coreValues.slice(0, safeSkillCount);
   const remaining = Math.max(0, safeSkillCount - coreValues.length);

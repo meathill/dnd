@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
 import { baseAttributeOptions } from './character-creator-data';
 import { attributes, buffs, debuffs, inventory, skills, stats, type Stat, type StatTone } from './home-data';
-import type { AttributeKey, CharacterRecord, ScriptRuleOverrides, ScriptSkillOption } from '../lib/game/types';
+import type {
+  AttributeKey,
+  CharacterRecord,
+  GameMemorySnapshot,
+  ScriptRuleOverrides,
+  ScriptSkillOption,
+} from '../lib/game/types';
 import { resolveTrainedSkillValue, resolveUntrainedSkillValue } from '../lib/game/rules';
 import { useGameStore } from '../lib/game/game-store';
 
@@ -52,7 +58,7 @@ function resolveAttributes(character: CharacterRecord | null) {
   }));
 }
 
-function resolveStats(character: CharacterRecord | null): Stat[] {
+function resolveStats(character: CharacterRecord | null, memory: GameMemorySnapshot | null): Stat[] {
   if (!character) {
     return stats;
   }
@@ -65,10 +71,19 @@ function resolveStats(character: CharacterRecord | null): Stat[] {
   const magicPoints = Math.max(0, Math.floor(willpower / 5));
   const fallbackLuck = Math.max(0, Math.floor((willpower + intelligence) / 2));
   const luckValue = character.luck > 0 ? character.luck : fallbackLuck;
+  const hpSnapshot = memory?.vitals.hp;
+  const sanitySnapshot = memory?.vitals.sanity;
+  const magicSnapshot = memory?.vitals.magic;
+  const hpValue = hpSnapshot?.current ?? hitPoints;
+  const hpMax = hpSnapshot?.max ?? hitPoints;
+  const sanityValue = sanitySnapshot?.current ?? sanity;
+  const sanityMax = sanitySnapshot?.max ?? sanity;
+  const magicValue = magicSnapshot?.current ?? magicPoints;
+  const magicMax = magicSnapshot?.max ?? magicPoints;
   return [
-    { label: '生命值', value: hitPoints, max: hitPoints, tone: 'ember' },
-    { label: '理智值', value: sanity, max: sanity, tone: 'moss' },
-    { label: '魔法值', value: magicPoints, max: magicPoints, tone: 'river' },
+    { label: '生命值', value: hpValue, max: hpMax, tone: 'ember' },
+    { label: '理智值', value: sanityValue, max: sanityMax, tone: 'moss' },
+    { label: '魔法值', value: magicValue, max: magicMax, tone: 'river' },
     { label: '幸运值', value: luckValue, max: luckValue, tone: 'brass' },
   ];
 }
@@ -131,9 +146,10 @@ type CharacterCardPanelProps = {
 
 export default function CharacterCardPanel({ skillOptions, rules }: CharacterCardPanelProps) {
   const character = useGameStore((state) => state.character);
+  const memory = useGameStore((state) => state.memory);
 
   const activeAttributes = useMemo(() => resolveAttributes(character), [character]);
-  const activeStats = useMemo(() => resolveStats(character), [character]);
+  const activeStats = useMemo(() => resolveStats(character, memory), [character, memory]);
   const activeInventory = useMemo(() => resolveInventory(character), [character]);
   const activeBuffs = useMemo(() => resolveBuffs(character), [character]);
   const activeDebuffs = useMemo(() => resolveDebuffs(character), [character]);

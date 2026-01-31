@@ -4,6 +4,8 @@ import { vi } from 'vitest';
 import GameStage from '../game-stage';
 import type { ScriptDefinition } from '../../lib/game/types';
 import { resetGameStore, useGameStore } from '../../lib/game/game-store';
+import { SessionProvider } from '../../lib/session/session-context';
+import type { ReactElement } from 'react';
 
 const originalFetch = global.fetch;
 
@@ -36,10 +38,19 @@ const sampleScript: ScriptDefinition = {
   encounters: [],
 };
 
+const sessionValue = {
+  session: null,
+  reloadSession: async () => null,
+  requestAuth: vi.fn(),
+};
+
+function renderWithSession(node: ReactElement) {
+  return render(<SessionProvider value={sessionValue}>{node}</SessionProvider>);
+}
+
 describe('GameStage', () => {
   beforeEach(() => {
     resetGameStore();
-    useGameStore.setState({ activeGameId: 'game-1' });
   });
 
   afterEach(() => {
@@ -48,7 +59,7 @@ describe('GameStage', () => {
   });
 
   it('会使用剧本开场对白', () => {
-    render(<GameStage script={sampleScript} />);
+    renderWithSession(<GameStage script={sampleScript} />);
 
     expect(screen.getByText('这是开场对白。')).toBeInTheDocument();
   });
@@ -63,7 +74,8 @@ describe('GameStage', () => {
       } as Response;
     });
     global.fetch = fetchMock as unknown as typeof fetch;
-    render(<GameStage script={sampleScript} />);
+    useGameStore.setState({ activeGameId: 'game-1' });
+    renderWithSession(<GameStage script={sampleScript} />);
 
     const input = screen.getByPlaceholderText('描述你要说的话或采取的行动，肉团长会结合规则做出回应。');
     await user.type(input, '测试指令');
@@ -76,15 +88,21 @@ describe('GameStage', () => {
         headers: { 'Content-Type': 'application/json' },
       }),
     );
-    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    const payload = JSON.parse(String(requestInit.body));
+    const chatCall = fetchMock.mock.calls.find((call) => call[0] === '/api/chat');
+    expect(chatCall).toBeDefined();
+    const requestInit = chatCall?.[1] as RequestInit | undefined;
+    const payload = JSON.parse(String(requestInit?.body ?? '{}'));
     expect(payload).toMatchObject({ gameId: 'game-1', input: '测试指令' });
+    expect(Array.isArray(payload.history)).toBe(true);
+    expect(payload.history).toEqual(
+      expect.arrayContaining([expect.objectContaining({ role: 'player', content: '测试指令' })]),
+    );
 
     expect(await screen.findByText('AI 回复')).toBeInTheDocument();
   });
 
   it('会展示模块化输出内容', () => {
-    render(
+    renderWithSession(
       <GameStage
         script={sampleScript}
         initialMessages={[
@@ -146,7 +164,8 @@ describe('GameStage', () => {
       } as Response;
     });
     global.fetch = fetchMock as unknown as typeof fetch;
-    render(<GameStage script={sampleScript} />);
+    useGameStore.setState({ activeGameId: 'game-1' });
+    renderWithSession(<GameStage script={sampleScript} />);
 
     const input = screen.getByPlaceholderText('描述你要说的话或采取的行动，肉团长会结合规则做出回应。');
     await user.type(input, '测试指令');

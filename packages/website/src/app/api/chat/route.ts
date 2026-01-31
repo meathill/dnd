@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { generateChatCompletion, streamChatCompletion } from '../../../lib/ai/ai-provider';
 import type { AiMessage, AiProvider } from '../../../lib/ai/ai-types';
 import { getAuth } from '../../../lib/auth/auth';
@@ -19,6 +20,8 @@ import { buildMessageContentFromModules, parseChatModules } from '../../../lib/g
 import { executeActionPlan } from '../../../lib/game/action-executor';
 import type { InputAnalysis } from '../../../lib/game/input-analyzer';
 import { buildAnalysisPrompts, parseInputAnalysis } from '../../../lib/game/input-analyzer';
+import { buildMemoryContext } from '../../../lib/game/memory';
+import { refreshGameMemory } from '../../../lib/game/memory-updater';
 import { resolveTrainedSkillValue, resolveUntrainedSkillValue } from '../../../lib/game/rules';
 import type {
   ChatMessage,
@@ -31,11 +34,17 @@ import type {
 type ChatRequest = {
   gameId: string;
   input: string;
+  history?: ChatHistoryEntry[];
 };
 
 type StatusEvent = {
   type: 'status';
   text: string;
+};
+
+type ChatHistoryEntry = {
+  role: ChatRole;
+  content: string;
 };
 
 const DEFAULT_PROVIDER: AiProvider = 'openai';
@@ -61,7 +70,8 @@ function parseChatRequest(body: unknown): ChatRequest | null {
   if (!gameId || !input) {
     return null;
   }
-  return { gameId, input };
+  const history = parseHistoryEntries(body.history);
+  return { gameId, input, history: history.length > 0 ? history : undefined };
 }
 
 function formatTime(value: string): string {
@@ -90,13 +100,54 @@ function mapRoleToAiRole(role: ChatRole): AiMessage['role'] {
   return 'assistant';
 }
 
-function buildHistoryMessages(messages: GameMessageRecord[]): AiMessage[] {
+function buildHistoryMessages(messages: ChatHistoryEntry[]): AiMessage[] {
   return messages
     .filter((message) => message.role !== 'system')
     .map((message) => ({
       role: mapRoleToAiRole(message.role),
       content: message.content,
     }));
+}
+
+function mapRecordsToHistory(messages: GameMessageRecord[]): ChatHistoryEntry[] {
+  return messages.map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
+}
+
+function parseHistoryEntries(raw: unknown): ChatHistoryEntry[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const entries: ChatHistoryEntry[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const role = typeof record.role === 'string' ? record.role.trim() : '';
+    const content = typeof record.content === 'string' ? record.content.trim() : '';
+    if (!content) {
+      continue;
+    }
+    if (role === 'player' || role === 'dm' || role === 'system') {
+      entries.push({ role, content });
+    }
+  }
+  return entries;
+}
+
+function ensureHistoryIncludesInput(history: ChatHistoryEntry[], input: string): ChatHistoryEntry[] {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return history;
+  }
+  const last = history[history.length - 1];
+  if (!last || last.role !== 'player' || last.content.trim() !== trimmed) {
+    return [...history, { role: 'player', content: trimmed }];
+  }
+  return history;
 }
 
 function buildInvalidAnalysis(reason: string): InputAnalysis {
@@ -121,6 +172,7 @@ async function analyzeInput({
   character,
   recentHistory,
   analysisGuide,
+  memoryContext,
 }: {
   provider: AiProvider;
   model: string;
@@ -129,8 +181,16 @@ async function analyzeInput({
   character: CharacterRecord;
   recentHistory?: string;
   analysisGuide?: string;
+  memoryContext?: string;
 }): Promise<InputAnalysis> {
-  const { systemPrompt, userPrompt } = buildAnalysisPrompts(script, character, input, recentHistory, analysisGuide);
+  const { systemPrompt, userPrompt } = buildAnalysisPrompts(
+    script,
+    character,
+    input,
+    recentHistory,
+    analysisGuide,
+    memoryContext,
+  );
   const messages: AiMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
@@ -168,7 +228,7 @@ async function analyzeInput({
   }
 }
 
-function buildRecentHistoryText(messages: GameMessageRecord[]): string {
+function buildRecentHistoryText(messages: ChatHistoryEntry[]): string {
   const visibleMessages = messages.filter((message) => message.role !== 'system');
   if (visibleMessages.length === 0) {
     return '无';
@@ -225,6 +285,7 @@ function buildSystemPrompt(
   analysis: ReturnType<typeof parseInputAnalysis>,
   actionSummary: string,
   narrationGuide: string,
+  memoryContext: string,
 ): string {
   const guideText = narrationGuide.trim();
   const promptParts = [
@@ -235,6 +296,7 @@ function buildSystemPrompt(
     `剧本：${script.title}（${script.setting} / 难度：${script.difficulty}）`,
     `简介：${script.summary}`,
     buildCharacterSummary(script, character),
+    memoryContext ? `历史摘要与世界状态：\n${memoryContext}` : '历史摘要与世界状态：无',
     `玩家意图：${analysis.intent}`,
     `检定需求：${analysis.needsDice ? '是' : '否'}（${analysis.diceType}${analysis.diceTarget ? ` / ${analysis.diceTarget}` : ''}）`,
     `难度：${analysis.difficulty}`,
@@ -243,7 +305,7 @@ function buildSystemPrompt(
     '【叙事】',
     '...剧情描述...',
     '【绘图】',
-    '无',
+    '使用 ASCII/emoji 简要呈现位置关系与周边环境，控制在 40 列以内；若无需更新则写“无”。',
     '不要输出多余的解释或前后缀。',
   ];
   if (guideText) {
@@ -259,6 +321,19 @@ function buildSseEvent(payload: unknown): Uint8Array {
 
 function buildStatusEvent(text: string): StatusEvent {
   return { type: 'status', text };
+}
+
+async function scheduleMemoryRefresh(task: () => Promise<void>) {
+  try {
+    const context = await getCloudflareContext({ async: true });
+    if (context?.ctx?.waitUntil) {
+      context.ctx.waitUntil(task());
+      return;
+    }
+  } catch {
+    // ignore
+  }
+  void task();
 }
 
 export async function POST(request: Request) {
@@ -321,6 +396,22 @@ export async function POST(request: Request) {
         })),
       );
     }
+    let activeCharacter = character;
+    let memoryContext = '无';
+    try {
+      const memoryResult = await refreshGameMemory({
+        db,
+        provider,
+        model: fastModel,
+        gameId: game.id,
+        script,
+        character,
+      });
+      activeCharacter = memoryResult.character;
+      memoryContext = buildMemoryContext(memoryResult.memory.shortSummary, memoryResult.memory.state);
+    } catch (error) {
+      console.warn('[api/chat] 记忆刷新失败', error);
+    }
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -328,7 +419,7 @@ export async function POST(request: Request) {
         try {
           controller.enqueue(buildSseEvent(buildStatusEvent('理解玩家指令')));
 
-          const playerSpeaker = `玩家 · ${character.name}`;
+          const playerSpeaker = `玩家 · ${activeCharacter.name}`;
           await createGameMessage(db, {
             gameId: game.id,
             role: 'player',
@@ -337,16 +428,19 @@ export async function POST(request: Request) {
             modules: [],
           });
 
-          const historyMessages = await listGameMessages(db, game.id);
-          const historyForAnalysis = historyMessages.slice(-8);
+          const historySource = chatRequest.history?.length
+            ? ensureHistoryIncludesInput(chatRequest.history, chatRequest.input)
+            : mapRecordsToHistory(await listGameMessages(db, game.id));
+          const historyForAnalysis = historySource.slice(-8);
           const analysis = await analyzeInput({
             provider,
             model: fastModel,
             input: chatRequest.input,
             script,
-            character,
+            character: activeCharacter,
             recentHistory: buildRecentHistoryText(historyForAnalysis),
             analysisGuide,
+            memoryContext,
           });
 
           if (!analysis.allowed || analysis.intent === 'invalid') {
@@ -370,7 +464,7 @@ export async function POST(request: Request) {
           const actionExecution = executeActionPlan({
             analysis,
             script,
-            character,
+            character: activeCharacter,
             gameRules: game.ruleOverrides,
           });
           if (Object.keys(actionExecution.ruleUpdates).length > 0) {
@@ -385,11 +479,18 @@ export async function POST(request: Request) {
           controller.enqueue(buildSseEvent(buildStatusEvent('开始生成结果')));
           controller.enqueue(buildSseEvent(buildStatusEvent('交给通用AI大模型结合剧本生成内容')));
 
-          const recentHistory = historyMessages.slice(-18);
+          const recentHistory = historySource.slice(-18);
           const messages: AiMessage[] = [
             {
               role: 'system',
-              content: buildSystemPrompt(script, character, analysis, actionExecution.summary, narrationGuide),
+              content: buildSystemPrompt(
+                script,
+                activeCharacter,
+                analysis,
+                actionExecution.summary,
+                narrationGuide,
+                memoryContext,
+              ),
             },
             ...buildHistoryMessages(recentHistory),
           ];
@@ -419,6 +520,20 @@ export async function POST(request: Request) {
             modules: mergedModules,
           });
           controller.enqueue(buildSseEvent({ type: 'done', message: buildChatMessage(assistantRecord) }));
+          await scheduleMemoryRefresh(async () => {
+            try {
+              await refreshGameMemory({
+                db,
+                provider,
+                model: fastModel,
+                gameId: game.id,
+                script,
+                character: activeCharacter,
+              });
+            } catch (error) {
+              console.warn('[api/chat] 记忆更新失败', error);
+            }
+          });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'AI 请求失败';
           controller.enqueue(buildSseEvent({ type: 'error', error: message }));

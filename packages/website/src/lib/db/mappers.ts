@@ -135,7 +135,11 @@ function parseScriptRules(raw: string): ScriptRuleOverrides {
   if (skillBaseValues) {
     rules.skillBaseValues = skillBaseValues;
   }
-  if (data.skillAllocationMode === 'budget' || data.skillAllocationMode === 'selection' || data.skillAllocationMode === 'quickstart') {
+  if (
+    data.skillAllocationMode === 'budget' ||
+    data.skillAllocationMode === 'selection' ||
+    data.skillAllocationMode === 'quickstart'
+  ) {
     rules.skillAllocationMode = data.skillAllocationMode;
   }
   const quickstartCoreValues = parseNumberArray(data.quickstartCoreValues);

@@ -273,6 +273,7 @@ export function buildAnalysisPrompts(
   input: string,
   recentHistory = '无',
   analysisGuide = '',
+  memoryContext = '',
 ) {
   const trainedSkillValue = resolveTrainedSkillValue(script.rules);
   const untrainedSkillValue = resolveUntrainedSkillValue(script.rules);
@@ -332,6 +333,7 @@ export function buildAnalysisPrompts(
     `Debuff：${debuffText}`,
     `房规 DC 覆盖：${dcOverrideText}`,
     `最近对话：${recentHistory || '无'}`,
+    `历史摘要与世界状态：${memoryContext || '无'}`,
     `玩家输入：${input}`,
     '仅输出 JSON。',
   ].join('\n');

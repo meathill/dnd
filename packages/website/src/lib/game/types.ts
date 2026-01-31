@@ -222,3 +222,86 @@ export type GameMessageRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type GameMemoryRoundSummary = {
+  round: number;
+  summary: string;
+};
+
+export type GameMemoryNpc = {
+  name: string;
+  status: string;
+  relation?: string;
+  location?: string;
+  notes?: string;
+  isAlly?: boolean;
+};
+
+export type GameMemoryLocation = {
+  name: string;
+  status: string;
+  notes?: string;
+};
+
+export type GameMemoryThread = {
+  title: string;
+  status: 'open' | 'resolved' | 'blocked';
+  notes?: string;
+};
+
+export type GameMemoryFlag = {
+  key: string;
+  value: string;
+};
+
+export type GameMemoryVitals = {
+  hp?: { current: number; max: number };
+  sanity?: { current: number; max: number };
+  magic?: { current: number; max: number };
+};
+
+export type GameMemoryPresence = {
+  location?: string;
+  scene?: string;
+  presentNpcs: string[];
+};
+
+export type GameMemoryState = {
+  allies: string[];
+  npcs: GameMemoryNpc[];
+  locations: GameMemoryLocation[];
+  threads: GameMemoryThread[];
+  flags: GameMemoryFlag[];
+  notes: string[];
+  dmNotes: string[];
+  vitals: GameMemoryVitals;
+  presence: GameMemoryPresence;
+  mapText: string;
+};
+
+export type GameMemoryRecord = {
+  id: string;
+  gameId: string;
+  lastRoundIndex: number;
+  lastProcessedAt: string;
+  shortSummary: string;
+  longSummary: string;
+  recentRounds: GameMemoryRoundSummary[];
+  state: GameMemoryState;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GameMemorySnapshot = {
+  vitals: GameMemoryVitals;
+  presence: GameMemoryPresence;
+  mapText: string;
+};
+
+export type GameMemoryMapRecord = {
+  id: string;
+  gameId: string;
+  roundIndex: number;
+  content: string;
+  createdAt: string;
+};

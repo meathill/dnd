@@ -7,6 +7,10 @@ import type {
   ChatRole,
   ChatModule,
   GameMessageRecord,
+  GameMemoryRecord,
+  GameMemoryRoundSummary,
+  GameMemoryState,
+  GameMemoryMapRecord,
   DmProfile,
   DmProfileSummary,
   DmProfileRule,
@@ -15,6 +19,7 @@ import type {
 } from '../game/types';
 import type { CharacterPayload, CreateGamePayload } from '../game/validators';
 import { DEFAULT_TRAINED_SKILL_VALUE, DEFAULT_UNTRAINED_SKILL_VALUE } from '../game/rules';
+import { parseMemoryState, parseRoundSummaries } from '../game/memory';
 import { mapScriptRow, serializeCharacterPayload } from './mappers';
 import type { UserSettings } from '../session/session-types';
 
@@ -105,6 +110,27 @@ type GameMessageRow = {
   modules_json: string;
   created_at: string;
   updated_at: string;
+};
+
+type GameMemoryRow = {
+  id: string;
+  game_id: string;
+  last_round_index: number | string;
+  last_processed_at: string;
+  short_summary: string;
+  long_summary: string;
+  recent_rounds_json: string;
+  state_json: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type GameMemoryMapRow = {
+  id: string;
+  game_id: string;
+  round_index: number | string;
+  content: string;
+  created_at: string;
 };
 
 type GameRow = {
@@ -252,6 +278,31 @@ function mapGameMessageRow(row: GameMessageRow): GameMessageRecord {
     modules: parseModulesJson(row.modules_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapGameMemoryRow(row: GameMemoryRow): GameMemoryRecord {
+  return {
+    id: row.id,
+    gameId: row.game_id,
+    lastRoundIndex: typeof row.last_round_index === 'number' ? row.last_round_index : Number(row.last_round_index ?? 0),
+    lastProcessedAt: row.last_processed_at ?? '',
+    shortSummary: row.short_summary ?? '',
+    longSummary: row.long_summary ?? '',
+    recentRounds: parseRoundSummaries(row.recent_rounds_json ?? '[]') as GameMemoryRoundSummary[],
+    state: parseMemoryState(row.state_json ?? '{}') as GameMemoryState,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapGameMemoryMapRow(row: GameMemoryMapRow): GameMemoryMapRecord {
+  return {
+    id: row.id,
+    gameId: row.game_id,
+    roundIndex: typeof row.round_index === 'number' ? row.round_index : Number(row.round_index ?? 0),
+    content: row.content ?? '',
+    createdAt: row.created_at,
   };
 }
 
@@ -470,6 +521,29 @@ export async function updateCharacter(
   return getCharacterByIdForUser(db, characterId, userId);
 }
 
+export async function updateCharacterState(
+  db: D1Database,
+  characterId: string,
+  payload: { inventory: string[]; buffs: string[]; debuffs: string[] },
+): Promise<CharacterRecord | null> {
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `UPDATE characters
+       SET inventory_json = ?, buffs_json = ?, debuffs_json = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(
+      JSON.stringify(payload.inventory),
+      JSON.stringify(payload.buffs),
+      JSON.stringify(payload.debuffs),
+      now,
+      characterId,
+    )
+    .run();
+  return getCharacterById(db, characterId);
+}
+
 export async function deleteCharacter(db: D1Database, characterId: string, userId: string): Promise<void> {
   await db.prepare(`DELETE FROM characters WHERE id = ? AND user_id = ?`).bind(characterId, userId).run();
 }
@@ -542,6 +616,29 @@ export async function getGameByIdForUser(db: D1Database, gameId: string, userId:
   };
 }
 
+export async function getGameById(db: D1Database, gameId: string): Promise<(GameRecord & { userId: string }) | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, user_id, script_id, character_id, status, rule_overrides_json, created_at, updated_at
+       FROM games WHERE id = ? LIMIT 1`,
+    )
+    .bind(gameId)
+    .first<GameRow & { user_id: string }>();
+  if (!row) {
+    return null;
+  }
+  return {
+    id: row.id,
+    scriptId: row.script_id,
+    characterId: row.character_id,
+    status: row.status,
+    ruleOverrides: { checkDcOverrides: parseRuleOverridesJson(row.rule_overrides_json) },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    userId: row.user_id,
+  };
+}
+
 export async function createGame(db: D1Database, userId: string, payload: CreateGamePayload): Promise<GameRecord> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -593,6 +690,114 @@ export async function listGameMessages(db: D1Database, gameId: string, limit = 1
     .bind(gameId, limit)
     .all();
   return result.results.map((row) => mapGameMessageRow(row as GameMessageRow));
+}
+
+export async function listGameMessagesAfter(
+  db: D1Database,
+  gameId: string,
+  after: string,
+  limit = 240,
+): Promise<GameMessageRecord[]> {
+  const result = await db
+    .prepare(
+      `SELECT id, game_id, role, speaker, content, modules_json, created_at, updated_at
+       FROM game_messages
+       WHERE game_id = ? AND created_at > ?
+       ORDER BY created_at ASC
+       LIMIT ?`,
+    )
+    .bind(gameId, after, limit)
+    .all();
+  return result.results.map((row) => mapGameMessageRow(row as GameMessageRow));
+}
+
+export async function getGameMemory(db: D1Database, gameId: string): Promise<GameMemoryRecord | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, game_id, last_round_index, last_processed_at, short_summary, long_summary, recent_rounds_json, state_json,
+       created_at, updated_at
+       FROM game_memories WHERE game_id = ? LIMIT 1`,
+    )
+    .bind(gameId)
+    .first<GameMemoryRow>();
+  return row ? mapGameMemoryRow(row) : null;
+}
+
+export async function listGameMemoryMaps(db: D1Database, gameId: string, limit = 20): Promise<GameMemoryMapRecord[]> {
+  const normalizedLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 50) : 20;
+  const result = await db
+    .prepare(
+      'SELECT id, game_id, round_index, content, created_at FROM game_memory_maps WHERE game_id = ? ORDER BY created_at DESC LIMIT ?',
+    )
+    .bind(gameId, normalizedLimit)
+    .all();
+  return result.results.map((row) => mapGameMemoryMapRow(row as GameMemoryMapRow));
+}
+
+export async function createGameMemoryMap(
+  db: D1Database,
+  payload: Pick<GameMemoryMapRecord, 'id' | 'gameId' | 'roundIndex' | 'content' | 'createdAt'>,
+): Promise<GameMemoryMapRecord> {
+  const row = await db
+    .prepare(
+      'INSERT INTO game_memory_maps (id, game_id, round_index, content, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id, game_id, round_index, content, created_at',
+    )
+    .bind(payload.id, payload.gameId, payload.roundIndex, payload.content, payload.createdAt)
+    .first<GameMemoryMapRow>();
+  if (!row) {
+    return {
+      id: payload.id,
+      gameId: payload.gameId,
+      roundIndex: payload.roundIndex,
+      content: payload.content,
+      createdAt: payload.createdAt,
+    };
+  }
+  return mapGameMemoryMapRow(row);
+}
+
+export async function upsertGameMemory(db: D1Database, payload: GameMemoryRecord): Promise<GameMemoryRecord> {
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO game_memories (
+        id, game_id, last_round_index, last_processed_at, short_summary, long_summary, recent_rounds_json, state_json,
+        created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(game_id) DO UPDATE SET
+        last_round_index = excluded.last_round_index,
+        last_processed_at = excluded.last_processed_at,
+        short_summary = excluded.short_summary,
+        long_summary = excluded.long_summary,
+        recent_rounds_json = excluded.recent_rounds_json,
+        state_json = excluded.state_json,
+        updated_at = excluded.updated_at`,
+    )
+    .bind(
+      payload.id,
+      payload.gameId,
+      payload.lastRoundIndex,
+      payload.lastProcessedAt,
+      payload.shortSummary,
+      payload.longSummary,
+      JSON.stringify(payload.recentRounds ?? []),
+      JSON.stringify(payload.state ?? {}),
+      payload.createdAt ?? now,
+      payload.updatedAt ?? now,
+    )
+    .run();
+  const row = await db
+    .prepare(
+      `SELECT id, game_id, last_round_index, last_processed_at, short_summary, long_summary, recent_rounds_json, state_json,
+       created_at, updated_at
+       FROM game_memories WHERE game_id = ? LIMIT 1`,
+    )
+    .bind(payload.gameId)
+    .first<GameMemoryRow>();
+  if (!row) {
+    return { ...payload, updatedAt: now, createdAt: payload.createdAt ?? now };
+  }
+  return mapGameMemoryRow(row);
 }
 
 export async function createGameMessage(db: D1Database, payload: CreateGameMessagePayload): Promise<GameMessageRecord> {

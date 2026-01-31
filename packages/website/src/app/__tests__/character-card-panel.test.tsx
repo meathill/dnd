@@ -69,6 +69,26 @@ describe('人物卡面板', () => {
     expect(screen.getByAltText('沈砚 头像')).toBeInTheDocument();
   });
 
+  it('会使用记忆中的状态覆盖生命理智数值', () => {
+    act(() => {
+      useGameStore.setState({
+        character: sampleCharacter,
+        memory: {
+          vitals: {
+            hp: { current: 4, max: 9 },
+            sanity: { current: 42, max: 65 },
+          },
+          presence: { presentNpcs: [] },
+        },
+      });
+    });
+
+    render(<CharacterCardPanel />);
+
+    expect(screen.getByText('4 / 9')).toBeInTheDocument();
+    expect(screen.getByText('42 / 65')).toBeInTheDocument();
+  });
+
   it('没有人物卡时显示占位提示', () => {
     render(<CharacterCardPanel />);
 

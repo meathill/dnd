@@ -1,65 +1,135 @@
-import { mapNodes, sceneClues, sceneFacts, type MapNodeStatus } from './home-data';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { GameMemoryMapRecord, ScriptDefinition } from '../lib/game/types';
+import { useGameStore } from '../lib/game/game-store';
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Label } from '../components/ui/label';
 
-const mapStatusStyles = {
-  current: {
-    dot: 'bg-[var(--accent-ember)]',
-    ring: 'ring-[rgba(176,74,53,0.45)]',
-    label: 'text-[var(--accent-ember)]',
-  },
-  known: {
-    dot: 'bg-[var(--accent-moss)]',
-    ring: 'ring-[rgba(61,82,56,0.35)]',
-    label: 'text-[var(--ink-strong)]',
-  },
-  unknown: {
-    dot: 'bg-[var(--ink-soft)]',
-    ring: 'ring-[rgba(138,125,108,0.35)]',
-    label: 'text-[var(--ink-soft)]',
-  },
-} satisfies Record<MapNodeStatus, { dot: string; ring: string; label: string }>;
+type SceneMapPanelProps = {
+  script?: ScriptDefinition | null;
+};
 
-export default function SceneMapPanel() {
+type MapResponse = {
+  maps?: GameMemoryMapRecord[];
+  error?: string;
+};
+
+function formatMapTime(value: string): string {
+  if (!value) {
+    return '未知时间';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
+export default function SceneMapPanel({ script }: SceneMapPanelProps) {
+  const memory = useGameStore((state) => state.memory);
+  const mapText = useGameStore((state) => state.mapText);
+  const gameId = useGameStore((state) => state.activeGameId);
+  const [mapVersions, setMapVersions] = useState<GameMemoryMapRecord[]>([]);
+  const [selectedMapId, setSelectedMapId] = useState('latest');
+  const locationLabel = memory?.presence.location || script?.setting || '未知区域';
+  const sceneLabel = memory?.presence.scene ? ` · ${memory.presence.scene}` : '';
+  const presence = memory?.presence.presentNpcs ?? [];
+  const presenceLabel = presence.length > 0 ? presence.join('、') : '无';
+
+  const loadMaps = useCallback(async () => {
+    if (!gameId) {
+      setMapVersions([]);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/games/${gameId}/maps?limit=20`, { cache: 'no-store' });
+      const data = (await response.json()) as MapResponse;
+      if (!response.ok) {
+        setMapVersions([]);
+        return;
+      }
+      setMapVersions(Array.isArray(data.maps) ? data.maps : []);
+    } catch {
+      setMapVersions([]);
+    }
+  }, [gameId]);
+
+  useEffect(() => {
+    loadMaps();
+  }, [loadMaps, mapText]);
+
+  useEffect(() => {
+    if (selectedMapId === 'latest') {
+      return;
+    }
+    if (!mapVersions.some((entry) => entry.id === selectedMapId)) {
+      setSelectedMapId('latest');
+    }
+  }, [mapVersions, selectedMapId]);
+
+  const selectedMap = useMemo(() => {
+    if (selectedMapId === 'latest') {
+      return mapText ?? '';
+    }
+    const entry = mapVersions.find((item) => item.id === selectedMapId);
+    return entry?.content ?? mapText ?? '';
+  }, [mapText, mapVersions, selectedMapId]);
+
   return (
     <>
-      <div className="flex items-center justify-between mb-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--ink-soft)]">环境地图</p>
-          <h2 className="font-[var(--font-display)] text-2xl text-[var(--ink-strong)]">静默港口</h2>
+          <h2 className="font-[var(--font-display)] text-xl text-[var(--ink-strong)]">
+            {locationLabel}
+            {sceneLabel}
+          </h2>
         </div>
-        <span className="rounded-lg border border-[rgba(27,20,12,0.12)] px-3 py-1 text-xs text-[var(--ink-soft)]">
-          缩放 1.0x
-        </span>
-      </div>
-      <div className="animate-[fade-up_1s_ease-out_both] min-h-[320px] flex gap-4" style={{ animationDelay: '0.18s' }}>
-        <div className="map-surface relative min-h-[240px] flex-1 rounded-xl p-4 flex-1">
-          {mapNodes.map((node) => {
-            const tone = mapStatusStyles[node.status];
-            const pulse = node.status === 'current' ? 'animate-[slow-glow_4s_ease-in-out_infinite]' : '';
-            return (
-              <div
-                className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2"
-                key={node.id}
-                style={{ left: `${node.x}%`, top: `${node.y}%` }}
-              >
-                <div className={`flex h-8 w-8 items-center justify-center rounded-lg ring-2 ${tone.ring} ${pulse}`}>
-                  <div className={`h-3 w-3 rounded-lg ${tone.dot}`}></div>
-                </div>
-                <span className={`rounded-lg bg-[rgba(255,255,255,0.75)] px-2 py-1 text-[10px] ${tone.label}`}>
-                  {node.name}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="space-y-2 flex-none w-56">
-          {sceneFacts.map((fact) => (
-            <div className="flex items-center justify-between text-sm" key={fact.label}>
-              <span className="text-[var(--ink-soft)]">{fact.label}</span>
-              <span className="text-[var(--ink-strong)]">{fact.value}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {mapVersions.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-[var(--ink-soft)]" htmlFor="map-version-select">
+                版本
+              </Label>
+              <Select value={selectedMapId} onValueChange={setSelectedMapId}>
+                <SelectTrigger id="map-version-select" size="sm" aria-label="地图版本">
+                  <SelectValue placeholder="最新地图" />
+                </SelectTrigger>
+                <SelectPopup>
+                  <SelectItem value="latest">最新地图</SelectItem>
+                  {mapVersions.map((entry) => (
+                    <SelectItem key={entry.id} value={entry.id}>
+                      {`回合 ${entry.roundIndex} · ${formatMapTime(entry.createdAt)}`}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
             </div>
-          ))}
+          ) : null}
+          <span className="rounded-lg border border-[rgba(27,20,12,0.12)] px-2 py-1 text-[11px] text-[var(--ink-soft)]">
+            在场 NPC：{presenceLabel}
+          </span>
         </div>
+      </div>
+      <div
+        className="animate-[fade-up_1s_ease-out_both] flex min-h-[200px] flex-col gap-3"
+        style={{ animationDelay: '0.18s' }}
+      >
+        <div className="map-surface flex min-h-[180px] rounded-lg border border-[rgba(27,20,12,0.1)] bg-[rgba(255,255,255,0.65)] p-4">
+          {selectedMap ? (
+            <pre className="w-full whitespace-pre-wrap font-mono text-xs leading-relaxed text-[var(--ink-strong)]">
+              {selectedMap}
+            </pre>
+          ) : (
+            <div className="flex w-full items-center justify-center text-sm text-[var(--ink-soft)]">
+              等待 DM 更新地图...
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-[var(--ink-soft)]">提示：地图使用 ASCII/emoji 展示位置关系与周边环境。</p>
       </div>
     </>
   );

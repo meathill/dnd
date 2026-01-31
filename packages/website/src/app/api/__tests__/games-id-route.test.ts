@@ -6,6 +6,7 @@ import {
   deleteGame,
   getCharacterByIdForUser,
   getGameByIdForUser,
+  getGameMemory,
   getScriptById,
   listGameMessages,
 } from '../../../lib/db/repositories';
@@ -22,6 +23,7 @@ vi.mock('../../../lib/db/repositories', () => ({
   deleteGame: vi.fn(),
   getCharacterByIdForUser: vi.fn(),
   getGameByIdForUser: vi.fn(),
+  getGameMemory: vi.fn(),
   getScriptById: vi.fn(),
   listGameMessages: vi.fn(),
 }));
