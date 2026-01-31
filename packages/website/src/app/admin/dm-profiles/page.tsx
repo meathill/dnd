@@ -442,7 +442,7 @@ function AdminDmProfilesContent() {
 
   if (!session) {
     return (
-      <section className="panel-card flex h-full flex-col gap-4 rounded-xl p-4">
+      <section className="panel-card flex flex-col gap-4 rounded-xl p-3 sm:p-4 lg:h-full">
         <div>
           <p className={sectionTitleClassName}>全局配置</p>
           <h2 className="text-xl font-semibold text-[var(--ink-strong)]">DM 风格管理</h2>
@@ -457,7 +457,7 @@ function AdminDmProfilesContent() {
 
   if (!isRoot) {
     return (
-      <section className="panel-card flex h-full flex-col gap-4 rounded-xl p-4">
+      <section className="panel-card flex flex-col gap-4 rounded-xl p-3 sm:p-4 lg:h-full">
         <div>
           <p className={sectionTitleClassName}>全局配置</p>
           <h2 className="text-xl font-semibold text-[var(--ink-strong)]">DM 风格管理</h2>
@@ -469,8 +469,8 @@ function AdminDmProfilesContent() {
 
   return (
     <>
-      <div className="grid h-full gap-4 overflow-hidden p-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
-        <aside className="panel-card flex h-full flex-col gap-4 rounded-xl p-4 lg:overflow-hidden">
+      <div className="grid gap-4 p-3 sm:p-4 lg:h-full lg:grid-cols-[16rem_minmax(0,1fr)] lg:overflow-hidden">
+        <aside className="panel-card flex flex-col gap-4 rounded-xl p-3 sm:p-4 lg:h-full lg:overflow-hidden">
           <div>
             <p className={sectionTitleClassName}>DM 列表</p>
             <h2 className="text-lg font-semibold text-[var(--ink-strong)]">风格集合</h2>
@@ -567,7 +567,7 @@ function AdminDmProfilesContent() {
           </div>
         </aside>
 
-        <section className="panel-card flex h-full flex-col gap-4 rounded-xl p-4 lg:overflow-hidden">
+        <section className="panel-card flex flex-col gap-4 rounded-xl p-3 sm:p-4 lg:h-full lg:overflow-hidden">
           <div>
             <p className={sectionTitleClassName}>全局配置</p>
             <h2 className="text-xl font-semibold text-[var(--ink-strong)]">{activeProfileName || '请选择 DM 风格'}</h2>

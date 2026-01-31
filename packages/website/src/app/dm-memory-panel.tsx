@@ -110,7 +110,7 @@ export default function DmMemoryPanel() {
   }
 
   return (
-    <section className="panel-card flex flex-col gap-3 rounded-lg p-4">
+    <section className="panel-card flex flex-col gap-3 rounded-lg max-h-80 overflow-auto">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">DM 调试</p>

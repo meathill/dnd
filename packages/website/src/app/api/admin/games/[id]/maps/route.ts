@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { listGameMemoryMaps, getGameById } from '../../../../../lib/db/repositories';
-import { requireRoot } from '../../admin-utils';
+import { listGameMemoryMaps, getGameById } from '@/lib/db/repositories';
+import { requireRoot } from '@/app/api/admin/admin-utils';
 
 type RouteContext = {
   params: Promise<{ id?: string }>;

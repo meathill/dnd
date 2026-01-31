@@ -443,12 +443,15 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
   }
 
   return (
-    <div className="grid h-full gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_20rem] overflow-hidden">
+    <div className="grid lg:h-dvh lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden">
       <main
-        className="panel-card animate-[fade-up_0.8s_ease-out_both] flex h-full flex-col rounded-xl p-4"
+        className="panel-card animate-[fade-up_0.8s_ease-out_both] flex flex-col p-3 sm:p-4 lg:h-dvh border-r"
         style={{ animationDelay: '0.1s' }}
       >
-        <SceneMapPanel script={script} />
+        <div className="grid grid-cols-[1fr_20rem] gap-4 mb-4">
+          <SceneMapPanel script={script} />
+          <DmMemoryPanel />
+        </div>
         <div
           className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pt-4 input-area"
           ref={messageListRef}
@@ -465,7 +468,9 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
                   </span>
                   <span className="text-[var(--ink-soft)]">{message.time}</span>
                 </div>
-                <div className={`max-w-[85%] rounded-xl px-4 py-3 text-sm text-[var(--ink-strong)] ${styles.bubble}`}>
+                <div
+                  className={`max-w-full rounded-xl px-4 py-3 text-sm text-[var(--ink-strong)] sm:max-w-[85%] ${styles.bubble}`}
+                >
                   {message.modules && message.modules.length > 0 ? (
                     renderModules(message.modules)
                   ) : (
@@ -488,7 +493,7 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
               </Button>
             ))}
           </div>
-          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-[rgba(27,20,12,0.1)] bg-[rgba(255,255,255,0.6)] p-4">
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-[rgba(27,20,12,0.1)] bg-[rgba(255,255,255,0.6)] p-3 sm:p-4">
             <textarea
               className="min-h-[80px] w-full resize-none bg-transparent text-sm text-[var(--ink-strong)] placeholder:text-[var(--ink-soft)] focus:outline-none"
               placeholder="描述你要说的话或采取的行动，肉团长会结合规则做出回应。"
@@ -519,10 +524,7 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
         </div>
       </main>
 
-      <aside className="flex min-h-0 flex-col gap-4 lg:overflow-y-auto">
-        <CharacterCardPanel skillOptions={script?.skillOptions} rules={script?.rules} />
-        <DmMemoryPanel />
-      </aside>
+      <CharacterCardPanel skillOptions={script?.skillOptions} rules={script?.rules} />
     </div>
   );
 }

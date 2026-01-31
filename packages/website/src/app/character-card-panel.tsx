@@ -165,7 +165,7 @@ export default function CharacterCardPanel({ skillOptions, rules }: CharacterCar
   if (!character) {
     return (
       <div
-        className="panel-card animate-[fade-up_0.9s_ease-out_both] flex flex-col gap-4 rounded-xl p-4"
+        className="panel-card animate-[fade-up_0.9s_ease-out_both] flex flex-col gap-4 p-4 min-h-0 max-h-dvh lg:overflow-y-auto"
         style={{ animationDelay: '0.12s' }}
       >
         <div className="flex flex-wrap items-center gap-4">
@@ -188,7 +188,7 @@ export default function CharacterCardPanel({ skillOptions, rules }: CharacterCar
 
   return (
     <div
-      className="panel-card animate-[fade-up_0.9s_ease-out_both] flex flex-col gap-4 rounded-xl p-4"
+      className="panel-card animate-[fade-up_0.9s_ease-out_both] flex flex-col gap-4 p-4 min-h-0 max-h-dvh lg:overflow-y-auto"
       style={{ animationDelay: '0.12s' }}
     >
       <div className="flex flex-wrap items-center gap-4">

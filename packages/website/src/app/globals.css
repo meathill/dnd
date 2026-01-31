@@ -104,8 +104,8 @@ a {
 
 .panel-card {
   background: var(--surface-panel);
-  border: 1px solid var(--ring-soft);
-  box-shadow: 0 24px 60px -42px var(--shadow-ink);
+  border-style: solid;
+  border-color: var(--ring-soft);
 }
 
 .panel-muted {
@@ -188,6 +188,6 @@ a {
 }
 
 .input-area {
-  max-height: calc(100dvh - 42rem);
+  max-height: calc(100dvh - 36rem);
   overflow: auto;
 }

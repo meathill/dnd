@@ -9,8 +9,10 @@ import SettingsModal from './settings-modal';
 import { authClient } from '../lib/auth/auth-client';
 import type { SessionInfo, UserSettings } from '../lib/session/session-types';
 import { SessionProvider } from '../lib/session/session-context';
+import { MenuIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import type { DmProfileSummary } from '../lib/game/types';
+import { Sheet, SheetPanel, SheetPopup } from '../components/ui/sheet';
 
 const sidebarTitleClassName = 'text-xs uppercase tracking-[0.3em] text-[var(--ink-soft)]';
 
@@ -44,6 +46,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
   const [authMessage, setAuthMessage] = useState('');
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [authSuccessAction, setAuthSuccessAction] = useState<null | (() => void)>(null);
+  const [isNavOpen, setIsNavOpen] = useState(false);
 
   const isLoggedIn = Boolean(session);
   const isRoot = session?.isRoot ?? false;
@@ -194,6 +197,75 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
     handleOpenAuth();
   }
 
+  const sidebarContent = (
+    <>
+      <div className="space-y-3">
+        <p className={sidebarTitleClassName}>AI 跑团体验 · COC 模式</p>
+        <h1 className="text-3xl text-[var(--ink-strong)] sm:text-4xl font-[var(--font-accent)]">肉团长</h1>
+        <p className="text-sm text-[var(--ink-muted)]">导航与账号入口，随时切换不同阶段。</p>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">导航</p>
+        <Button
+          className="w-full justify-start"
+          render={<Link href="/" />}
+          size="sm"
+          variant={activeNav === 'home' ? 'default' : 'outline'}
+        >
+          首页
+        </Button>
+        <Button
+          className="w-full justify-start"
+          onClick={handleOpenGames}
+          disabled={!isLoggedIn}
+          size="sm"
+          variant={activeNav === 'games' ? 'default' : 'outline'}
+        >
+          游戏记录
+        </Button>
+        <Button
+          className="w-full justify-start"
+          onClick={handleOpenSettings}
+          disabled={!isLoggedIn}
+          size="sm"
+          variant="outline"
+        >
+          设置
+        </Button>
+        {isRoot ? (
+          <Button
+            className="w-full justify-start"
+            render={<Link href="/admin/dm-profiles" />}
+            size="sm"
+            variant={activeNav === 'admin' ? 'default' : 'outline'}
+          >
+            全局配置
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="mt-auto space-y-2 text-xs text-[var(--ink-soft)]">
+        <div className="rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] p-3">
+          <p className="font-semibold text-[var(--ink-strong)]">账号状态</p>
+          <p className="mt-2">{isLoggedIn ? `已登录：${session?.displayName}` : '未登录'}</p>
+          <p className="mt-1">登录后可使用设置与保存记录。</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {isLoggedIn ? (
+              <Button onClick={handleSignOut} size="xs" variant="outline">
+                退出登录
+              </Button>
+            ) : (
+              <Button onClick={handleOpenAuth} size="xs">
+                登录 / 注册
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   async function handleSaveSettings() {
     if (!session) {
       setSettingsMessage('未登录无法保存设置。');
@@ -223,78 +295,26 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
 
   return (
     <SessionProvider value={{ session, reloadSession: loadSession, requestAuth: handleRequestAuth }}>
-      <div className="min-h-screen lg:h-screen lg:overflow-hidden grid grid-cols-[15rem_minmax(0,1fr)]">
-        <aside
-          className="panel-card animate-[fade-up_0.7s_ease-out_both] flex w-full flex-col gap-4 p-4 lg:h-full lg:overflow-hidden"
-          style={{ animationDelay: '0.05s' }}
-        >
-          <div className="space-y-3">
-            <p className={sidebarTitleClassName}>AI 跑团体验 · COC 模式</p>
-            <h1 className="text-3xl text-[var(--ink-strong)] sm:text-4xl font-[var(--font-accent)]">肉团长</h1>
-            <p className="text-sm text-[var(--ink-muted)]">导航与账号入口，随时切换不同阶段。</p>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">导航</p>
-            <Button
-              className="w-full justify-start"
-              render={<Link href="/" />}
-              size="sm"
-              variant={activeNav === 'home' ? 'default' : 'outline'}
-            >
-              首页
-            </Button>
-            <Button
-              className="w-full justify-start"
-              onClick={handleOpenGames}
-              disabled={!isLoggedIn}
-              size="sm"
-              variant={activeNav === 'games' ? 'default' : 'outline'}
-            >
-              游戏记录
-            </Button>
-            <Button
-              className="w-full justify-start"
-              onClick={handleOpenSettings}
-              disabled={!isLoggedIn}
-              size="sm"
-              variant="outline"
-            >
-              设置
-            </Button>
-            {isRoot ? (
-              <Button
-                className="w-full justify-start"
-                render={<Link href="/admin/dm-profiles" />}
-                size="sm"
-                variant={activeNav === 'admin' ? 'default' : 'outline'}
-              >
-                全局配置
-              </Button>
-            ) : null}
-          </div>
-
-          <div className="mt-auto space-y-2 text-xs text-[var(--ink-soft)]">
-            <div className="rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] p-3">
-              <p className="font-semibold text-[var(--ink-strong)]">账号状态</p>
-              <p className="mt-2">{isLoggedIn ? `已登录：${session?.displayName}` : '未登录'}</p>
-              <p className="mt-1">登录后可使用设置与保存记录。</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {isLoggedIn ? (
-                  <Button onClick={handleSignOut} size="xs" variant="outline">
-                    退出登录
-                  </Button>
-                ) : (
-                  <Button onClick={handleOpenAuth} size="xs">
-                    登录 / 注册
-                  </Button>
-                )}
-              </div>
+      <div className="min-h-screen lg:h-screen lg:overflow-hidden">
+        <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+          <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.92)] px-3 py-3 backdrop-blur lg:hidden">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--ink-soft)]">AI 跑团体验</p>
+              <h1 className="text-lg font-semibold text-[var(--ink-strong)]">肉团长</h1>
             </div>
-          </div>
-        </aside>
+            <Button size="icon" variant="outline" onClick={() => setIsNavOpen(true)} aria-label="打开导航">
+              <MenuIcon />
+            </Button>
+          </header>
+          <aside
+            className="panel-card border-r animate-[fade-up_0.7s_ease-out_both] hidden w-full flex-col gap-4 p-4 lg:flex lg:h-dvh lg:max-h-dvh lg:overflow-auto"
+            style={{ animationDelay: '0.05s' }}
+          >
+            {sidebarContent}
+          </aside>
 
-        {children}
+          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">{children}</main>
+        </div>
 
         <SettingsModal
           isOpen={isSettingsOpen}
@@ -322,6 +342,11 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
           onModeChange={setAuthMode}
           onSubmit={handleSubmitAuth}
         />
+        <Sheet open={isNavOpen} onOpenChange={setIsNavOpen}>
+          <SheetPopup side="left" showCloseButton>
+            <SheetPanel className="flex min-h-0 flex-1 flex-col gap-4">{sidebarContent}</SheetPanel>
+          </SheetPopup>
+        </Sheet>
       </div>
     </SessionProvider>
   );

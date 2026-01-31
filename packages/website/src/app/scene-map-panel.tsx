@@ -79,7 +79,7 @@ export default function SceneMapPanel({ script }: SceneMapPanelProps) {
   }, [mapText, mapVersions, selectedMapId]);
 
   return (
-    <>
+    <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--ink-soft)]">环境地图</p>
@@ -114,11 +114,8 @@ export default function SceneMapPanel({ script }: SceneMapPanelProps) {
           </span>
         </div>
       </div>
-      <div
-        className="animate-[fade-up_1s_ease-out_both] flex min-h-[200px] flex-col gap-3"
-        style={{ animationDelay: '0.18s' }}
-      >
-        <div className="map-surface flex min-h-[180px] rounded-lg border border-[rgba(27,20,12,0.1)] bg-[rgba(255,255,255,0.65)] p-4">
+      <div className="animate-[fade-up_1s_ease-out_both] flex flex-col gap-3" style={{ animationDelay: '0.18s' }}>
+        <div className="map-surface flex h-54 rounded-lg border border-[rgba(27,20,12,0.1)] bg-[rgba(255,255,255,0.65)] p-4">
           {selectedMap ? (
             <pre className="w-full whitespace-pre-wrap font-mono text-xs leading-relaxed text-[var(--ink-strong)]">
               {selectedMap}
@@ -131,6 +128,6 @@ export default function SceneMapPanel({ script }: SceneMapPanelProps) {
         </div>
         <p className="text-xs text-[var(--ink-soft)]">提示：地图使用 ASCII/emoji 展示位置关系与周边环境。</p>
       </div>
-    </>
+    </div>
   );
 }

@@ -19,8 +19,8 @@ function formatUpdatedAt(value: string): string {
 
 export default function GamesStage({ games, statusMessage, onOpenGame, onDeleteGame }: GamesStageProps) {
   return (
-    <div className="grid h-full gap-4 overflow-hidden p-4">
-      <section className="panel-card flex h-full flex-col gap-4 rounded-xl p-4">
+    <div className="grid gap-4 p-3 sm:p-4 lg:h-full lg:overflow-hidden">
+      <section className="panel-card flex flex-col gap-4 rounded-xl p-3 sm:p-4 lg:h-full">
         <div>
           <p className={sectionTitleClassName}>记录</p>
           <h2 className="text-xl font-semibold text-[var(--ink-strong)]">游戏记录</h2>

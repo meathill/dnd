@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from '../../../../../lib/auth/auth';
-import { getDatabase } from '../../../../../lib/db/db';
-import { getGameByIdForUser, listGameMemoryMaps } from '../../../../../lib/db/repositories';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
+import { getGameByIdForUser, listGameMemoryMaps } from '@/lib/db/repositories';
 
 type RouteContext = {
   params: Promise<{ id?: string }>;
