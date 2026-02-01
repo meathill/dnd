@@ -100,7 +100,7 @@ function GamePageContent({ gameId }: GamePageProps) {
 
   if (!script) {
     return (
-      <div className="grid gap-4 p-3 sm:p-4 lg:h-full lg:overflow-hidden">
+      <div className="grid lg:h-full lg:overflow-hidden">
         <section className="panel-card flex flex-col gap-3 rounded-xl p-3 sm:p-4 lg:h-full">
           <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">游戏</p>
           <h2 className="text-xl font-semibold text-[var(--ink-strong)]">

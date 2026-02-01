@@ -89,16 +89,11 @@
 body {
   min-height: 100vh;
   background-color: var(--surface-base);
-  background-image:
-    radial-gradient(1200px 520px at 8% -10%, rgba(182, 121, 46, 0.18), transparent 60%),
-    radial-gradient(900px 460px at 92% 0%, rgba(61, 82, 56, 0.14), transparent 65%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(245, 239, 228, 0.9) 100%);
   color: var(--ink-strong);
   font-family: var(--font-body);
 }
 
 .panel-card {
-  background: var(--surface-panel);
   border-style: solid;
   border-color: var(--ring-soft);
 }

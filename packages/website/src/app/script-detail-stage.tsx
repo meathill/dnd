@@ -51,8 +51,8 @@ export default function ScriptDetailStage({
   const selectedCharacter = characterOptions.find((option) => option.id === selectedCharacterId);
   const canStart = Boolean(selectedCharacter);
   return (
-    <div className="grid gap-4 p-3 sm:p-4 lg:h-full lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden">
-      <section className="panel-card flex flex-col gap-4 rounded-xl p-3 sm:p-4 lg:h-full">
+    <div className="grid gap-4 px-3 sm:px-4 lg:h-full lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden">
+      <section className="panel-card flex flex-col gap-4 py-3 sm:py-4 lg:h-full">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className={sectionTitleClassName}>剧本详情</p>
@@ -115,7 +115,7 @@ export default function ScriptDetailStage({
         </div>
       </section>
 
-      <aside className="panel-card flex flex-col gap-4 rounded-xl p-3 sm:p-4 lg:h-full">
+      <aside className="panel-card flex flex-col gap-4 py-3 sm:py-4 lg:h-full">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className={sectionTitleClassName}>步骤</p>

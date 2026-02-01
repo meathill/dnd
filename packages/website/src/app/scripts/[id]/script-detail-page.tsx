@@ -336,18 +336,16 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
 
   if (!script) {
     return (
-      <div className="grid gap-4 p-3 sm:p-4 lg:h-full lg:overflow-hidden">
-        <section className="panel-card flex flex-col gap-3 rounded-xl p-3 sm:p-4 lg:h-full">
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">剧本</p>
-          <h2 className="text-xl font-semibold text-[var(--ink-strong)]">
-            {isLoading ? '正在读取剧本...' : '无法进入剧本'}
-          </h2>
-          <p className="text-sm text-[var(--ink-muted)]">{statusMessage || '请返回首页重新选择剧本。'}</p>
-          <Button className="mt-auto" onClick={handleBackToHome} size="sm" variant="outline">
-            返回首页
-          </Button>
-        </section>
-      </div>
+      <section className="panel-card flex flex-col gap-3 p-3 sm:p-4 lg:h-full">
+        <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]">剧本</p>
+        <h2 className="text-xl font-semibold text-[var(--ink-strong)]">
+          {isLoading ? '正在读取剧本...' : '无法进入剧本'}
+        </h2>
+        <p className="text-sm text-[var(--ink-muted)]">{statusMessage || '请返回首页重新选择剧本。'}</p>
+        <Button className="mt-auto" onClick={handleBackToHome} size="sm" variant="outline">
+          返回首页
+        </Button>
+      </section>
     );
   }
 
