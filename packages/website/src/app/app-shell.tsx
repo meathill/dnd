@@ -25,7 +25,7 @@ const defaultSettings: UserSettings = {
 };
 
 type AppShellProps = {
-  activeNav: 'home' | 'script' | 'game' | 'games' | 'admin';
+  activeNav: 'home' | 'script' | 'game' | 'games' | 'admin-dm' | 'admin-scripts';
   scriptId?: string | null;
   gameId?: string | null;
   children: ReactNode;
@@ -261,14 +261,24 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
           设置
         </Button>
         {isRoot ? (
-          <Button
-            className="w-full justify-start"
-            render={<Link href="/admin/dm-profiles" />}
-            size="sm"
-            variant={activeNav === 'admin' ? 'default' : 'outline'}
-          >
-            全局配置
-          </Button>
+          <>
+            <Button
+              className="w-full justify-start"
+              render={<Link href="/admin/dm-profiles" />}
+              size="sm"
+              variant={activeNav === 'admin-dm' ? 'default' : 'outline'}
+            >
+              全局配置
+            </Button>
+            <Button
+              className="w-full justify-start"
+              render={<Link href="/admin/scripts" />}
+              size="sm"
+              variant={activeNav === 'admin-scripts' ? 'default' : 'outline'}
+            >
+              剧本编辑器
+            </Button>
+          </>
         ) : null}
       </div>
 

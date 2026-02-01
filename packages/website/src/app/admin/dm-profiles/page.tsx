@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import AppShell from '../../app-shell';
 import ConfirmDialog from '../../confirm-dialog';
 import type { DmGuidePhase, DmProfileDetail, DmProfileRule, DmProfileSummary } from '../../../lib/game/types';
@@ -322,11 +323,12 @@ function AdminDmProfilesContent() {
       if (!response.ok || !data.rule) {
         throw new Error(data.error ?? '保存规则失败');
       }
+      const savedRule = data.rule;
       setActiveProfile((current) => {
         if (!current) {
           return current;
         }
-        const nextRules = current.rules.map((item) => (item.id === ruleId ? data.rule : item));
+        const nextRules = current.rules.map((item) => (item.id === ruleId ? savedRule : item));
         return { ...current, rules: nextRules };
       });
       setStatusMessage('规则已保存。');
@@ -358,7 +360,8 @@ function AdminDmProfilesContent() {
       if (!response.ok || !data.rule) {
         throw new Error(data.error ?? '新增规则失败');
       }
-      setActiveProfile((current) => (current ? { ...current, rules: [...current.rules, data.rule] } : current));
+      const newRule = data.rule;
+      setActiveProfile((current) => (current ? { ...current, rules: [...current.rules, newRule] } : current));
       setRuleDraft(buildRuleDraft());
       setStatusMessage('规则已新增。');
     } catch (error) {
@@ -469,8 +472,8 @@ function AdminDmProfilesContent() {
 
   return (
     <>
-      <div className="grid gap-4 p-3 sm:p-4 lg:h-full lg:grid-cols-[16rem_minmax(0,1fr)] lg:overflow-hidden">
-        <aside className="panel-card flex flex-col gap-4 rounded-xl p-3 sm:p-4 lg:h-full lg:overflow-hidden">
+      <div className="grid lg:h-dvh lg:grid-cols-[16rem_minmax(0,1fr)] lg:overflow-hidden">
+        <aside className="panel-card flex flex-col gap-4 p-3 sm:p-4 lg:h-full max-h-dvh lg:overflow-auto">
           <div>
             <p className={sectionTitleClassName}>DM 列表</p>
             <h2 className="text-lg font-semibold text-[var(--ink-strong)]">风格集合</h2>
@@ -567,7 +570,7 @@ function AdminDmProfilesContent() {
           </div>
         </aside>
 
-        <section className="panel-card flex flex-col gap-4 rounded-xl p-3 sm:p-4 lg:h-full lg:overflow-hidden">
+        <section className="panel-card flex flex-col gap-4 p-3 sm:p-4 lg:h-full max-h-dvh lg:overflow-auto">
           <div>
             <p className={sectionTitleClassName}>全局配置</p>
             <h2 className="text-xl font-semibold text-[var(--ink-strong)]">{activeProfileName || '请选择 DM 风格'}</h2>
@@ -845,7 +848,7 @@ function AdminDmProfilesContent() {
 
 export default function AdminDmProfilesPage() {
   return (
-    <AppShell activeNav="admin">
+    <AppShell activeNav="admin-dm">
       <AdminDmProfilesContent />
     </AppShell>
   );

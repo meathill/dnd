@@ -20,7 +20,7 @@ import type {
 import type { CharacterPayload, CreateGamePayload } from '../game/validators';
 import { DEFAULT_TRAINED_SKILL_VALUE, DEFAULT_UNTRAINED_SKILL_VALUE } from '../game/rules';
 import { parseMemoryState, parseRoundSummaries } from '../game/memory';
-import { mapScriptRow, serializeCharacterPayload } from './mappers';
+import { mapScriptRow, serializeCharacterPayload, serializeScriptDefinition } from './mappers';
 import type { UserSettings } from '../session/session-types';
 import { normalizeModel } from '../ai/ai-models';
 
@@ -343,6 +343,87 @@ export async function getScriptById(db: D1Database, scriptId: string): Promise<S
     .bind(scriptId)
     .first<Record<string, string>>();
   return result ? mapScriptRow(result) : null;
+}
+
+const SCRIPT_WRITE_COLUMNS = [
+  'title',
+  'summary',
+  'setting',
+  'difficulty',
+  'opening_messages_json',
+  'background_json',
+  'story_arcs_json',
+  'enemy_profiles_json',
+  'skill_options_json',
+  'equipment_options_json',
+  'occupation_options_json',
+  'origin_options_json',
+  'buff_options_json',
+  'debuff_options_json',
+  'attribute_ranges_json',
+  'attribute_point_budget',
+  'skill_limit',
+  'equipment_limit',
+  'buff_limit',
+  'debuff_limit',
+  'rules_json',
+  'scenes_json',
+  'encounters_json',
+] as const;
+
+export async function createScript(db: D1Database, script: ScriptDefinition): Promise<ScriptDefinition> {
+  const payload = serializeScriptDefinition(script);
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO scripts (
+        id,
+        ${SCRIPT_WRITE_COLUMNS.join(', ')},
+        created_at,
+        updated_at
+      ) VALUES (
+        ?,
+        ${SCRIPT_WRITE_COLUMNS.map(() => '?').join(', ')},
+        ?,
+        ?
+      )`,
+    )
+    .bind(payload.id, ...SCRIPT_WRITE_COLUMNS.map((column) => payload[column]), now, now)
+    .run();
+  return script;
+}
+
+export async function updateScript(
+  db: D1Database,
+  scriptId: string,
+  script: ScriptDefinition,
+): Promise<ScriptDefinition | null> {
+  if (!scriptId) {
+    return null;
+  }
+  const existing = await getScriptById(db, scriptId);
+  if (!existing) {
+    return null;
+  }
+  const payload = serializeScriptDefinition(script);
+  const now = new Date().toISOString();
+  const setters = SCRIPT_WRITE_COLUMNS.map((column) => `${column} = ?`).join(', ');
+  await db
+    .prepare(`UPDATE scripts SET ${setters}, updated_at = ? WHERE id = ?`)
+    .bind(...SCRIPT_WRITE_COLUMNS.map((column) => payload[column]), now, scriptId)
+    .run();
+  return {
+    ...script,
+    id: scriptId,
+  };
+}
+
+export async function deleteScript(db: D1Database, scriptId: string): Promise<boolean> {
+  if (!scriptId) {
+    return false;
+  }
+  const result = await db.prepare('DELETE FROM scripts WHERE id = ?').bind(scriptId).run();
+  return result.success;
 }
 
 export async function listGames(db: D1Database): Promise<GameRecordSummary[]> {
