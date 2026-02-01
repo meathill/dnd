@@ -297,34 +297,37 @@ function buildScriptHiddenContext(script: ScriptDefinition): string {
       .join('\n');
     parts.push(`故事走向：\n${arcs}`);
   }
-  if (script.enemyProfiles.length > 0) {
-    const enemies = script.enemyProfiles
-      .map((enemy) => {
-        const attacks = enemy.attacks
+  if (script.npcProfiles.length > 0) {
+    const npcs = script.npcProfiles
+      .map((npc) => {
+        const attacks = npc.attacks
           .map(
             (attack) =>
               `${attack.name} ${attack.chance}% ${attack.damage}${attack.effect ? `（${attack.effect}）` : ''}`,
           )
           .join('；');
-        const skills = enemy.skills.map((skill) => `${skill.name}${skill.value}`).join('、');
-        const traits = enemy.traits.join('、');
+        const skills = npc.skills.map((skill) => `${skill.name}${skill.value}`).join('、');
+        const traits = npc.traits.join('、');
+        const roleLabel = npc.role === 'ally' ? '友方' : npc.role === 'enemy' ? '敌对' : '中立';
         return [
-          `- ${enemy.name}（${enemy.type} / 威胁：${enemy.threat} / HP:${enemy.hp}${enemy.armor ? ` / 甲:${enemy.armor}` : ''}${
-            enemy.move ? ` / 移动:${enemy.move}` : ''
-          }）`,
-          enemy.summary ? `  描述：${enemy.summary}` : '',
+          `- ${npc.name}（${roleLabel} / ${npc.type} / 威胁：${npc.threat} / HP:${npc.hp}${
+            npc.armor ? ` / 甲:${npc.armor}` : ''
+          }${npc.move ? ` / 移动:${npc.move}` : ''}）`,
+          npc.summary ? `  描述：${npc.summary}` : '',
+          npc.useWhen ? `  使用时机：${npc.useWhen}` : '',
+          npc.status ? `  当前状态：${npc.status}` : '',
           attacks ? `  攻击：${attacks}` : '',
           skills ? `  技能：${skills}` : '',
           traits ? `  特性：${traits}` : '',
-          enemy.tactics ? `  战术：${enemy.tactics}` : '',
-          enemy.weakness ? `  弱点：${enemy.weakness}` : '',
-          enemy.sanityLoss ? `  理智损失：${enemy.sanityLoss}` : '',
+          npc.tactics ? `  战术：${npc.tactics}` : '',
+          npc.weakness ? `  弱点：${npc.weakness}` : '',
+          npc.sanityLoss ? `  理智损失：${npc.sanityLoss}` : '',
         ]
           .filter(Boolean)
           .join('\n');
       })
       .join('\n');
-    parts.push(`敌人设定：\n${enemies}`);
+    parts.push(`NPC 设定：\n${npcs}`);
   }
   return parts.join('\n');
 }

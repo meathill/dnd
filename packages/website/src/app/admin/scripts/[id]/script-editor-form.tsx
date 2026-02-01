@@ -5,7 +5,7 @@ import ScriptBasicSection from './script-editor-section-basic';
 import ScriptOpeningSection from './script-editor-section-opening';
 import ScriptBackgroundSection from './script-editor-section-background';
 import ScriptStructureSection from './script-editor-section-structure';
-import ScriptEnemySection from './script-editor-section-enemies';
+import ScriptNpcSection from './script-editor-section-npcs';
 import ScriptOptionsSection from './script-editor-section-options';
 import ScriptRulesSection from './script-editor-section-rules';
 
@@ -31,7 +31,7 @@ export default function ScriptEditorForm({ draft, onDraftChange }: ScriptEditorF
       <ScriptOpeningSection draft={draft} mutateDraft={mutateDraft} />
       <ScriptBackgroundSection draft={draft} mutateDraft={mutateDraft} />
       <ScriptStructureSection draft={draft} mutateDraft={mutateDraft} />
-      <ScriptEnemySection draft={draft} mutateDraft={mutateDraft} />
+      <ScriptNpcSection draft={draft} mutateDraft={mutateDraft} />
       <ScriptOptionsSection draft={draft} mutateDraft={mutateDraft} />
       <ScriptRulesSection draft={draft} mutateDraft={mutateDraft} />
     </div>

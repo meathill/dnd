@@ -22,7 +22,7 @@ export type ScriptEncounter = {
   id: string;
   title: string;
   summary: string;
-  enemies: string[];
+  npcs: string[];
   danger: string;
 };
 
@@ -43,29 +43,34 @@ export type ScriptBackground = {
   secrets: string[];
 };
 
-export type ScriptEnemyAttack = {
+export type ScriptNpcAttack = {
   name: string;
   chance: number;
   damage: string;
   effect?: string;
 };
 
-export type ScriptEnemySkill = {
+export type ScriptNpcSkill = {
   name: string;
   value: number;
 };
 
-export type ScriptEnemyProfile = {
+export type ScriptNpcRole = 'ally' | 'neutral' | 'enemy';
+
+export type ScriptNpcProfile = {
   id: string;
   name: string;
   type: string;
+  role: ScriptNpcRole;
   threat: string;
   summary: string;
+  useWhen: string;
+  status: string;
   hp: number;
   armor?: number;
   move?: number;
-  attacks: ScriptEnemyAttack[];
-  skills: ScriptEnemySkill[];
+  attacks: ScriptNpcAttack[];
+  skills: ScriptNpcSkill[];
   traits: string[];
   tactics: string;
   weakness: string;
@@ -201,7 +206,7 @@ export type ScriptDefinition = {
   openingMessages: ScriptOpeningMessage[];
   background: ScriptBackground;
   storyArcs: ScriptStoryArc[];
-  enemyProfiles: ScriptEnemyProfile[];
+  npcProfiles: ScriptNpcProfile[];
   skillOptions: ScriptSkillOption[];
   equipmentOptions: string[];
   occupationOptions: string[];

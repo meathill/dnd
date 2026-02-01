@@ -22,16 +22,19 @@ export type EncounterDraft = {
   id: string;
   title: string;
   summary: string;
-  enemiesText: string;
+  npcsText: string;
   danger: string;
 };
 
-export type EnemyProfileDraft = {
+export type NpcProfileDraft = {
   id: string;
   name: string;
   type: string;
+  role: string;
   threat: string;
   summary: string;
+  useWhen: string;
+  status: string;
   hp: string;
   armor: string;
   move: string;
@@ -73,7 +76,7 @@ export type ScriptDraft = {
     secretsText: string;
   };
   storyArcs: StoryArcDraft[];
-  enemyProfiles: EnemyProfileDraft[];
+  npcProfiles: NpcProfileDraft[];
   skillOptionsText: string;
   equipmentOptionsText: string;
   occupationOptionsText: string;

@@ -20,7 +20,7 @@ const sampleScript: ScriptDefinition = {
     secrets: [],
   },
   storyArcs: [],
-  enemyProfiles: [],
+  npcProfiles: [],
   skillOptions: [],
   equipmentOptions: [],
   occupationOptions: [],
@@ -35,7 +35,7 @@ const sampleScript: ScriptDefinition = {
   debuffLimit: 0,
   rules: {},
   scenes: [{ id: 'scene-1', title: '旧宅门厅', summary: '破门而入。', location: '门厅', hooks: [] }],
-  encounters: [{ id: 'encounter-1', title: '邪灵现身', summary: '紧张战斗。', enemies: [], danger: '高' }],
+  encounters: [{ id: 'encounter-1', title: '邪灵现身', summary: '紧张战斗。', npcs: [], danger: '高' }],
 };
 
 describe('首页面板', () => {

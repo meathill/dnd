@@ -27,7 +27,7 @@ export default function DmProfileBasicSection({ draft, mutateDraft }: DmProfileB
   }
 
   return (
-    <Section title="基础信息" description="名称与简介会展示在设置面板中。">
+    <Section id="dm-section-basic" title="基础信息" description="名称与简介会展示在设置面板中。">
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="space-y-1">
           <Label className="text-xs text-[var(--ink-soft)]" htmlFor="dm-profile-name">

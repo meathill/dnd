@@ -8,9 +8,11 @@ import { useSession } from '@/lib/session/session-context';
 import type { DmProfileDetail, DmProfileRule } from '@/lib/game/types';
 import { Button } from '@/components/ui/button';
 import DmProfileEditorForm from './dm-profile-editor-form';
+import DmProfileEditorSidebar from './dm-profile-editor-sidebar';
 
 const sectionTitleClassName = 'text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]';
 const panelClassName = 'panel-card flex flex-col gap-3 p-3 sm:p-4 lg:h-full lg:max-h-dvh lg:overflow-auto';
+const frameClassName = 'grid gap-4 p-3 sm:p-4 lg:h-full lg:overflow-hidden';
 
 type DmProfileEditorPageProps = {
   profileId: string;
@@ -174,11 +176,12 @@ export function DmProfileEditorContent({ profileId }: DmProfileEditorPageProps) 
       if (!response.ok || !data.rule) {
         throw new Error(data.error ?? '规则创建失败');
       }
+      const createdRule = data.rule;
       setDraft((current) => {
         if (!current) {
           return current;
         }
-        return { ...current, rules: [...current.rules, data.rule] };
+        return { ...current, rules: [...current.rules, createdRule] };
       });
       setStatusMessage('规则已创建。');
       return true;
@@ -268,44 +271,53 @@ export function DmProfileEditorContent({ profileId }: DmProfileEditorPageProps) 
 
   if (!session) {
     return (
-      <section className={panelClassName}>
-        <p className={sectionTitleClassName}>DM 风格编辑</p>
-        <h2 className="text-xl font-semibold text-[var(--ink-strong)]">需要登录</h2>
-        <p className="text-sm text-[var(--ink-muted)]">请先登录后再管理 DM 风格。</p>
-        <Button onClick={handleRequestAuth} size="sm">
-          登录 / 注册
-        </Button>
-      </section>
+      <div className={frameClassName}>
+        <section className={panelClassName}>
+          <p className={sectionTitleClassName}>DM 风格编辑</p>
+          <h2 className="text-xl font-semibold text-[var(--ink-strong)]">需要登录</h2>
+          <p className="text-sm text-[var(--ink-muted)]">请先登录后再管理 DM 风格。</p>
+          <Button onClick={handleRequestAuth} size="sm">
+            登录 / 注册
+          </Button>
+        </section>
+      </div>
     );
   }
 
   if (!isRoot) {
     return (
-      <section className={panelClassName}>
-        <p className={sectionTitleClassName}>DM 风格编辑</p>
-        <h2 className="text-xl font-semibold text-[var(--ink-strong)]">需要 Root 权限</h2>
-        <p className="text-sm text-[var(--ink-muted)]">当前账号没有管理 DM 风格的权限。</p>
-      </section>
+      <div className={frameClassName}>
+        <section className={panelClassName}>
+          <p className={sectionTitleClassName}>DM 风格编辑</p>
+          <h2 className="text-xl font-semibold text-[var(--ink-strong)]">需要 Root 权限</h2>
+          <p className="text-sm text-[var(--ink-muted)]">当前账号没有管理 DM 风格的权限。</p>
+        </section>
+      </div>
     );
   }
 
   if (!draft) {
     return (
-      <section className={panelClassName}>
-        <p className={sectionTitleClassName}>DM 风格编辑</p>
-        <h2 className="text-xl font-semibold text-[var(--ink-strong)]">
-          {isLoading ? '正在读取 DM 风格...' : '无法读取 DM 风格'}
-        </h2>
-        <p className="text-sm text-[var(--ink-muted)]">{displayStatus || '请返回列表重新选择。'}</p>
-        <Button onClick={handleBackToList} size="sm" variant="outline">
-          返回列表
-        </Button>
-      </section>
+      <div className={frameClassName}>
+        <section className={panelClassName}>
+          <p className={sectionTitleClassName}>DM 风格编辑</p>
+          <h2 className="text-xl font-semibold text-[var(--ink-strong)]">
+            {isLoading ? '正在读取 DM 风格...' : '无法读取 DM 风格'}
+          </h2>
+          <p className="text-sm text-[var(--ink-muted)]">{displayStatus || '请返回列表重新选择。'}</p>
+          <Button onClick={handleBackToList} size="sm" variant="outline">
+            返回列表
+          </Button>
+        </section>
+      </div>
     );
   }
 
   return (
-    <div className="grid lg:h-full lg:overflow-hidden">
+    <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:h-full lg:overflow-hidden">
+      <div className="lg:overflow-auto">
+        <DmProfileEditorSidebar />
+      </div>
       <section className={panelClassName}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

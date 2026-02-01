@@ -3,7 +3,7 @@ import type {
   ScriptOpeningMessage,
   ScriptBackground,
   ScriptStoryArc,
-  ScriptEnemyProfile,
+  ScriptNpcProfile,
   ScriptSkillOption,
   ScriptScene,
   ScriptEncounter,
@@ -112,6 +112,17 @@ export function parseScriptDefinition(payload: unknown, id: string): ScriptParse
     return difficulty;
   }
 
+  const encountersInput = parseObjectArray<ScriptEncounter & { enemies?: string[] }>(payload.encounters);
+  const encounters = encountersInput.map((encounter) => ({
+    ...encounter,
+    npcs: Array.isArray(encounter.npcs) ? encounter.npcs : Array.isArray(encounter.enemies) ? encounter.enemies : [],
+  }));
+
+  const npcProfiles = parseObjectArray<ScriptNpcProfile>(
+    (payload as { npcProfiles?: unknown; enemyProfiles?: unknown }).npcProfiles ??
+      (payload as { enemyProfiles?: unknown }).enemyProfiles,
+  );
+
   const script: ScriptDefinition = {
     id,
     title: title.value,
@@ -121,7 +132,7 @@ export function parseScriptDefinition(payload: unknown, id: string): ScriptParse
     openingMessages: parseObjectArray<ScriptOpeningMessage>(payload.openingMessages),
     background: parseBackground(payload.background),
     storyArcs: parseObjectArray<ScriptStoryArc>(payload.storyArcs),
-    enemyProfiles: parseObjectArray<ScriptEnemyProfile>(payload.enemyProfiles),
+    npcProfiles,
     skillOptions: parseObjectArray<ScriptSkillOption>(payload.skillOptions),
     equipmentOptions: parseStringArray(payload.equipmentOptions),
     occupationOptions: parseStringArray(payload.occupationOptions),
@@ -136,7 +147,7 @@ export function parseScriptDefinition(payload: unknown, id: string): ScriptParse
     debuffLimit: parseNumber(payload.debuffLimit),
     rules: parseRuleOverrides(payload.rules),
     scenes: parseObjectArray<ScriptScene>(payload.scenes),
-    encounters: parseObjectArray<ScriptEncounter>(payload.encounters),
+    encounters,
   };
 
   return { ok: true, value: script };

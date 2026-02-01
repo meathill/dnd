@@ -71,7 +71,7 @@ export default function ScriptStructureSection({ draft, mutateDraft }: ScriptStr
 
   return (
     <>
-      <Section title="剧情走向" description="每条剧情线包含主线节拍与关键揭示。">
+      <Section id="script-section-arcs" title="剧情走向" description="每条剧情线包含主线节拍与关键揭示。">
         {draft.storyArcs.length === 0 ? (
           <p className="text-xs text-[var(--ink-muted)]">暂无剧情走向。</p>
         ) : (
@@ -136,7 +136,7 @@ export default function ScriptStructureSection({ draft, mutateDraft }: ScriptStr
         </Button>
       </Section>
 
-      <Section title="场景清单" description="列出主要场景和钩子。">
+      <Section id="script-section-scenes" title="场景清单" description="列出主要场景和钩子。">
         {draft.scenes.length === 0 ? (
           <p className="text-xs text-[var(--ink-muted)]">暂无场景。</p>
         ) : (
@@ -201,7 +201,7 @@ export default function ScriptStructureSection({ draft, mutateDraft }: ScriptStr
         </Button>
       </Section>
 
-      <Section title="遭遇清单" description="战斗或危机事件的摘要。">
+      <Section id="script-section-encounters" title="遭遇清单" description="战斗或危机事件的摘要。">
         {draft.encounters.length === 0 ? (
           <p className="text-xs text-[var(--ink-muted)]">暂无遭遇。</p>
         ) : (
@@ -238,11 +238,11 @@ export default function ScriptStructureSection({ draft, mutateDraft }: ScriptStr
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-[var(--ink-soft)]">敌人（每行一条）</Label>
+                      <Label className="text-[10px] text-[var(--ink-soft)]">关联 NPC（每行一条）</Label>
                       <Textarea
                         rows={3}
-                        value={encounter.enemiesText}
-                        onChange={(event) => handleEncounterChange(index, 'enemiesText', event.target.value)}
+                        value={encounter.npcsText}
+                        onChange={(event) => handleEncounterChange(index, 'npcsText', event.target.value)}
                       />
                     </div>
                     <div className="space-y-1">

@@ -20,7 +20,7 @@ export default function ScriptBasicSection({ draft, mutateDraft }: ScriptBasicSe
   }
 
   return (
-    <Section title="基础信息" description="标题、时代背景与难度是必填项。">
+    <Section id="script-section-basic" title="基础信息" description="标题、时代背景与难度是必填项。">
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="space-y-1">
           <Label className="text-xs text-[var(--ink-soft)]">剧本编号</Label>

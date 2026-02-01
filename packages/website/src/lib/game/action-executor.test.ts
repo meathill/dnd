@@ -18,7 +18,7 @@ const sampleScript: ScriptDefinition = {
     secrets: [],
   },
   storyArcs: [],
-  enemyProfiles: [],
+  npcProfiles: [],
   skillOptions: [{ id: 'spotHidden', label: '侦查', group: '调查' }],
   equipmentOptions: [],
   occupationOptions: [],

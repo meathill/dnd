@@ -21,7 +21,7 @@ export default function ScriptRulesSection({ draft, mutateDraft }: ScriptRulesSe
   }
 
   return (
-    <Section title="规则覆盖" description="仅填写需要覆盖默认规则的部分。">
+    <Section id="script-section-rules" title="规则覆盖" description="仅填写需要覆盖默认规则的部分。">
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="space-y-1">
           <Label className="text-xs text-[var(--ink-soft)]">默认 DC</Label>

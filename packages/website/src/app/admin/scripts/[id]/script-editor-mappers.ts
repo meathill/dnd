@@ -4,7 +4,7 @@ import type {
   ScriptEncounter,
   ScriptScene,
   ScriptStoryArc,
-  ScriptEnemyProfile,
+  ScriptNpcProfile,
   ScriptRuleOverrides,
 } from '@/lib/game/types';
 import {
@@ -14,18 +14,18 @@ import {
   type StoryArcDraft,
   type SceneDraft,
   type EncounterDraft,
-  type EnemyProfileDraft,
+  type NpcProfileDraft,
 } from './script-editor-types';
 import {
   createId,
   ensureId,
-  formatEnemyAttacks,
-  formatEnemySkills,
+  formatNpcAttacks,
+  formatNpcSkills,
   formatNumberMap,
   formatSkillOptions,
   numberToText,
-  parseEnemyAttacks,
-  parseEnemySkills,
+  parseNpcAttacks,
+  parseNpcSkills,
   parseLineText,
   parseNumberList,
   parseNumberMap,
@@ -79,21 +79,24 @@ export function buildScriptDraft(script: ScriptDefinition): ScriptDraft {
       beatsText: toLineText(arc.beats),
       revealsText: toLineText(arc.reveals),
     })),
-    enemyProfiles: script.enemyProfiles.map((enemy) => ({
-      id: enemy.id,
-      name: enemy.name,
-      type: enemy.type,
-      threat: enemy.threat,
-      summary: enemy.summary,
-      hp: numberToText(enemy.hp),
-      armor: numberToText(enemy.armor),
-      move: numberToText(enemy.move),
-      attacksText: formatEnemyAttacks(enemy.attacks),
-      skillsText: formatEnemySkills(enemy.skills),
-      traitsText: toLineText(enemy.traits),
-      tactics: enemy.tactics,
-      weakness: enemy.weakness,
-      sanityLoss: enemy.sanityLoss,
+    npcProfiles: script.npcProfiles.map((npc) => ({
+      id: npc.id,
+      name: npc.name,
+      type: npc.type,
+      role: npc.role ?? 'neutral',
+      threat: npc.threat,
+      summary: npc.summary,
+      useWhen: npc.useWhen ?? '',
+      status: npc.status ?? '',
+      hp: numberToText(npc.hp),
+      armor: numberToText(npc.armor),
+      move: numberToText(npc.move),
+      attacksText: formatNpcAttacks(npc.attacks),
+      skillsText: formatNpcSkills(npc.skills),
+      traitsText: toLineText(npc.traits),
+      tactics: npc.tactics,
+      weakness: npc.weakness,
+      sanityLoss: npc.sanityLoss,
     })),
     skillOptionsText: formatSkillOptions(script.skillOptions),
     equipmentOptionsText: toLineText(script.equipmentOptions),
@@ -131,7 +134,7 @@ export function buildScriptDraft(script: ScriptDefinition): ScriptDraft {
       id: encounter.id,
       title: encounter.title,
       summary: encounter.summary,
-      enemiesText: toLineText(encounter.enemies),
+      npcsText: toLineText(encounter.npcs),
       danger: encounter.danger,
     })),
   };
@@ -224,29 +227,35 @@ export function buildScriptDefinition(draft: ScriptDraft): ScriptDefinition {
       id: ensureId(encounter.id, encounter.title, 'encounter'),
       title: encounter.title.trim(),
       summary: encounter.summary.trim(),
-      enemies: parseLineText(encounter.enemiesText),
+      npcs: parseLineText(encounter.npcsText),
       danger: encounter.danger.trim(),
     }))
     .filter((encounter) => encounter.title || encounter.summary);
 
-  const enemyProfiles: ScriptEnemyProfile[] = draft.enemyProfiles
-    .map((enemy) => ({
-      id: ensureId(enemy.id, enemy.name, 'enemy'),
-      name: enemy.name.trim(),
-      type: enemy.type.trim(),
-      threat: enemy.threat.trim(),
-      summary: enemy.summary.trim(),
-      hp: parseNumberValue(enemy.hp),
-      armor: parseNumberOptional(enemy.armor),
-      move: parseNumberOptional(enemy.move),
-      attacks: parseEnemyAttacks(enemy.attacksText),
-      skills: parseEnemySkills(enemy.skillsText),
-      traits: parseLineText(enemy.traitsText),
-      tactics: enemy.tactics.trim(),
-      weakness: enemy.weakness.trim(),
-      sanityLoss: enemy.sanityLoss.trim(),
+  const npcProfiles: ScriptNpcProfile[] = draft.npcProfiles
+    .map((npc) => ({
+      id: ensureId(npc.id, npc.name, 'npc'),
+      name: npc.name.trim(),
+      type: npc.type.trim(),
+      role:
+        npc.role.trim() === 'ally' || npc.role.trim() === 'neutral' || npc.role.trim() === 'enemy'
+          ? (npc.role.trim() as ScriptNpcProfile['role'])
+          : 'neutral',
+      threat: npc.threat.trim(),
+      summary: npc.summary.trim(),
+      useWhen: npc.useWhen.trim(),
+      status: npc.status.trim(),
+      hp: parseNumberValue(npc.hp),
+      armor: parseNumberOptional(npc.armor),
+      move: parseNumberOptional(npc.move),
+      attacks: parseNpcAttacks(npc.attacksText),
+      skills: parseNpcSkills(npc.skillsText),
+      traits: parseLineText(npc.traitsText),
+      tactics: npc.tactics.trim(),
+      weakness: npc.weakness.trim(),
+      sanityLoss: npc.sanityLoss.trim(),
     }))
-    .filter((enemy) => enemy.name || enemy.summary);
+    .filter((npc) => npc.name || npc.summary);
 
   return {
     id: draft.id,
@@ -264,7 +273,7 @@ export function buildScriptDefinition(draft: ScriptDraft): ScriptDefinition {
       secrets: parseLineText(draft.background.secretsText),
     },
     storyArcs,
-    enemyProfiles,
+    npcProfiles,
     skillOptions: parseSkillOptions(draft.skillOptionsText),
     equipmentOptions: parseLineText(draft.equipmentOptionsText),
     occupationOptions: parseLineText(draft.occupationOptionsText),
@@ -316,18 +325,21 @@ export function createEncounterDraft(): EncounterDraft {
     id: createId('encounter'),
     title: '',
     summary: '',
-    enemiesText: '',
+    npcsText: '',
     danger: '',
   };
 }
 
-export function createEnemyProfileDraft(): EnemyProfileDraft {
+export function createNpcProfileDraft(): NpcProfileDraft {
   return {
-    id: createId('enemy'),
+    id: createId('npc'),
     name: '',
     type: '',
+    role: 'neutral',
     threat: '',
     summary: '',
+    useWhen: '',
+    status: '',
     hp: '',
     armor: '',
     move: '',

@@ -25,7 +25,7 @@ function buildScript(partial?: Partial<ScriptDefinition>): ScriptDefinition {
     openingMessages: [],
     background: { overview: '', truth: '', themes: [], factions: [], locations: [], secrets: [] },
     storyArcs: [],
-    enemyProfiles: [],
+    npcProfiles: [],
     skillOptions: [],
     equipmentOptions: [],
     occupationOptions: [],

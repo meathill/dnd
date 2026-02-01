@@ -48,7 +48,7 @@ const sampleScript: ScriptDefinition = {
     secrets: [],
   },
   storyArcs: [],
-  enemyProfiles: [],
+  npcProfiles: [],
   skillOptions: [],
   equipmentOptions: [],
   occupationOptions: [],

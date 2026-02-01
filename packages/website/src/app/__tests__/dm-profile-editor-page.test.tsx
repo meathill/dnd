@@ -145,4 +145,18 @@ describe('DM 风格编辑页', () => {
 
     expect(await screen.findByDisplayValue('处理跳关')).toBeInTheDocument();
   });
+
+  it('渲染侧边栏导航入口', async () => {
+    const fetchMock = vi.fn(async () => createResponse({ profile: sampleProfile }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    renderWithSession(<DmProfileEditorContent profileId="dm-1" />, {
+      userId: 'root',
+      displayName: 'Root',
+      settings: null,
+      isRoot: true,
+    });
+
+    expect(await screen.findByRole('link', { name: '规则清单' })).toBeInTheDocument();
+  });
 });

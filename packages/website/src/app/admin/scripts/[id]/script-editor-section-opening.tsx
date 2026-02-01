@@ -39,7 +39,7 @@ export default function ScriptOpeningSection({ draft, mutateDraft }: ScriptOpeni
   }
 
   return (
-    <Section title="开场对白" description="按顺序写入开场对白。">
+    <Section id="script-section-opening" title="开场对白" description="按顺序写入开场对白。">
       {draft.openingMessages.length === 0 ? (
         <p className="text-xs text-[var(--ink-muted)]">暂无开场对白。</p>
       ) : (

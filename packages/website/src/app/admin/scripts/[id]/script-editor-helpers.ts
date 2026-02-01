@@ -1,4 +1,4 @@
-import type { ScriptEnemyAttack, ScriptEnemySkill, ScriptSkillOption } from '@/lib/game/types';
+import type { ScriptNpcAttack, ScriptNpcSkill, ScriptSkillOption } from '@/lib/game/types';
 
 export function toLineText(items: string[]): string {
   return items.join('\n');
@@ -116,7 +116,7 @@ export function formatSkillOptions(options: ScriptSkillOption[]): string {
   return options.map((item) => `${item.id} | ${item.label}${item.group ? ` | ${item.group}` : ''}`).join('\n');
 }
 
-export function parseEnemyAttacks(value: string): ScriptEnemyAttack[] {
+export function parseNpcAttacks(value: string): ScriptNpcAttack[] {
   return value
     .split('\n')
     .map((line) => line.trim())
@@ -132,12 +132,12 @@ export function parseEnemyAttacks(value: string): ScriptEnemyAttack[] {
         chance: Number.isFinite(parsedChance) ? parsedChance : 0,
         damage,
         effect: effect || undefined,
-      } as ScriptEnemyAttack;
+      } as ScriptNpcAttack;
     })
-    .filter((item): item is ScriptEnemyAttack => Boolean(item));
+    .filter((item): item is ScriptNpcAttack => Boolean(item));
 }
 
-export function formatEnemyAttacks(attacks: ScriptEnemyAttack[]): string {
+export function formatNpcAttacks(attacks: ScriptNpcAttack[]): string {
   return attacks
     .map((attack) => {
       const parts = [attack.name, String(attack.chance), attack.damage];
@@ -149,7 +149,7 @@ export function formatEnemyAttacks(attacks: ScriptEnemyAttack[]): string {
     .join('\n');
 }
 
-export function parseEnemySkills(value: string): ScriptEnemySkill[] {
+export function parseNpcSkills(value: string): ScriptNpcSkill[] {
   return value
     .split('\n')
     .map((line) => line.trim())
@@ -163,11 +163,11 @@ export function parseEnemySkills(value: string): ScriptEnemySkill[] {
       return {
         name,
         value: Number.isFinite(parsedValue) ? parsedValue : 0,
-      } as ScriptEnemySkill;
+      } as ScriptNpcSkill;
     })
-    .filter((item): item is ScriptEnemySkill => Boolean(item));
+    .filter((item): item is ScriptNpcSkill => Boolean(item));
 }
 
-export function formatEnemySkills(skills: ScriptEnemySkill[]): string {
+export function formatNpcSkills(skills: ScriptNpcSkill[]): string {
   return skills.map((skill) => `${skill.name} | ${skill.value}`).join('\n');
 }

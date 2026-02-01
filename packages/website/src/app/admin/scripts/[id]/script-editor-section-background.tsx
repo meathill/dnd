@@ -19,7 +19,7 @@ export default function ScriptBackgroundSection({ draft, mutateDraft }: ScriptBa
   }
 
   return (
-    <Section title="背景设定" description="玩家逐步探索的信息应来自这里。">
+    <Section id="script-section-background" title="背景设定" description="玩家逐步探索的信息应来自这里。">
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="space-y-1 lg:col-span-2">
           <Label className="text-xs text-[var(--ink-soft)]">概要</Label>

@@ -5,7 +5,7 @@ import type {
   ScriptDefinition,
   ScriptBackground,
   ScriptEncounter,
-  ScriptEnemyProfile,
+  ScriptNpcProfile,
   ScriptOpeningMessage,
   ScriptStoryArc,
   ScriptScene,
@@ -183,6 +183,34 @@ function parseScriptRules(raw: string): ScriptRuleOverrides {
 }
 
 export function mapScriptRow(row: ScriptRow): ScriptDefinition {
+  const npcProfiles = parseJsonArray<Partial<ScriptNpcProfile>>(row.enemy_profiles_json).map((raw, index) => {
+    const npc = raw ?? {};
+    const id = typeof npc.id === 'string' && npc.id.trim() ? npc.id : `npc-${index + 1}`;
+    const roleValue = npc.role === 'ally' || npc.role === 'neutral' || npc.role === 'enemy' ? npc.role : 'enemy';
+    return {
+      id,
+      name: npc.name ?? '',
+      type: npc.type ?? '',
+      role: roleValue,
+      threat: npc.threat ?? '',
+      summary: npc.summary ?? '',
+      useWhen: npc.useWhen ?? '',
+      status: npc.status ?? '',
+      hp: typeof npc.hp === 'number' && Number.isFinite(npc.hp) ? npc.hp : 0,
+      armor: typeof npc.armor === 'number' && Number.isFinite(npc.armor) ? npc.armor : undefined,
+      move: typeof npc.move === 'number' && Number.isFinite(npc.move) ? npc.move : undefined,
+      attacks: Array.isArray(npc.attacks) ? npc.attacks : [],
+      skills: Array.isArray(npc.skills) ? npc.skills : [],
+      traits: Array.isArray(npc.traits) ? npc.traits : [],
+      tactics: npc.tactics ?? '',
+      weakness: npc.weakness ?? '',
+      sanityLoss: npc.sanityLoss ?? '',
+    };
+  });
+  const encounters = parseJsonArray<ScriptEncounter & { enemies?: string[] }>(row.encounters_json).map((encounter) => ({
+    ...encounter,
+    npcs: Array.isArray(encounter.npcs) ? encounter.npcs : Array.isArray(encounter.enemies) ? encounter.enemies : [],
+  }));
   return {
     id: row.id,
     title: row.title,
@@ -192,7 +220,7 @@ export function mapScriptRow(row: ScriptRow): ScriptDefinition {
     openingMessages: parseJsonArray<ScriptOpeningMessage>(row.opening_messages_json),
     background: parseScriptBackground(row.background_json),
     storyArcs: parseJsonArray<ScriptStoryArc>(row.story_arcs_json),
-    enemyProfiles: parseJsonArray<ScriptEnemyProfile>(row.enemy_profiles_json),
+    npcProfiles,
     skillOptions: parseJsonArray<ScriptSkillOption>(row.skill_options_json),
     equipmentOptions: parseJsonArray<string>(row.equipment_options_json),
     occupationOptions: parseJsonArray<string>(row.occupation_options_json),
@@ -207,7 +235,7 @@ export function mapScriptRow(row: ScriptRow): ScriptDefinition {
     debuffLimit: parseLimit(row.debuff_limit),
     rules: parseScriptRules(row.rules_json),
     scenes: parseJsonArray<ScriptScene>(row.scenes_json),
-    encounters: parseJsonArray<ScriptEncounter>(row.encounters_json),
+    encounters,
   };
 }
 
@@ -241,7 +269,7 @@ export function serializeScriptDefinition(script: ScriptDefinition) {
     opening_messages_json: JSON.stringify(script.openingMessages),
     background_json: JSON.stringify(script.background),
     story_arcs_json: JSON.stringify(script.storyArcs),
-    enemy_profiles_json: JSON.stringify(script.enemyProfiles),
+    enemy_profiles_json: JSON.stringify(script.npcProfiles),
     skill_options_json: JSON.stringify(script.skillOptions),
     equipment_options_json: JSON.stringify(script.equipmentOptions),
     occupation_options_json: JSON.stringify(script.occupationOptions),

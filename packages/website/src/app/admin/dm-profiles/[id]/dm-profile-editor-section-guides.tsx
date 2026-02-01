@@ -19,7 +19,7 @@ export default function DmProfileGuideSection({ draft, mutateDraft }: DmProfileG
   }
 
   return (
-    <Section title="全局指南" description="这部分会拼接在 AI 的系统提示中。">
+    <Section id="dm-section-guides" title="全局指南" description="这部分会拼接在 AI 的系统提示中。">
       <div className="grid gap-3">
         <div className="space-y-1">
           <Label className="text-xs text-[var(--ink-soft)]" htmlFor="dm-profile-analysis-guide">

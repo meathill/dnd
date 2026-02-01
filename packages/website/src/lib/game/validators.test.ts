@@ -37,7 +37,7 @@ const baseScript: ScriptDefinition = {
     secrets: [],
   },
   storyArcs: [],
-  enemyProfiles: [],
+  npcProfiles: [],
   skillOptions: [{ id: 'spotHidden', label: '侦查', group: '调查' }],
   equipmentOptions: ['手电筒', '录音机'],
   occupationOptions: ['神父', '刑警'],

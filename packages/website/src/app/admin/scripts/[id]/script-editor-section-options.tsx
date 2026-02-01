@@ -39,7 +39,7 @@ export default function ScriptOptionsSection({ draft, mutateDraft }: ScriptOptio
 
   return (
     <>
-      <Section title="角色创建选项" description="每行一条，技能格式：id | 名称 | 分组。">
+      <Section id="script-section-options" title="角色创建选项" description="每行一条，技能格式：id | 名称 | 分组。">
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="space-y-1 lg:col-span-2">
             <Label className="text-xs text-[var(--ink-soft)]">技能选项</Label>
@@ -93,7 +93,7 @@ export default function ScriptOptionsSection({ draft, mutateDraft }: ScriptOptio
         </div>
       </Section>
 
-      <Section title="属性与限制" description="角色创建时的预算与上限。">
+      <Section id="script-section-limits" title="属性与限制" description="角色创建时的预算与上限。">
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="grid gap-3 lg:grid-cols-2 lg:col-span-2">
             {ATTRIBUTE_KEYS.map((key) => (

@@ -91,6 +91,7 @@ describe('mapScriptRow', () => {
     const script = mapScriptRow(baseScriptRow);
     expect(script.scenes[0]?.title).toBe('河口旅店');
     expect(script.encounters[0]?.danger).toBe('低');
+    expect(script.encounters[0]?.npcs).toEqual(['走私客 x2']);
     expect(script.skillOptions[0]?.label).toBe('侦查');
     expect(script.equipmentOptions[0]).toBe('手电筒');
     expect(script.occupationOptions[0]).toBe('码头工人');

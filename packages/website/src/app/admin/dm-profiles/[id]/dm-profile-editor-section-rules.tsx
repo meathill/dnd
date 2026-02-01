@@ -114,7 +114,7 @@ export default function DmProfileRulesSection({
   }
 
   return (
-    <Section title="规则清单" description="拆分后的指导规则将覆盖全局指南。">
+    <Section id="dm-section-rules" title="规则清单" description="拆分后的指导规则将覆盖全局指南。">
       <div className="space-y-3">
         <div className="rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] p-3">
           <div className="flex items-center justify-between">
