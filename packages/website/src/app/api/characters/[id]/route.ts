@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from '../../../../lib/auth/auth';
-import { getDatabase } from '../../../../lib/db/db';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
 import {
   deleteCharacter,
   getCharacterByIdForUser,
   getGameByCharacterId,
   getScriptById,
   updateCharacter,
-} from '../../../../lib/db/repositories';
-import { parseCharacterPayload, validateCharacterAgainstScript } from '../../../../lib/game/validators';
+} from '@/lib/db/repositories';
+import { parseCharacterPayload, validateCharacterAgainstScript } from '@/lib/game/validators';
 
 type RouteContext = {
   params: Promise<{ id?: string }>;

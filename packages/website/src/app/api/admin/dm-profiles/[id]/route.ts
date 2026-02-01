@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { deleteDmProfile, getDmProfileWithRules, updateDmProfile } from '../../../../../lib/db/repositories';
-import { requireRoot } from '../../admin-utils';
+import { deleteDmProfile, getDmProfileWithRules, updateDmProfile } from '@/lib/db/repositories';
+import { requireRoot } from '@/app/api/admin/admin-utils';
 
 type RouteContext = {
   params: Promise<{ id?: string }>;

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '../characters/route';
-import { getAuth } from '../../../lib/auth/auth';
+import { getAuth } from '@/lib/auth/auth';
 
 vi.mock('../../../lib/auth/auth', () => ({
   getAuth: vi.fn(),

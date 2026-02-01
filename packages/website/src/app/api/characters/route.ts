@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from '../../../lib/auth/auth';
-import { getDatabase } from '../../../lib/db/db';
-import { createCharacter, getScriptById, listCharactersByUserAndScript } from '../../../lib/db/repositories';
-import { parseCharacterPayload, validateCharacterAgainstScript } from '../../../lib/game/validators';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
+import { createCharacter, getScriptById, listCharactersByUserAndScript } from '@/lib/db/repositories';
+import { parseCharacterPayload, validateCharacterAgainstScript } from '@/lib/game/validators';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);

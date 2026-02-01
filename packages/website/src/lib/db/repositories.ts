@@ -22,9 +22,10 @@ import { DEFAULT_TRAINED_SKILL_VALUE, DEFAULT_UNTRAINED_SKILL_VALUE } from '../g
 import { parseMemoryState, parseRoundSummaries } from '../game/memory';
 import { mapScriptRow, serializeCharacterPayload } from './mappers';
 import type { UserSettings } from '../session/session-types';
+import { normalizeModel } from '../ai/ai-models';
 
 const SCRIPT_COLUMNS =
-  'id, title, summary, setting, difficulty, opening_messages_json, skill_options_json, equipment_options_json, occupation_options_json, origin_options_json, buff_options_json, debuff_options_json, attribute_ranges_json, attribute_point_budget, skill_limit, equipment_limit, buff_limit, debuff_limit, rules_json, scenes_json, encounters_json';
+  'id, title, summary, setting, difficulty, opening_messages_json, background_json, story_arcs_json, enemy_profiles_json, skill_options_json, equipment_options_json, occupation_options_json, origin_options_json, buff_options_json, debuff_options_json, attribute_ranges_json, attribute_point_budget, skill_limit, equipment_limit, buff_limit, debuff_limit, rules_json, scenes_json, encounters_json';
 const GAME_SUMMARY_COLUMNS =
   'g.id as id, g.script_id as script_id, g.character_id as character_id, g.status as status, g.updated_at as updated_at, s.title as script_title, c.name as character_name';
 
@@ -62,7 +63,8 @@ type CharacterRow = {
 
 type UserSettingsRow = {
   ai_provider: string;
-  ai_model: string;
+  ai_fast_model: string;
+  ai_general_model: string;
   dm_profile_id: string | null;
 };
 
@@ -869,15 +871,19 @@ function parseProvider(value: string | null): UserSettings['provider'] {
 
 export async function getUserSettings(db: D1Database, userId: string): Promise<UserSettings | null> {
   const row = await db
-    .prepare('SELECT ai_provider, ai_model, dm_profile_id FROM user_settings WHERE user_id = ? LIMIT 1')
+    .prepare(
+      'SELECT ai_provider, ai_fast_model, ai_general_model, dm_profile_id FROM user_settings WHERE user_id = ? LIMIT 1',
+    )
     .bind(userId)
     .first<UserSettingsRow>();
   if (!row) {
     return null;
   }
+  const provider = parseProvider(row.ai_provider);
   return {
-    provider: parseProvider(row.ai_provider),
-    model: row.ai_model ?? '',
+    provider,
+    fastModel: normalizeModel(provider, 'fast', row.ai_fast_model ?? ''),
+    generalModel: normalizeModel(provider, 'general', row.ai_general_model ?? ''),
     dmProfileId: row.dm_profile_id ?? null,
   };
 }
@@ -888,15 +894,23 @@ export async function upsertUserSettings(
   settings: UserSettings,
 ): Promise<UserSettings> {
   const now = new Date().toISOString();
+  const provider = settings.provider;
+  const fastModel = normalizeModel(provider, 'fast', settings.fastModel);
+  const generalModel = normalizeModel(provider, 'general', settings.generalModel);
   await db
     .prepare(
-      `INSERT INTO user_settings (user_id, ai_provider, ai_model, dm_profile_id, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?)
-			 ON CONFLICT(user_id) DO UPDATE SET ai_provider = excluded.ai_provider, ai_model = excluded.ai_model, dm_profile_id = excluded.dm_profile_id, updated_at = excluded.updated_at`,
+      `INSERT INTO user_settings (user_id, ai_provider, ai_fast_model, ai_general_model, dm_profile_id, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)
+			 ON CONFLICT(user_id) DO UPDATE SET ai_provider = excluded.ai_provider, ai_fast_model = excluded.ai_fast_model, ai_general_model = excluded.ai_general_model, dm_profile_id = excluded.dm_profile_id, updated_at = excluded.updated_at`,
     )
-    .bind(userId, settings.provider, settings.model, settings.dmProfileId ?? null, now, now)
+    .bind(userId, provider, fastModel, generalModel, settings.dmProfileId ?? null, now, now)
     .run();
-  return settings;
+  return {
+    provider,
+    fastModel,
+    generalModel,
+    dmProfileId: settings.dmProfileId ?? null,
+  };
 }
 
 export async function listDmProfiles(db: D1Database): Promise<DmProfileSummary[]> {

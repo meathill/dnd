@@ -12,6 +12,7 @@ describe('账号弹窗', () => {
         isOpen
         isSubmitting={false}
         mode="signUp"
+        isSignUpEnabled
         email=""
         password=""
         displayName=""
@@ -41,6 +42,7 @@ describe('账号弹窗', () => {
         isOpen
         isSubmitting={false}
         mode="signIn"
+        isSignUpEnabled
         email=""
         password=""
         displayName=""
@@ -58,5 +60,29 @@ describe('账号弹窗', () => {
 
     await user.click(screen.getByRole('button', { name: '登录' }));
     expect(handleSubmit).toHaveBeenCalled();
+  });
+
+  it('禁止注册时隐藏切换按钮', () => {
+    render(
+      <AuthModal
+        isOpen
+        isSubmitting={false}
+        mode="signIn"
+        isSignUpEnabled={false}
+        email=""
+        password=""
+        displayName=""
+        message=""
+        onClose={() => {}}
+        onSubmit={() => {}}
+        onModeChange={() => {}}
+        onEmailChange={() => {}}
+        onPasswordChange={() => {}}
+        onDisplayNameChange={() => {}}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: '没有账号？去注册' })).not.toBeInTheDocument();
+    expect(screen.getByText('当前关闭注册')).toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DELETE, GET } from '../games/[id]/route';
-import { getAuth } from '../../../lib/auth/auth';
-import { getDatabase } from '../../../lib/db/db';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
 import {
   deleteGame,
   getCharacterByIdForUser,
@@ -9,7 +9,7 @@ import {
   getGameMemory,
   getScriptById,
   listGameMessages,
-} from '../../../lib/db/repositories';
+} from '@/lib/db/repositories';
 
 vi.mock('../../../lib/auth/auth', () => ({
   getAuth: vi.fn(),

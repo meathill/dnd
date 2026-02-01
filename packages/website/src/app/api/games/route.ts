@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from '../../../lib/auth/auth';
-import { getDatabase } from '../../../lib/db/db';
-import { createGame, getCharacterByIdForUser, getScriptById, listGamesByUser } from '../../../lib/db/repositories';
-import { parseCreateGamePayload } from '../../../lib/game/validators';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
+import { createGame, getCharacterByIdForUser, getScriptById, listGamesByUser } from '@/lib/db/repositories';
+import { parseCreateGamePayload } from '@/lib/game/validators';
 
 export async function GET(request: Request) {
   const cookie = request.headers.get('cookie');

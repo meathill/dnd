@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createDmProfile, listDmProfiles } from '../../../../lib/db/repositories';
-import { requireRoot } from '../admin-utils';
+import { createDmProfile, listDmProfiles } from '@/lib/db/repositories';
+import { requireRoot } from '@/app/api/admin/admin-utils';
 
 type CreateProfilePayload = {
   name?: unknown;

@@ -2,7 +2,8 @@ import type { AiProvider } from '../ai/ai-types';
 
 export type UserSettings = {
   provider: AiProvider;
-  model: string;
+  fastModel: string;
+  generalModel: string;
   dmProfileId: string | null;
 };
 

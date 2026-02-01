@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DELETE, PUT } from '../characters/[id]/route';
-import type { CharacterRecord, GameRecord } from '../../../lib/game/types';
-import { getAuth } from '../../../lib/auth/auth';
-import { getDatabase } from '../../../lib/db/db';
-import { getCharacterByIdForUser, getGameByCharacterId } from '../../../lib/db/repositories';
+import type { CharacterRecord, GameRecord } from '@/lib/game/types';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
+import { getCharacterByIdForUser, getGameByCharacterId } from '@/lib/db/repositories';
 
 vi.mock('../../../lib/auth/auth', () => ({
   getAuth: vi.fn(),

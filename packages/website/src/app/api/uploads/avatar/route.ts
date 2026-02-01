@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from '../../../../lib/auth/auth';
-import { buildAssetUrl, getAssetsBucket } from '../../../../lib/assets/assets';
+import { getAuth } from '@/lib/auth/auth';
+import { buildAssetUrl, getAssetsBucket } from '@/lib/assets/assets';
 
 type UploadResponse = { url?: string; error?: string };
 

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET, POST } from '../games/route';
-import type { CharacterRecord, ScriptDefinition } from '../../../lib/game/types';
-import { getAuth } from '../../../lib/auth/auth';
-import { getDatabase } from '../../../lib/db/db';
-import { createGame, getCharacterByIdForUser, getScriptById, listGamesByUser } from '../../../lib/db/repositories';
+import type { CharacterRecord, ScriptDefinition } from '@/lib/game/types';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
+import { createGame, getCharacterByIdForUser, getScriptById, listGamesByUser } from '@/lib/db/repositories';
 
 vi.mock('../../../lib/auth/auth', () => ({
   getAuth: vi.fn(),
@@ -39,6 +39,16 @@ const sampleScript: ScriptDefinition = {
   setting: '现代',
   difficulty: '低',
   openingMessages: [],
+  background: {
+    overview: '',
+    truth: '',
+    themes: [],
+    factions: [],
+    locations: [],
+    secrets: [],
+  },
+  storyArcs: [],
+  enemyProfiles: [],
   skillOptions: [],
   equipmentOptions: [],
   occupationOptions: [],

@@ -13,12 +13,14 @@ import { MenuIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import type { DmProfileSummary } from '../lib/game/types';
 import { Sheet, SheetPanel, SheetPopup } from '../components/ui/sheet';
+import { getDefaultModel, normalizeModel } from '../lib/ai/ai-models';
 
 const sidebarTitleClassName = 'text-xs uppercase tracking-[0.3em] text-[var(--ink-soft)]';
 
 const defaultSettings: UserSettings = {
   provider: 'openai',
-  model: '',
+  fastModel: getDefaultModel('openai', 'fast'),
+  generalModel: getDefaultModel('openai', 'general'),
   dmProfileId: null,
 };
 
@@ -36,6 +38,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
   const [settingsMessage, setSettingsMessage] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [allowSignUp, setAllowSignUp] = useState(true);
   const [dmProfiles, setDmProfiles] = useState<DmProfileSummary[]>([]);
   const [dmProfilesMessage, setDmProfilesMessage] = useState('');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -58,15 +61,29 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
         setSession(null);
         return null;
       }
-      const data = (await response.json()) as { session?: SessionInfo | null };
+      const data = (await response.json()) as { session?: SessionInfo | null; allowSignUp?: boolean };
       const nextSession = data.session ?? null;
       setSession(nextSession);
+      setAllowSignUp(Boolean(data.allowSignUp ?? true));
       return nextSession;
     } catch {
       setSession(null);
       return null;
     }
   }, []);
+
+  function normalizeSettings(settings: UserSettings | null): UserSettings {
+    if (!settings) {
+      return defaultSettings;
+    }
+    const provider = settings.provider ?? defaultSettings.provider;
+    return {
+      provider,
+      fastModel: normalizeModel(provider, 'fast', settings.fastModel),
+      generalModel: normalizeModel(provider, 'general', settings.generalModel),
+      dmProfileId: settings.dmProfileId ?? null,
+    };
+  }
 
   const loadDmProfiles = useCallback(async () => {
     try {
@@ -99,6 +116,12 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
     loadDmProfiles();
   }, [isSettingsOpen, loadDmProfiles]);
 
+  useEffect(() => {
+    if (!allowSignUp && authMode === 'signUp') {
+      setAuthMode('signIn');
+    }
+  }, [allowSignUp, authMode]);
+
   function handleOpenGames() {
     handleRequestAuth(() => {
       router.push('/games');
@@ -109,7 +132,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
     if (!session) {
       return;
     }
-    setSettingsDraft(session.settings ?? defaultSettings);
+    setSettingsDraft(normalizeSettings(session.settings));
     setSettingsMessage('');
     setDmProfilesMessage('');
     setIsSettingsOpen(true);
@@ -134,6 +157,10 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
   }
 
   async function handleSubmitAuth() {
+    if (!allowSignUp && authMode === 'signUp') {
+      setAuthMessage('当前禁止注册，请联系管理员。');
+      return;
+    }
     const email = authEmail.trim();
     const password = authPassword.trim();
     const displayName = authDisplayName.trim();
@@ -257,7 +284,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
               </Button>
             ) : (
               <Button onClick={handleOpenAuth} size="xs">
-                登录 / 注册
+                {allowSignUp ? '登录 / 注册' : '登录'}
               </Button>
             )}
           </div>
@@ -331,6 +358,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
           isOpen={isAuthOpen}
           isSubmitting={isAuthSubmitting}
           mode={authMode}
+          isSignUpEnabled={allowSignUp}
           email={authEmail}
           password={authPassword}
           displayName={authDisplayName}

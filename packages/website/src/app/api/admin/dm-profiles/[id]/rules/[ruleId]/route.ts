@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { deleteDmProfileRule, updateDmProfileRule } from '../../../../../../../lib/db/repositories';
-import type { DmGuidePhase } from '../../../../../../../lib/game/types';
-import { requireRoot } from '../../../../admin-utils';
+import { deleteDmProfileRule, updateDmProfileRule } from '@/lib/db/repositories';
+import type { DmGuidePhase } from '@/lib/game/types';
+import { requireRoot } from '@/app/api/admin/admin-utils';
 
 type RouteContext = {
   params: Promise<{ id?: string; ruleId?: string }>;

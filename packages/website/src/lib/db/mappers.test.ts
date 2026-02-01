@@ -12,6 +12,16 @@ const baseScriptRow = {
     { role: 'system', content: '开场' },
     { role: 'dm', content: '迷雾笼罩。' },
   ]),
+  background_json: JSON.stringify({
+    overview: '',
+    truth: '',
+    themes: [],
+    factions: [],
+    locations: [],
+    secrets: [],
+  }),
+  story_arcs_json: JSON.stringify([]),
+  enemy_profiles_json: JSON.stringify([]),
   skill_options_json: JSON.stringify([
     { id: 'spotHidden', label: '侦查', group: '调查' },
     { id: 'occult', label: '神秘学', group: '学识' },

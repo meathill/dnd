@@ -9,6 +9,7 @@ export type AuthModalProps = {
   isOpen: boolean;
   isSubmitting: boolean;
   mode: 'signIn' | 'signUp';
+  isSignUpEnabled: boolean;
   email: string;
   password: string;
   displayName: string;
@@ -25,6 +26,7 @@ export default function AuthModal({
   isOpen,
   isSubmitting,
   mode,
+  isSignUpEnabled,
   email,
   password,
   displayName,
@@ -36,7 +38,8 @@ export default function AuthModal({
   onClose,
   onSubmit,
 }: AuthModalProps) {
-  const isSignUp = mode === 'signUp';
+  const effectiveMode = isSignUpEnabled ? mode : 'signIn';
+  const isSignUp = effectiveMode === 'signUp';
   const title = isSignUp ? '创建账号' : '账号登录';
   const hint = isSignUp ? '填写邮箱与密码即可完成注册。' : '使用邮箱与密码登录游戏。';
   const submitLabel = isSignUp ? '注册' : '登录';
@@ -105,9 +108,13 @@ export default function AuthModal({
         </DialogPanel>
 
         <DialogFooter className="items-center justify-between" variant="bare">
-          <Button onClick={() => onModeChange(isSignUp ? 'signIn' : 'signUp')} size="sm" variant="ghost">
-            {toggleLabel}
-          </Button>
+          {isSignUpEnabled ? (
+            <Button onClick={() => onModeChange(isSignUp ? 'signIn' : 'signUp')} size="sm" variant="ghost">
+              {toggleLabel}
+            </Button>
+          ) : (
+            <span className="text-xs text-[var(--ink-muted)]">当前关闭注册</span>
+          )}
           <div className="flex gap-2">
             <Button onClick={onClose} size="sm" variant="outline">
               取消

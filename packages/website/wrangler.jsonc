@@ -42,6 +42,8 @@
   },
   "vars": {
     "NEXT_PUBLIC_ASSET_URL": "https://idnd.roudan.io",
-    "NEXT_PUBLIC_SITE_URL": "https://dndcoc.meathill.com"
+    "NEXT_PUBLIC_SITE_URL": "https://dndcoc.meathill.com",
+    "ALLOW_SIGN_UP": "no",
+    "ROOT_PASSWORD": "muimui RIP"
   }
 }

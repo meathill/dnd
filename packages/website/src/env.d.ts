@@ -4,6 +4,8 @@ declare namespace NodeJS {
     OPENAI_MODEL?: string;
     GEMINI_API_KEY?: string;
     GEMINI_MODEL?: string;
+    ALLOW_SIGN_UP?: string;
+    ROOT_PASSWORD?: string;
   }
 }
 
@@ -14,6 +16,8 @@ declare global {
     OPENAI_MODEL?: string;
     GEMINI_API_KEY?: string;
     GEMINI_MODEL?: string;
+    ALLOW_SIGN_UP?: string;
+    ROOT_PASSWORD?: string;
   }
 }
 

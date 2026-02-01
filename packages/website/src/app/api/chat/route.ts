@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { generateChatCompletion, streamChatCompletion } from '../../../lib/ai/ai-provider';
-import type { AiMessage, AiProvider } from '../../../lib/ai/ai-types';
-import { getAuth } from '../../../lib/auth/auth';
-import { getDatabase } from '../../../lib/db/db';
+import { generateChatCompletion, streamChatCompletion } from '@/lib/ai/ai-provider';
+import type { AiMessage, AiProvider } from '@/lib/ai/ai-types';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
 import {
   createGameMessage,
   createGameMessages,
@@ -14,22 +14,17 @@ import {
   getUserSettings,
   listGameMessages,
   updateGameRuleOverrides,
-} from '../../../lib/db/repositories';
-import { DEFAULT_ANALYSIS_GUIDE, DEFAULT_NARRATION_GUIDE, buildFallbackDmProfile } from '../../../lib/game/dm-profiles';
-import { buildMessageContentFromModules, parseChatModules } from '../../../lib/game/chat-parser';
-import { executeActionPlan } from '../../../lib/game/action-executor';
-import type { InputAnalysis } from '../../../lib/game/input-analyzer';
-import { buildAnalysisPrompts, parseInputAnalysis } from '../../../lib/game/input-analyzer';
-import { buildMemoryContext } from '../../../lib/game/memory';
-import { refreshGameMemory } from '../../../lib/game/memory-updater';
-import { resolveTrainedSkillValue, resolveUntrainedSkillValue } from '../../../lib/game/rules';
-import type {
-  ChatMessage,
-  ChatRole,
-  CharacterRecord,
-  GameMessageRecord,
-  ScriptDefinition,
-} from '../../../lib/game/types';
+} from '@/lib/db/repositories';
+import { DEFAULT_ANALYSIS_GUIDE, DEFAULT_NARRATION_GUIDE, buildFallbackDmProfile } from '@/lib/game/dm-profiles';
+import { buildMessageContentFromModules, parseChatModules } from '@/lib/game/chat-parser';
+import { executeActionPlan } from '@/lib/game/action-executor';
+import type { InputAnalysis } from '@/lib/game/input-analyzer';
+import { buildAnalysisPrompts, parseInputAnalysis } from '@/lib/game/input-analyzer';
+import { buildMemoryContext } from '@/lib/game/memory';
+import { refreshGameMemory } from '@/lib/game/memory-updater';
+import { resolveTrainedSkillValue, resolveUntrainedSkillValue } from '@/lib/game/rules';
+import type { ChatMessage, ChatRole, CharacterRecord, GameMessageRecord, ScriptDefinition } from '@/lib/game/types';
+import { normalizeModel } from '@/lib/ai/ai-models';
 
 type ChatRequest = {
   gameId: string;
@@ -48,14 +43,6 @@ type ChatHistoryEntry = {
 };
 
 const DEFAULT_PROVIDER: AiProvider = 'openai';
-const DEFAULT_MODELS: Record<AiProvider, string> = {
-  openai: 'gpt-5-mini',
-  gemini: 'gemini-3-flash-preview',
-};
-const FAST_MODELS: Record<AiProvider, string> = {
-  openai: 'gpt-5-mini',
-  gemini: 'gemini-3-flash-preview',
-};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -279,6 +266,69 @@ function buildCharacterSummary(script: ScriptDefinition, character: CharacterRec
   return parts.join('\n');
 }
 
+function buildScriptHiddenContext(script: ScriptDefinition): string {
+  const parts: string[] = [];
+  const background = script.background;
+  if (background.overview) {
+    parts.push(`背景设定：${background.overview}`);
+  }
+  if (background.truth) {
+    parts.push(`核心真相：${background.truth}`);
+  }
+  if (background.themes.length > 0) {
+    parts.push(`主题：${background.themes.join('、')}`);
+  }
+  if (background.factions.length > 0) {
+    parts.push(`势力：${background.factions.join('、')}`);
+  }
+  if (background.locations.length > 0) {
+    parts.push(`关键地点：${background.locations.join('、')}`);
+  }
+  if (background.secrets.length > 0) {
+    parts.push(`隐藏要点：${background.secrets.join('、')}`);
+  }
+  if (script.storyArcs.length > 0) {
+    const arcs = script.storyArcs
+      .map((arc, index) => {
+        const beats = arc.beats.length > 0 ? `（关键点：${arc.beats.join(' / ')}）` : '';
+        const reveals = arc.reveals.length > 0 ? `（揭示：${arc.reveals.join(' / ')}）` : '';
+        return `${index + 1}. ${arc.title}：${arc.summary}${beats}${reveals}`;
+      })
+      .join('\n');
+    parts.push(`故事走向：\n${arcs}`);
+  }
+  if (script.enemyProfiles.length > 0) {
+    const enemies = script.enemyProfiles
+      .map((enemy) => {
+        const attacks = enemy.attacks
+          .map(
+            (attack) =>
+              `${attack.name} ${attack.chance}% ${attack.damage}${attack.effect ? `（${attack.effect}）` : ''}`,
+          )
+          .join('；');
+        const skills = enemy.skills.map((skill) => `${skill.name}${skill.value}`).join('、');
+        const traits = enemy.traits.join('、');
+        return [
+          `- ${enemy.name}（${enemy.type} / 威胁：${enemy.threat} / HP:${enemy.hp}${enemy.armor ? ` / 甲:${enemy.armor}` : ''}${
+            enemy.move ? ` / 移动:${enemy.move}` : ''
+          }）`,
+          enemy.summary ? `  描述：${enemy.summary}` : '',
+          attacks ? `  攻击：${attacks}` : '',
+          skills ? `  技能：${skills}` : '',
+          traits ? `  特性：${traits}` : '',
+          enemy.tactics ? `  战术：${enemy.tactics}` : '',
+          enemy.weakness ? `  弱点：${enemy.weakness}` : '',
+          enemy.sanityLoss ? `  理智损失：${enemy.sanityLoss}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n');
+      })
+      .join('\n');
+    parts.push(`敌人设定：\n${enemies}`);
+  }
+  return parts.join('\n');
+}
+
 function buildSystemPrompt(
   script: ScriptDefinition,
   character: CharacterRecord,
@@ -288,6 +338,7 @@ function buildSystemPrompt(
   memoryContext: string,
 ): string {
   const guideText = narrationGuide.trim();
+  const hiddenContext = buildScriptHiddenContext(script);
   const promptParts = [
     '你是“肉团长”，负责主持 COC 跑团。请用中文叙事并推动剧情。',
     '掷骰由系统函数执行，已执行动作内包含结果，请勿自行掷骰或编造掷骰结果。',
@@ -295,6 +346,7 @@ function buildSystemPrompt(
     '不要输出行动建议列表或项目符号清单，叙事中不要复述掷骰结果。',
     `剧本：${script.title}（${script.setting} / 难度：${script.difficulty}）`,
     `简介：${script.summary}`,
+    hiddenContext ? `DM 隐藏信息（不可直接透露玩家，需通过线索逐步揭示）：\n${hiddenContext}` : '',
     buildCharacterSummary(script, character),
     memoryContext ? `历史摘要与世界状态：\n${memoryContext}` : '历史摘要与世界状态：无',
     `玩家意图：${analysis.intent}`,
@@ -377,8 +429,8 @@ export async function POST(request: Request) {
     }
 
     const provider = settings?.provider ?? DEFAULT_PROVIDER;
-    const model = settings?.model?.trim() || DEFAULT_MODELS[provider];
-    const fastModel = FAST_MODELS[provider];
+    const fastModel = normalizeModel(provider, 'fast', settings?.fastModel);
+    const model = normalizeModel(provider, 'general', settings?.generalModel);
     const dmProfile = (await getActiveDmProfile(db, settings?.dmProfileId)) ?? buildFallbackDmProfile();
     const analysisGuide = dmProfile.analysisGuide || DEFAULT_ANALYSIS_GUIDE;
     const narrationGuide = dmProfile.narrationGuide || DEFAULT_NARRATION_GUIDE;

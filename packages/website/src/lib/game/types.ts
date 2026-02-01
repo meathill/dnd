@@ -26,6 +26,52 @@ export type ScriptEncounter = {
   danger: string;
 };
 
+export type ScriptStoryArc = {
+  id: string;
+  title: string;
+  summary: string;
+  beats: string[];
+  reveals: string[];
+};
+
+export type ScriptBackground = {
+  overview: string;
+  truth: string;
+  themes: string[];
+  factions: string[];
+  locations: string[];
+  secrets: string[];
+};
+
+export type ScriptEnemyAttack = {
+  name: string;
+  chance: number;
+  damage: string;
+  effect?: string;
+};
+
+export type ScriptEnemySkill = {
+  name: string;
+  value: number;
+};
+
+export type ScriptEnemyProfile = {
+  id: string;
+  name: string;
+  type: string;
+  threat: string;
+  summary: string;
+  hp: number;
+  armor?: number;
+  move?: number;
+  attacks: ScriptEnemyAttack[];
+  skills: ScriptEnemySkill[];
+  traits: string[];
+  tactics: string;
+  weakness: string;
+  sanityLoss: string;
+};
+
 export type ScriptRuleOverrides = {
   defaultCheckDc?: number;
   checkDcOverrides?: Record<string, number>;
@@ -153,6 +199,9 @@ export type ScriptDefinition = {
   setting: string;
   difficulty: string;
   openingMessages: ScriptOpeningMessage[];
+  background: ScriptBackground;
+  storyArcs: ScriptStoryArc[];
+  enemyProfiles: ScriptEnemyProfile[];
   skillOptions: ScriptSkillOption[];
   equipmentOptions: string[];
   occupationOptions: string[];

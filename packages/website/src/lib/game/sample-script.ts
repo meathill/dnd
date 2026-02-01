@@ -22,6 +22,16 @@ export const SAMPLE_SCRIPT: ScriptDefinition = {
       content: '木门被木板钉死，门缝里透出微弱的烛光。地下室的哭声断断续续，你还能听见更深处的低语。',
     },
   ],
+  background: {
+    overview: '',
+    truth: '',
+    themes: [],
+    factions: [],
+    locations: [],
+    secrets: [],
+  },
+  storyArcs: [],
+  enemyProfiles: [],
   skillOptions: [
     { id: 'spotHidden', label: '侦查', group: '调查' },
     { id: 'listen', label: '聆听', group: '调查' },

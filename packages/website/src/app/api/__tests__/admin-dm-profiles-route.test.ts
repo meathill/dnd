@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { NextResponse } from 'next/server';
 import { GET, POST } from '../admin/dm-profiles/route';
-import type { DmProfileSummary } from '../../../lib/game/types';
-import { createDmProfile, listDmProfiles } from '../../../lib/db/repositories';
-import { requireRoot } from '../admin/admin-utils';
+import type { DmProfileSummary } from '@/lib/game/types';
+import { createDmProfile, listDmProfiles } from '@/lib/db/repositories';
+import { requireRoot } from '@/app/api/admin/admin-utils';
 
 vi.mock('../../../lib/db/repositories', () => ({
   listDmProfiles: vi.fn(),

@@ -3,8 +3,11 @@ import type {
   AttributeKey,
   AttributeRangeMap,
   ScriptDefinition,
+  ScriptBackground,
   ScriptEncounter,
+  ScriptEnemyProfile,
   ScriptOpeningMessage,
+  ScriptStoryArc,
   ScriptScene,
   ScriptRuleOverrides,
   ScriptSkillOption,
@@ -17,6 +20,9 @@ type ScriptRow = {
   setting: string;
   difficulty: string;
   opening_messages_json: string;
+  background_json: string;
+  story_arcs_json: string;
+  enemy_profiles_json: string;
   skill_options_json: string;
   equipment_options_json: string;
   occupation_options_json: string;
@@ -49,6 +55,13 @@ function parseJsonArray<T>(raw: string): T[] {
   }
 }
 
+function parseStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
 function parseJsonRecord(raw: string): JsonRecord {
   try {
     const data = JSON.parse(raw) as JsonRecord;
@@ -56,6 +69,20 @@ function parseJsonRecord(raw: string): JsonRecord {
   } catch {
     return {};
   }
+}
+
+function parseScriptBackground(raw: string): ScriptBackground {
+  const data = parseJsonRecord(raw);
+  const overview = typeof data.overview === 'string' ? data.overview : '';
+  const truth = typeof data.truth === 'string' ? data.truth : '';
+  return {
+    overview,
+    truth,
+    themes: parseStringArray(data.themes),
+    factions: parseStringArray(data.factions),
+    locations: parseStringArray(data.locations),
+    secrets: parseStringArray(data.secrets),
+  };
 }
 
 function parseAttributeRanges(raw: string): AttributeRangeMap {
@@ -163,6 +190,9 @@ export function mapScriptRow(row: ScriptRow): ScriptDefinition {
     setting: row.setting,
     difficulty: row.difficulty,
     openingMessages: parseJsonArray<ScriptOpeningMessage>(row.opening_messages_json),
+    background: parseScriptBackground(row.background_json),
+    storyArcs: parseJsonArray<ScriptStoryArc>(row.story_arcs_json),
+    enemyProfiles: parseJsonArray<ScriptEnemyProfile>(row.enemy_profiles_json),
     skillOptions: parseJsonArray<ScriptSkillOption>(row.skill_options_json),
     equipmentOptions: parseJsonArray<string>(row.equipment_options_json),
     occupationOptions: parseJsonArray<string>(row.occupation_options_json),
@@ -209,6 +239,9 @@ export function serializeScriptDefinition(script: ScriptDefinition) {
     setting: script.setting,
     difficulty: script.difficulty,
     opening_messages_json: JSON.stringify(script.openingMessages),
+    background_json: JSON.stringify(script.background),
+    story_arcs_json: JSON.stringify(script.storyArcs),
+    enemy_profiles_json: JSON.stringify(script.enemyProfiles),
     skill_options_json: JSON.stringify(script.skillOptions),
     equipment_options_json: JSON.stringify(script.equipmentOptions),
     occupation_options_json: JSON.stringify(script.occupationOptions),

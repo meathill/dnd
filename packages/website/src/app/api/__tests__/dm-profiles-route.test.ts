@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from '../dm-profiles/route';
-import type { DmProfileSummary } from '../../../lib/game/types';
-import { getDatabase } from '../../../lib/db/db';
-import { listDmProfiles } from '../../../lib/db/repositories';
+import type { DmProfileSummary } from '@/lib/game/types';
+import { getDatabase } from '@/lib/db/db';
+import { listDmProfiles } from '@/lib/db/repositories';
 
 vi.mock('../../../lib/db/db', () => ({
   getDatabase: vi.fn(),

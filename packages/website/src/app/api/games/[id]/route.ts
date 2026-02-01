@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from '../../../../lib/auth/auth';
-import { getDatabase } from '../../../../lib/db/db';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
 import {
   deleteGame,
   getCharacterByIdForUser,
@@ -8,8 +8,8 @@ import {
   getGameMemory,
   getScriptById,
   listGameMessages,
-} from '../../../../lib/db/repositories';
-import { buildMemorySnapshot } from '../../../../lib/game/memory';
+} from '@/lib/db/repositories';
+import { buildMemorySnapshot } from '@/lib/game/memory';
 
 type RouteContext = {
   params: Promise<{ id?: string }>;

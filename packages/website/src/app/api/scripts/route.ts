@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDatabase } from '../../../lib/db/db';
-import { listScripts } from '../../../lib/db/repositories';
+import { getDatabase } from '@/lib/db/db';
+import { listScripts } from '@/lib/db/repositories';
 
 export async function GET() {
   try {

@@ -16,6 +16,7 @@ import type {
   ScriptDefinition,
   ScriptOpeningMessage,
 } from '../lib/game/types';
+import { cn } from '../lib/utils';
 import { Button } from '../components/ui/button';
 
 const messageToneStyles = {
@@ -216,8 +217,11 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
     streamMessageIdRef.current = null;
     hasDmOutputStartedRef.current = false;
     shouldAutoScrollRef.current = true;
-    syncMapFromMessages(baseMessages);
   }, [baseMessages]);
+
+  useEffect(() => {
+    syncMapFromMessages(messages);
+  }, [messages]);
 
   useEffect(() => {
     const container = messageListRef.current;
@@ -421,7 +425,6 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
               const nextMessages = current.map((message) =>
                 message.id === streamId ? { ...event.message, isStreaming: false } : message,
               );
-              syncMapFromMessages(nextMessages);
               return nextMessages;
             });
             scheduleMemorySync();
@@ -461,15 +464,18 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
             const styles = messageToneStyles[message.role];
             const align = message.role === 'player' ? 'items-end' : 'items-start';
             return (
-              <div className={`flex flex-col gap-2 ${align}`} key={message.id}>
+              <div className={cn('flex flex-col gap-2', align)} key={message.id}>
                 <div className="flex items-center gap-2 text-xs text-[var(--ink-soft)]">
-                  <span className={`rounded-lg px-2 py-0.5 text-[10px] text-white ${styles.badge}`}>
+                  <span className={cn('rounded-lg px-2 py-0.5 text-[10px] text-white', styles.badge)}>
                     {message.speaker}
                   </span>
                   <span className="text-[var(--ink-soft)]">{message.time}</span>
                 </div>
                 <div
-                  className={`max-w-full rounded-xl px-4 py-3 text-sm text-[var(--ink-strong)] sm:max-w-[85%] ${styles.bubble}`}
+                  className={cn(
+                    'max-w-full rounded-xl px-4 py-3 text-sm text-[var(--ink-strong)] sm:max-w-[85%]',
+                    styles.bubble,
+                  )}
                 >
                   {message.modules && message.modules.length > 0 ? (
                     renderModules(message.modules)
@@ -504,13 +510,14 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
             ></textarea>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p
-                className={`text-xs ${
+                className={cn(
+                  'text-xs',
                   sendError
                     ? 'text-[var(--accent-ember)]'
                     : statusMessage
                       ? 'text-[var(--accent-river)]'
-                      : 'text-[var(--ink-soft)]'
-                }`}
+                      : 'text-[var(--ink-soft)]',
+                )}
               >
                 {sendError || statusMessage || '提示：区分“说的话”和“动作”，让叙事更清晰。'}
               </p>

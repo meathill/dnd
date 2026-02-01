@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from '../../../lib/auth/auth';
-import { getDatabase } from '../../../lib/db/db';
-import { upsertUserSettings } from '../../../lib/db/repositories';
-import type { AiProvider } from '../../../lib/ai/ai-types';
-import type { UserSettings } from '../../../lib/session/session-types';
+import { getAuth } from '@/lib/auth/auth';
+import { getDatabase } from '@/lib/db/db';
+import { upsertUserSettings } from '@/lib/db/repositories';
+import type { AiProvider } from '@/lib/ai/ai-types';
+import { isAllowedModel, normalizeModel } from '@/lib/ai/ai-models';
+import type { UserSettings } from '@/lib/session/session-types';
 
 function isAiProvider(value: string): value is AiProvider {
   return value === 'openai' || value === 'gemini';
@@ -13,13 +14,25 @@ function parseSettingsPayload(payload: unknown): UserSettings | null {
   if (!payload || typeof payload !== 'object') {
     return null;
   }
-  const data = payload as { provider?: unknown; model?: unknown; dmProfileId?: unknown };
+  const data = payload as { provider?: unknown; fastModel?: unknown; generalModel?: unknown; dmProfileId?: unknown };
   if (typeof data.provider !== 'string' || !isAiProvider(data.provider)) {
     return null;
   }
-  const model = typeof data.model === 'string' ? data.model.trim() : '';
+  const fastModel = typeof data.fastModel === 'string' ? data.fastModel.trim() : '';
+  const generalModel = typeof data.generalModel === 'string' ? data.generalModel.trim() : '';
+  if (fastModel && !isAllowedModel(data.provider, 'fast', fastModel)) {
+    return null;
+  }
+  if (generalModel && !isAllowedModel(data.provider, 'general', generalModel)) {
+    return null;
+  }
   const dmProfileId = typeof data.dmProfileId === 'string' ? data.dmProfileId.trim() : '';
-  return { provider: data.provider, model, dmProfileId: dmProfileId || null };
+  return {
+    provider: data.provider,
+    fastModel: normalizeModel(data.provider, 'fast', fastModel),
+    generalModel: normalizeModel(data.provider, 'general', generalModel),
+    dmProfileId: dmProfileId || null,
+  };
 }
 
 export async function POST(request: Request) {

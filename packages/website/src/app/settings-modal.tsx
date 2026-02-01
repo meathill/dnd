@@ -48,9 +48,11 @@ export default function SettingsModal({
           <div className="rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-4">
             <AiProviderPanel
               provider={settings.provider}
-              model={settings.model}
+              fastModel={settings.fastModel}
+              generalModel={settings.generalModel}
               onProviderChange={(provider) => onSettingsChange({ ...settings, provider })}
-              onModelChange={(model) => onSettingsChange({ ...settings, model })}
+              onFastModelChange={(fastModel) => onSettingsChange({ ...settings, fastModel })}
+              onGeneralModelChange={(generalModel) => onSettingsChange({ ...settings, generalModel })}
             />
           </div>
           <div className="rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-4">

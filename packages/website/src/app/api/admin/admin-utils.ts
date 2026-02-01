@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from '../../../lib/auth/auth';
-import { isRootUser } from '../../../lib/auth/root';
-import { getDatabase } from '../../../lib/db/db';
+import { getAuth } from '@/lib/auth/auth';
+import { isRootUser } from '@/lib/auth/root';
+import { getDatabase } from '@/lib/db/db';
 
 export type AdminContext = {
   db: D1Database;

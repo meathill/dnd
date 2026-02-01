@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDatabase } from '../../../../lib/db/db';
-import { getScriptById } from '../../../../lib/db/repositories';
+import { getDatabase } from '@/lib/db/db';
+import { getScriptById } from '@/lib/db/repositories';
 
 type RouteContext = {
   params: Promise<{ id?: string }>;
