@@ -40,7 +40,10 @@ const baseScript: ScriptDefinition = {
   npcProfiles: [],
   skillOptions: [{ id: 'spotHidden', label: '侦查', group: '调查' }],
   equipmentOptions: ['手电筒', '录音机'],
-  occupationOptions: ['神父', '刑警'],
+  occupationOptions: [
+    { id: 'occupation-priest', name: '神父', summary: '', skillIds: [], equipment: [] },
+    { id: 'occupation-detective', name: '刑警', summary: '', skillIds: [], equipment: [] },
+  ],
   originOptions: ['松柏镇'],
   buffOptions: ['灵感加持'],
   debuffOptions: ['噩梦缠身'],

@@ -12,6 +12,7 @@ export type CharacterCreatorModalProps = {
   submitLabel?: string;
   onClose: () => void;
   onReset: () => void;
+  onRandomize?: () => void;
   onPrevious: () => void;
   onNext: () => void;
   onComplete: () => void;
@@ -28,6 +29,7 @@ export default function CharacterCreatorModal({
   submitLabel = '创建角色',
   onClose,
   onReset,
+  onRandomize,
   onPrevious,
   onNext,
   onComplete,
@@ -84,6 +86,11 @@ export default function CharacterCreatorModal({
             <Button onClick={onReset} size="sm" variant="outline">
               重置
             </Button>
+            {onRandomize ? (
+              <Button onClick={onRandomize} size="sm" variant="outline">
+                全随机
+              </Button>
+            ) : null}
             <span className="text-xs text-[var(--ink-soft)]">
               {currentStep + 1} / {steps.length}
             </span>

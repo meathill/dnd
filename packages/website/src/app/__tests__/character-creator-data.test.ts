@@ -27,7 +27,7 @@ describe('character-creator-data', () => {
 
   it('会使用剧本提供的职业与出身作为默认值', () => {
     const formState = buildDefaultFormState({
-      occupationOptions: ['神父'],
+      occupationOptions: [{ id: 'occupation-priest', name: '神父', summary: '', skillIds: [], equipment: [] }],
       originOptions: ['松柏镇'],
       skillOptions: defaultSkillOptions.slice(0, 2),
     });

@@ -13,6 +13,7 @@ const navItems = [
   { id: 'script-section-scenes', label: '场景清单' },
   { id: 'script-section-encounters', label: '遭遇清单' },
   { id: 'script-section-npcs', label: 'NPC 档案' },
+  { id: 'script-section-occupations', label: '职业预设' },
   { id: 'script-section-options', label: '建卡选项' },
   { id: 'script-section-limits', label: '属性与限制' },
   { id: 'script-section-rules', label: '规则覆盖' },

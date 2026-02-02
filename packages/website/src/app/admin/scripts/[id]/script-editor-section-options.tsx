@@ -59,14 +59,6 @@ export default function ScriptOptionsSection({ draft, mutateDraft }: ScriptOptio
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-[var(--ink-soft)]">职业选项</Label>
-            <Textarea
-              rows={4}
-              value={draft.occupationOptionsText}
-              onChange={(event) => handleBaseChange('occupationOptionsText', event.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
             <Label className="text-xs text-[var(--ink-soft)]">出身选项</Label>
             <Textarea
               rows={4}

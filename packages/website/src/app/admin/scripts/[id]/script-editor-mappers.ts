@@ -5,6 +5,7 @@ import type {
   ScriptScene,
   ScriptStoryArc,
   ScriptNpcProfile,
+  ScriptOccupationOption,
   ScriptRuleOverrides,
 } from '@/lib/game/types';
 import {
@@ -15,6 +16,7 @@ import {
   type SceneDraft,
   type EncounterDraft,
   type NpcProfileDraft,
+  type OccupationDraft,
 } from './script-editor-types';
 import {
   createId,
@@ -100,7 +102,13 @@ export function buildScriptDraft(script: ScriptDefinition): ScriptDraft {
     })),
     skillOptionsText: formatSkillOptions(script.skillOptions),
     equipmentOptionsText: toLineText(script.equipmentOptions),
-    occupationOptionsText: toLineText(script.occupationOptions),
+    occupationOptions: script.occupationOptions.map((occupation) => ({
+      id: occupation.id,
+      name: occupation.name,
+      summary: occupation.summary ?? '',
+      skillIdsText: toLineText(occupation.skillIds),
+      equipmentText: toLineText(occupation.equipment),
+    })),
     originOptionsText: toLineText(script.originOptions),
     buffOptionsText: toLineText(script.buffOptions),
     debuffOptionsText: toLineText(script.debuffOptions),
@@ -257,6 +265,22 @@ export function buildScriptDefinition(draft: ScriptDraft): ScriptDefinition {
     }))
     .filter((npc) => npc.name || npc.summary);
 
+  const occupationOptions: ScriptOccupationOption[] = draft.occupationOptions
+    .map((occupation) => {
+      const name = occupation.name.trim();
+      if (!name) {
+        return null;
+      }
+      return {
+        id: ensureId(occupation.id, name, 'occupation'),
+        name,
+        summary: occupation.summary.trim(),
+        skillIds: parseLineText(occupation.skillIdsText),
+        equipment: parseLineText(occupation.equipmentText),
+      };
+    })
+    .filter((item): item is ScriptOccupationOption => Boolean(item));
+
   return {
     id: draft.id,
     title: draft.title.trim(),
@@ -276,7 +300,7 @@ export function buildScriptDefinition(draft: ScriptDraft): ScriptDefinition {
     npcProfiles,
     skillOptions: parseSkillOptions(draft.skillOptionsText),
     equipmentOptions: parseLineText(draft.equipmentOptionsText),
-    occupationOptions: parseLineText(draft.occupationOptionsText),
+    occupationOptions,
     originOptions: parseLineText(draft.originOptionsText),
     buffOptions: parseLineText(draft.buffOptionsText),
     debuffOptions: parseLineText(draft.debuffOptionsText),
@@ -349,5 +373,15 @@ export function createNpcProfileDraft(): NpcProfileDraft {
     tactics: '',
     weakness: '',
     sanityLoss: '',
+  };
+}
+
+export function createOccupationDraft(): OccupationDraft {
+  return {
+    id: createId('occupation'),
+    name: '',
+    summary: '',
+    skillIdsText: '',
+    equipmentText: '',
   };
 }

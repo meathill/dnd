@@ -104,7 +104,7 @@ export default function ScriptDetailStage({
           <p className="font-semibold text-[var(--ink-strong)]">剧本清单与限制</p>
           <p>技能：{buildList(script.skillOptions.map((skill) => skill.label))}</p>
           <p>装备：{buildList(script.equipmentOptions)}</p>
-          <p>职业：{buildList(script.occupationOptions)}</p>
+          <p>职业：{buildList(script.occupationOptions.map((option) => option.name))}</p>
           <p>出身：{buildList(script.originOptions)}</p>
           <p>
             增益：{buildList(script.buffOptions)} · 上限 {script.buffLimit || '不限'}

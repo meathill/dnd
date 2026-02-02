@@ -1,5 +1,5 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import type { AiGenerateRequest, AiGenerateResponse, AiMessage } from './ai-types';
+import type { AiGenerateRequest, AiGenerateResponse, AiImageRequest, AiImageResponse, AiMessage } from './ai-types';
 
 type OpenAiChatMessage = {
   role: 'system' | 'developer' | 'user' | 'assistant';
@@ -8,6 +8,11 @@ type OpenAiChatMessage = {
 
 type OpenAiResponse = {
   choices?: Array<{ message?: { content?: string } }>;
+  error?: { message?: string };
+};
+
+type OpenAiImageResponse = {
+  data?: Array<{ b64_json?: string }>;
   error?: { message?: string };
 };
 
@@ -21,10 +26,18 @@ type GeminiResponse = {
   error?: { message?: string };
 };
 
+type GeminiImageResponse = {
+  candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> } }>;
+  error?: { message?: string };
+};
+
 const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_IMAGE_ENDPOINT = 'https://api.openai.com/v1/images/generations';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_OPENAI_MODEL = 'gpt-5-mini';
+const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-1.5-image';
 const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview';
+const DEFAULT_GEMINI_IMAGE_MODEL = 'nana-banana';
 
 function normalizeOpenAiMessages(messages: AiMessage[]): OpenAiChatMessage[] {
   return messages
@@ -316,6 +329,107 @@ export async function* streamChatCompletion(request: AiGenerateRequest): AsyncGe
   if (request.provider === 'gemini') {
     yield* streamGeminiCompletion(request);
     return;
+  }
+  throw new Error(`不支持的 provider：${request.provider}`);
+}
+
+async function requestOpenAiImage(request: AiImageRequest): Promise<AiImageResponse> {
+  const { env } = await getCloudflareContext({ async: true });
+  const apiKey = env.OPENAI_API_KEY;
+  const model = request.model ?? DEFAULT_OPENAI_IMAGE_MODEL;
+  const prompt = request.prompt.trim();
+
+  if (!apiKey) {
+    throw new Error('缺少环境变量：OPENAI_API_KEY');
+  }
+  if (!prompt) {
+    throw new Error('缺少图片提示词');
+  }
+
+  const response = await fetch(OPENAI_IMAGE_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      prompt,
+      size: request.size ?? '1024x1024',
+      response_format: 'b64_json',
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`OpenAI 图片请求失败：${response.status} ${text}`);
+  }
+
+  const data = (await response.json()) as OpenAiImageResponse;
+  const base64 = data.data?.[0]?.b64_json ?? '';
+  if (!base64) {
+    throw new Error(data.error?.message ?? 'OpenAI 未返回图片内容');
+  }
+
+  return {
+    provider: 'openai',
+    model,
+    mimeType: 'image/png',
+    base64,
+  };
+}
+
+async function requestGeminiImage(request: AiImageRequest): Promise<AiImageResponse> {
+  const { env } = await getCloudflareContext({ async: true });
+  const apiKey = env.GEMINI_API_KEY;
+  const model = request.model ?? DEFAULT_GEMINI_IMAGE_MODEL;
+  const prompt = request.prompt.trim();
+
+  if (!apiKey) {
+    throw new Error('缺少环境变量：GEMINI_API_KEY');
+  }
+  if (!prompt) {
+    throw new Error('缺少图片提示词');
+  }
+
+  const response = await fetch(`${GEMINI_ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'x-goog-api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Gemini 图片请求失败：${response.status} ${text}`);
+  }
+
+  const data = (await response.json()) as GeminiImageResponse;
+  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  const inline = parts.find((part) => Boolean(part.inlineData?.data))?.inlineData;
+  const base64 = inline?.data ?? '';
+  if (!base64) {
+    throw new Error(data.error?.message ?? 'Gemini 未返回图片内容');
+  }
+
+  return {
+    provider: 'gemini',
+    model,
+    mimeType: inline?.mimeType ?? 'image/png',
+    base64,
+  };
+}
+
+export async function generateImage(request: AiImageRequest): Promise<AiImageResponse> {
+  if (request.provider === 'openai') {
+    return requestOpenAiImage(request);
+  }
+  if (request.provider === 'gemini') {
+    return requestGeminiImage(request);
   }
   throw new Error(`不支持的 provider：${request.provider}`);
 }

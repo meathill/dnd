@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getGameById, getGameMemory, getCharacterByIdForUser } from '@/lib/db/repositories';
-import { requireRoot } from '@/app/api/admin/admin-utils';
+import { requireAdmin } from '@/app/api/admin/admin-utils';
 
 type RouteContext = {
   params: Promise<{ id?: string }>;
@@ -11,7 +11,7 @@ export async function GET(request: Request, context: RouteContext) {
   if (!gameId) {
     return NextResponse.json({ error: '缺少游戏编号' }, { status: 400 });
   }
-  const adminContext = await requireRoot(request);
+  const adminContext = await requireAdmin(request);
   if (adminContext instanceof NextResponse) {
     return adminContext;
   }

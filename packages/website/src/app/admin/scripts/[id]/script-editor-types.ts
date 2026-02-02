@@ -60,6 +60,14 @@ export type RuleDraft = {
   quickstartInterestBonus: string;
 };
 
+export type OccupationDraft = {
+  id: string;
+  name: string;
+  summary: string;
+  skillIdsText: string;
+  equipmentText: string;
+};
+
 export type ScriptDraft = {
   id: string;
   title: string;
@@ -79,7 +87,7 @@ export type ScriptDraft = {
   npcProfiles: NpcProfileDraft[];
   skillOptionsText: string;
   equipmentOptionsText: string;
-  occupationOptionsText: string;
+  occupationOptions: OccupationDraft[];
   originOptionsText: string;
   buffOptionsText: string;
   debuffOptionsText: string;

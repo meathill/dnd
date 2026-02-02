@@ -1,6 +1,7 @@
-import type { AttributeKey } from '../lib/game/types';
+import type { AttributeKey, ScriptOccupationOption } from '../lib/game/types';
 import type { AttributeOption } from './character-creator-data';
 import type { CharacterFieldErrors } from '../lib/game/types';
+import type { SkillOption } from './character-creator-data';
 
 export function getRandomInRange(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -55,6 +56,39 @@ export function buildRandomAttributes(
   }
 
   return attributes;
+}
+
+export function pickRandomOccupation(options: ScriptOccupationOption[]): ScriptOccupationOption | null {
+  if (options.length === 0) {
+    return null;
+  }
+  const index = Math.floor(Math.random() * options.length);
+  return options[index] ?? null;
+}
+
+export function findOccupationOption(
+  options: ScriptOccupationOption[],
+  occupationName: string,
+): ScriptOccupationOption | null {
+  if (!occupationName) {
+    return null;
+  }
+  return options.find((option) => option.name === occupationName) ?? null;
+}
+
+export function resolveOccupationPreset(
+  occupation: ScriptOccupationOption | null,
+  skillOptions: SkillOption[],
+  equipmentOptions: string[],
+): { skillIds: string[]; equipment: string[] } {
+  if (!occupation) {
+    return { skillIds: [], equipment: [] };
+  }
+  const allowedSkills = new Set(skillOptions.map((skill) => skill.id));
+  const allowedEquipment = new Set(equipmentOptions);
+  const skillIds = occupation.skillIds.filter((skillId) => allowedSkills.has(skillId));
+  const equipment = occupation.equipment.filter((item) => allowedEquipment.has(item));
+  return { skillIds: Array.from(new Set(skillIds)), equipment: Array.from(new Set(equipment)) };
 }
 
 export function parseInventoryList(value: string): string[] {

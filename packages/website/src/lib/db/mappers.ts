@@ -11,6 +11,7 @@ import type {
   ScriptScene,
   ScriptRuleOverrides,
   ScriptSkillOption,
+  ScriptOccupationOption,
 } from '../game/types';
 
 export type ScriptRow = {
@@ -182,6 +183,64 @@ function parseScriptRules(raw: string): ScriptRuleOverrides {
   return rules;
 }
 
+function resolveOccupationId(name: string, rawId: unknown, index: number): string {
+  if (typeof rawId === 'string' && rawId.trim()) {
+    return rawId.trim();
+  }
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '');
+  if (slug) {
+    return `occupation-${slug}`;
+  }
+  return `occupation-${index + 1}`;
+}
+
+function parseOccupationOptions(raw: string): ScriptOccupationOption[] {
+  const data = parseJsonArray<unknown>(raw);
+  return data
+    .map((entry, index) => {
+      if (typeof entry === 'string') {
+        const name = entry.trim();
+        if (!name) {
+          return null;
+        }
+        return {
+          id: resolveOccupationId(name, null, index),
+          name,
+          summary: '',
+          skillIds: [],
+          equipment: [],
+        };
+      }
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const rawName =
+        typeof entry.name === 'string'
+          ? entry.name
+          : typeof entry.label === 'string'
+            ? entry.label
+            : typeof entry.title === 'string'
+              ? entry.title
+              : '';
+      const name = rawName.trim();
+      if (!name) {
+        return null;
+      }
+      return {
+        id: resolveOccupationId(name, entry.id, index),
+        name,
+        summary: typeof entry.summary === 'string' ? entry.summary : '',
+        skillIds: parseStringArray(entry.skillIds ?? entry.skills),
+        equipment: parseStringArray(entry.equipment ?? entry.items),
+      };
+    })
+    .filter((item): item is ScriptOccupationOption => Boolean(item));
+}
+
 export function mapScriptRow(row: ScriptRow): ScriptDefinition {
   const npcProfiles = parseJsonArray<Partial<ScriptNpcProfile>>(row.enemy_profiles_json).map((raw, index) => {
     const npc = raw ?? {};
@@ -223,7 +282,7 @@ export function mapScriptRow(row: ScriptRow): ScriptDefinition {
     npcProfiles,
     skillOptions: parseJsonArray<ScriptSkillOption>(row.skill_options_json),
     equipmentOptions: parseJsonArray<string>(row.equipment_options_json),
-    occupationOptions: parseJsonArray<string>(row.occupation_options_json),
+    occupationOptions: parseOccupationOptions(row.occupation_options_json),
     originOptions: parseJsonArray<string>(row.origin_options_json),
     buffOptions: parseJsonArray<string>(row.buff_options_json),
     debuffOptions: parseJsonArray<string>(row.debuff_options_json),

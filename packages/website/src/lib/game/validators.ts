@@ -184,8 +184,13 @@ export function validateCharacterAgainstScript(
 ): CharacterFieldErrors {
   const errors: CharacterFieldErrors = {};
 
-  if (script.occupationOptions.length > 0 && !script.occupationOptions.includes(payload.occupation)) {
-    errors.occupation = '人物卡职业不在剧本允许范围内';
+  if (script.occupationOptions.length > 0) {
+    const allowedOccupations = new Set(
+      script.occupationOptions.map((option) => option.name).filter((name) => name.trim().length > 0),
+    );
+    if (payload.occupation && !allowedOccupations.has(payload.occupation)) {
+      errors.occupation = '人物卡职业不在剧本允许范围内';
+    }
   }
 
   if (script.originOptions.length > 0 && !script.originOptions.includes(payload.origin)) {

@@ -45,7 +45,7 @@ function formatTime(value: string): string {
 export default function DmMemoryPanel() {
   const { session } = useSession();
   const gameId = useGameStore((state) => state.activeGameId);
-  const isRoot = session?.isRoot ?? false;
+  const isLoggedIn = Boolean(session);
   const [memory, setMemory] = useState<GameMemoryRecord | null>(null);
   const [character, setCharacter] = useState<CharacterRecord | null>(null);
   const [message, setMessage] = useState('');
@@ -65,7 +65,7 @@ export default function DmMemoryPanel() {
   );
 
   const loadMemory = useCallback(async () => {
-    if (!gameId || !isRoot) {
+    if (!gameId || !isLoggedIn) {
       return;
     }
     setIsLoading(true);
@@ -88,13 +88,13 @@ export default function DmMemoryPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, [gameId, isRoot]);
+  }, [gameId, isLoggedIn]);
 
   useEffect(() => {
     loadMemory();
   }, [loadMemory]);
 
-  if (!isRoot || !gameId) {
+  if (!isLoggedIn || !gameId) {
     return null;
   }
 

@@ -1,16 +1,17 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
-import type { CharacterFieldErrors } from '../lib/game/types';
+import type { CharacterFieldErrors, ScriptOccupationOption } from '../lib/game/types';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Textarea } from '../components/ui/textarea';
 import { fieldLabelClassName, type FormState, type UpdateField } from './character-creator-data';
-import { uploadAvatar } from '../lib/assets/upload-avatar';
+import { generateAvatar, uploadAvatar } from '../lib/assets/upload-avatar';
 
 type CharacterCreatorStepBasicProps = {
   formState: FormState;
   onFieldChange: UpdateField;
-  occupationOptions?: string[];
+  occupationOptions?: ScriptOccupationOption[];
   originOptions?: string[];
   errors?: Pick<CharacterFieldErrors, 'name' | 'occupation' | 'origin'>;
 };
@@ -24,14 +25,26 @@ export default function CharacterCreatorStepBasic({
 }: CharacterCreatorStepBasicProps) {
   const hasOccupationOptions = Boolean(occupationOptions && occupationOptions.length > 0);
   const hasOriginOptions = Boolean(originOptions && originOptions.length > 0);
-  const occupationValue = hasOccupationOptions ? (occupationOptions?.[0] ?? '') : formState.occupation;
+  const occupationValue = hasOccupationOptions ? (occupationOptions?.[0]?.name ?? '') : formState.occupation;
   const originValue = hasOriginOptions ? (originOptions?.[0] ?? '') : formState.origin;
+  const occupationNames = occupationOptions?.map((option) => option.name) ?? [];
   const [localPreview, setLocalPreview] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiError, setAiError] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const avatarPreview = formState.avatar?.trim() || localPreview;
-  const helperMessage = uploadError ? uploadError : isUploading ? '正在上传头像...' : '建议使用正方形图片，便于显示。';
-  const uploadHintTone = uploadError ? 'text-[var(--accent-ember)]' : 'text-[var(--ink-soft)]';
+  const statusMessage = uploadError || aiError;
+  const helperMessage = statusMessage
+    ? statusMessage
+    : isUploading
+      ? '正在上传头像...'
+      : isGenerating
+        ? '正在生成头像...'
+        : '建议使用正方形图片，便于显示。';
+  const uploadHintTone = statusMessage ? 'text-[var(--accent-ember)]' : 'text-[var(--ink-soft)]';
+  const isBusy = isUploading || isGenerating;
 
   useEffect(() => {
     return () => {
@@ -47,15 +60,18 @@ export default function CharacterCreatorStepBasic({
       onFieldChange('avatar', '');
       setLocalPreview('');
       setUploadError('');
+      setAiError('');
       return;
     }
     if (!file.type.startsWith('image/')) {
       onFieldChange('avatar', '');
       setLocalPreview('');
       setUploadError('仅支持图片文件');
+      setAiError('');
       return;
     }
     setUploadError('');
+    setAiError('');
     setIsUploading(true);
     setLocalPreview(URL.createObjectURL(file));
     try {
@@ -73,12 +89,48 @@ export default function CharacterCreatorStepBasic({
     }
   }
 
+  function buildAvatarPrompt(): string {
+    const custom = aiPrompt.trim();
+    if (custom) {
+      return custom;
+    }
+    const parts = [formState.occupation, formState.appearance, formState.background].filter(Boolean);
+    const detail = parts.join('，');
+    if (detail) {
+      return `克苏鲁调查员角色头像：${detail}。写实风格，半身像。`;
+    }
+    return '克苏鲁调查员角色头像，写实风格，半身像。';
+  }
+
+  async function handleGenerateAvatar() {
+    const prompt = buildAvatarPrompt();
+    if (!prompt) {
+      setAiError('请填写头像描述');
+      return;
+    }
+    setAiError('');
+    setUploadError('');
+    setIsGenerating(true);
+    setLocalPreview('');
+    try {
+      const url = await generateAvatar(prompt);
+      onFieldChange('avatar', url);
+      setAiError('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '头像生成失败';
+      setAiError(message);
+      onFieldChange('avatar', '');
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-4">
         <div>
           <p className={fieldLabelClassName}>基本信息</p>
-          <div className="mt-3 flex items-center gap-3 rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-3">
+          <div className="mt-3 flex items-center gap-3 rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-3">
             <div className="h-16 w-16 rounded-lg bg-[rgba(255,255,255,0.6)] p-1">
               {avatarPreview ? (
                 <img className="h-full w-full rounded-lg object-cover" src={avatarPreview} alt="角色头像" />
@@ -100,10 +152,29 @@ export default function CharacterCreatorStepBasic({
                 accept="image/*"
                 onChange={handleAvatarChange}
                 size="sm"
-                disabled={isUploading}
+                disabled={isBusy}
               />
               <p className={`text-[10px] ${uploadHintTone}`}>{helperMessage}</p>
             </div>
+          </div>
+          <div className="mt-3 grid gap-2 rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-3">
+            <Label className="text-xs text-[var(--ink-soft)]" htmlFor="avatar-ai-prompt">
+              AI 头像描述（可选）
+            </Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                id="avatar-ai-prompt"
+                className="min-w-[200px] flex-1 bg-[rgba(255,255,255,0.8)] text-[var(--ink-strong)]"
+                value={aiPrompt}
+                onChange={(event) => setAiPrompt(event.target.value)}
+                placeholder="例如：年轻神父，温和但坚定"
+                size="sm"
+              />
+              <Button onClick={handleGenerateAvatar} size="sm" variant="outline" disabled={isBusy}>
+                {isGenerating ? '生成中...' : 'AI 生成'}
+              </Button>
+            </div>
+            <p className="text-[10px] text-[var(--ink-soft)]">未填写时会自动用职业与外观生成描述。</p>
           </div>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -121,7 +192,7 @@ export default function CharacterCreatorStepBasic({
             <div className="space-y-1">
               {hasOccupationOptions ? (
                 <Select
-                  value={occupationOptions?.includes(formState.occupation) ? formState.occupation : occupationValue}
+                  value={occupationNames.includes(formState.occupation) ? formState.occupation : occupationValue}
                   onValueChange={(value) => onFieldChange('occupation', value ?? '')}
                 >
                   <SelectTrigger aria-label="职业" className="bg-[rgba(255,255,255,0.8)]" size="sm">
@@ -129,8 +200,8 @@ export default function CharacterCreatorStepBasic({
                   </SelectTrigger>
                   <SelectContent>
                     {occupationOptions?.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
+                      <SelectItem key={option.id} value={option.name}>
+                        {option.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -201,7 +272,7 @@ export default function CharacterCreatorStepBasic({
         </div>
       </div>
 
-      <div className="panel-muted rounded-xl p-4">
+      <div className="panel-muted rounded-lg p-4">
         <p className="text-sm font-semibold text-[var(--ink-strong)]">创角提示</p>
         <ul className="mt-3 space-y-2 text-sm text-[var(--ink-muted)]">
           <li>职业决定了可学习技能与社交资源。</li>

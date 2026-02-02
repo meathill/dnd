@@ -20,3 +20,17 @@ export type AiGenerateResponse = {
   model: string;
   text: string;
 };
+
+export type AiImageRequest = {
+  provider: AiProvider;
+  prompt: string;
+  model?: string;
+  size?: string;
+};
+
+export type AiImageResponse = {
+  provider: AiProvider;
+  model: string;
+  mimeType: string;
+  base64: string;
+};

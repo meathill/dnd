@@ -1,4 +1,10 @@
-import type { AttributeKey, AttributeRangeMap, CharacterFieldErrors, ScriptRuleOverrides } from '../lib/game/types';
+import type {
+  AttributeKey,
+  AttributeRangeMap,
+  CharacterFieldErrors,
+  ScriptOccupationOption,
+  ScriptRuleOverrides,
+} from '../lib/game/types';
 import {
   DEFAULT_ATTRIBUTE_RANGES,
   resolveAttributePointBudget,
@@ -307,7 +313,7 @@ type FormStateSeed = {
   skillOptions?: SkillOption[];
   skillLimit?: number;
   rules?: ScriptRuleOverrides;
-  occupationOptions?: string[];
+  occupationOptions?: ScriptOccupationOption[];
   originOptions?: string[];
   inventory?: string;
   buffOptions?: string[];
@@ -329,7 +335,7 @@ export function buildDefaultFormState(seed: FormStateSeed = {}): FormState {
     : [];
   return {
     name: '沈砚',
-    occupation: seed.occupationOptions?.[0] ?? '调查记者',
+    occupation: seed.occupationOptions?.[0]?.name ?? '调查记者',
     age: '31',
     origin: seed.originOptions?.[0] ?? '静默港口',
     appearance: '瘦高、黑色风衣、常带速记本',

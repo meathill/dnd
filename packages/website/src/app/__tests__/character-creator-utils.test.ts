@@ -1,5 +1,5 @@
 import type { AttributeOption } from '../character-creator-data';
-import { buildRandomAttributes } from '../character-creator-utils';
+import { buildRandomAttributes, resolveOccupationPreset } from '../character-creator-utils';
 
 describe('人物卡随机属性', () => {
   const attributeOptions: AttributeOption[] = [
@@ -38,5 +38,27 @@ describe('人物卡随机属性', () => {
     attributeOptions.forEach((option) => {
       expect(attributes[option.id]).toBe(option.max);
     });
+  });
+});
+
+describe('职业预设解析', () => {
+  it('会过滤不存在的技能与装备', () => {
+    const occupation = {
+      id: 'occupation-test',
+      name: '调查员',
+      summary: '',
+      skillIds: ['spotHidden', 'invalid-skill', 'spotHidden'],
+      equipment: ['手电筒', '不存在的道具', '手电筒'],
+    };
+    const preset = resolveOccupationPreset(
+      occupation,
+      [
+        { id: 'spotHidden', label: '侦查', group: '调查' },
+        { id: 'listen', label: '聆听', group: '调查' },
+      ],
+      ['手电筒', '录音机'],
+    );
+    expect(preset.skillIds).toEqual(['spotHidden']);
+    expect(preset.equipment).toEqual(['手电筒']);
   });
 });

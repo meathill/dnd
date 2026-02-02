@@ -1,4 +1,4 @@
-import type { CharacterFieldErrors } from '../lib/game/types';
+import type { CharacterFieldErrors, ScriptOccupationOption } from '../lib/game/types';
 import CharacterCreatorStepAttributes from './character-creator-step-attributes';
 import CharacterCreatorStepBackground from './character-creator-step-background';
 import CharacterCreatorStepBasic from './character-creator-step-basic';
@@ -21,7 +21,7 @@ export type CharacterCreatorStepContentProps = {
   currentStep: number;
   formState: FormState;
   fieldErrors: CharacterFieldErrors;
-  occupationOptions?: string[];
+  occupationOptions?: ScriptOccupationOption[];
   originOptions?: string[];
   attributeOptions: AttributeOption[];
   attributeErrorMessage?: string;

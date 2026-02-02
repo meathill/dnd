@@ -7,8 +7,11 @@ import CharacterCreatorStepContent from './character-creator-step-content';
 import {
   buildAttributeErrorMessage,
   buildRandomAttributes,
+  findOccupationOption,
   findErrorStep,
   parseInventoryList,
+  pickRandomOccupation,
+  resolveOccupationPreset,
 } from './character-creator-utils';
 import {
   buildAttributeOptions,
@@ -26,8 +29,9 @@ import {
   type SkillOption,
   type SubmitResult,
 } from './character-creator-data';
-import type { CharacterFieldErrors, ScriptRuleOverrides } from '../lib/game/types';
+import type { CharacterFieldErrors, ScriptOccupationOption, ScriptRuleOverrides } from '../lib/game/types';
 import {
+  buildEmptyQuickstartAssignments,
   buildQuickstartSkillValues,
   deriveQuickstartAssignments,
   type QuickstartAssignments,
@@ -45,6 +49,7 @@ import {
 
 const DEFAULT_BUFF_OPTIONS = Array.from(defaultBuffOptions);
 const EMPTY_OPTIONS: string[] = [];
+const EMPTY_OCCUPATIONS: ScriptOccupationOption[] = [];
 
 type CharacterCreatorProps = {
   onComplete?: (formState: FormState) => SubmitResult | Promise<SubmitResult>;
@@ -54,7 +59,7 @@ type CharacterCreatorProps = {
   initialFormState?: FormState;
   skillOptions?: SkillOption[];
   equipmentOptions?: string[];
-  occupationOptions?: string[];
+  occupationOptions?: ScriptOccupationOption[];
   originOptions?: string[];
   buffOptions?: string[];
   debuffOptions?: string[];
@@ -97,7 +102,7 @@ export default function CharacterCreator({
   const [submitError, setSubmitError] = useState('');
   const activeSkillOptions = skillOptions ?? defaultSkillOptions;
   const activeEquipmentOptions = equipmentOptions ?? EMPTY_OPTIONS;
-  const activeOccupationOptions = occupationOptions ?? EMPTY_OPTIONS;
+  const activeOccupationOptions = occupationOptions ?? EMPTY_OCCUPATIONS;
   const activeOriginOptions = originOptions ?? EMPTY_OPTIONS;
   const effectiveAttributeRanges = useMemo(() => resolveAttributeRanges(attributeRanges), [attributeRanges]);
   const activeAttributeOptions = useMemo(
@@ -128,7 +133,94 @@ export default function CharacterCreator({
     });
     return map;
   }, [activeSkillOptions, rules?.skillBaseValues, untrainedSkillValue]);
-  const seedFormState = useMemo(() => {
+
+  function buildBaseSkillValues(): Record<string, number> {
+    const result: Record<string, number> = {};
+    activeSkillOptions.forEach((skill) => {
+      const baseValue = skillBaseValueMap[skill.id] ?? untrainedSkillValue;
+      result[skill.id] = baseValue;
+    });
+    return result;
+  }
+
+  function buildPresetSkillValues(skillIds: string[]): Record<string, number> {
+    const result = buildBaseSkillValues();
+    const limitedSkillIds = skillLimit > 0 ? skillIds.slice(0, skillLimit) : skillIds;
+    limitedSkillIds.forEach((skillId) => {
+      const baseValue = skillBaseValueMap[skillId] ?? untrainedSkillValue;
+      result[skillId] = Math.max(baseValue, trainedSkillValue);
+    });
+    return result;
+  }
+
+  function buildQuickstartPresetAssignments(skillIds: string[]): QuickstartAssignments {
+    const allSkillIds = activeSkillOptions.map((skill) => skill.id);
+    if (skillIds.length === 0) {
+      return buildEmptyQuickstartAssignments(allSkillIds);
+    }
+    const uniquePreset = Array.from(new Set(skillIds.filter((skillId) => allSkillIds.includes(skillId))));
+    const orderedSkillIds = [...uniquePreset, ...allSkillIds.filter((skillId) => !uniquePreset.includes(skillId))];
+    const assignments = buildEmptyQuickstartAssignments(allSkillIds);
+    const used = new Set<string>();
+    let cursor = 0;
+
+    function takeNextSkill(): string | null {
+      while (cursor < orderedSkillIds.length) {
+        const nextId = orderedSkillIds[cursor];
+        cursor += 1;
+        if (nextId && !used.has(nextId)) {
+          used.add(nextId);
+          return nextId;
+        }
+      }
+      return null;
+    }
+
+    quickstartConfig.coreValues.forEach((value) => {
+      const skillId = takeNextSkill();
+      if (skillId && skillId in assignments.core) {
+        assignments.core[skillId] = value;
+      }
+    });
+
+    let interestRemaining = quickstartConfig.interestCount;
+    while (interestRemaining > 0) {
+      const skillId = takeNextSkill();
+      if (!skillId) {
+        break;
+      }
+      if (skillId in assignments.interest) {
+        assignments.interest[skillId] = true;
+        interestRemaining -= 1;
+      }
+    }
+
+    return assignments;
+  }
+
+  function buildQuickstartPresetState(skillIds: string[]) {
+    const assignments = buildQuickstartPresetAssignments(skillIds);
+    const skills = buildQuickstartSkillValues(
+      activeSkillOptions.map((skill) => skill.id),
+      skillBaseValueMap,
+      assignments,
+      quickstartConfig,
+    );
+    return { assignments, skills };
+  }
+
+  function resolveOccupationPresetState(occupationName: string) {
+    const occupation = findOccupationOption(activeOccupationOptions, occupationName);
+    const preset = resolveOccupationPreset(occupation, activeSkillOptions, activeEquipmentOptions);
+    const limitedSkillIds = skillLimit > 0 ? preset.skillIds.slice(0, skillLimit) : preset.skillIds;
+    const limitedEquipment = equipmentLimit > 0 ? preset.equipment.slice(0, equipmentLimit) : preset.equipment;
+    return {
+      occupation,
+      skillIds: limitedSkillIds,
+      equipment: limitedEquipment,
+    };
+  }
+  const seedState = useMemo(() => {
     const base = buildDefaultFormState({
       attributeOptions: activeAttributeOptions,
       attributePointBudget: effectiveAttributePointBudget,
@@ -143,9 +235,36 @@ export default function CharacterCreator({
       debuffLimit: shouldShowDebuff ? debuffLimit : 0,
     });
     if (!initialFormState) {
-      return base;
+      const preset = resolveOccupationPresetState(base.occupation);
+      const nextInventory = activeEquipmentOptions.length > 0 ? preset.equipment.join('、') : base.inventory;
+      if (skillAllocationMode === 'quickstart') {
+        const quickstartState = buildQuickstartPresetState(preset.skillIds);
+        return {
+          formState: {
+            ...base,
+            skills: quickstartState.skills,
+            inventory: nextInventory,
+          },
+          quickstartAssignments: quickstartState.assignments,
+        };
+      }
+      const nextSkills = buildPresetSkillValues(preset.skillIds);
+      const formState = {
+        ...base,
+        skills: nextSkills,
+        inventory: nextInventory,
+      };
+      return {
+        formState,
+        quickstartAssignments: deriveQuickstartAssignments(
+          activeSkillOptions.map((skill) => skill.id),
+          formState.skills,
+          skillBaseValueMap,
+          quickstartConfig,
+        ),
+      };
     }
-    return {
+    const formState = {
       ...base,
       ...initialFormState,
       attributes: {
@@ -159,40 +278,43 @@ export default function CharacterCreator({
       buffs: initialFormState.buffs ?? base.buffs,
       debuffs: shouldShowDebuff ? (initialFormState.debuffs ?? base.debuffs) : [],
     };
+    return {
+      formState,
+      quickstartAssignments: deriveQuickstartAssignments(
+        activeSkillOptions.map((skill) => skill.id),
+        formState.skills,
+        skillBaseValueMap,
+        quickstartConfig,
+      ),
+    };
   }, [
     activeAttributeOptions,
     activeSkillOptions,
     activeBuffOptions,
     activeDebuffOptions,
-    activeEquipmentOptions.length,
+    activeEquipmentOptions,
     activeOccupationOptions,
     activeOriginOptions,
     debuffLimit,
     effectiveAttributePointBudget,
+    equipmentLimit,
     initialFormState,
+    quickstartConfig,
     rules,
+    skillAllocationMode,
+    skillBaseValueMap,
     skillLimit,
     shouldShowDebuff,
+    trainedSkillValue,
+    untrainedSkillValue,
   ]);
-  const [formState, setFormState] = useState<FormState>(seedFormState);
-  const [quickstartAssignments, setQuickstartAssignments] = useState<QuickstartAssignments>(() =>
-    deriveQuickstartAssignments(
-      activeSkillOptions.map((skill) => skill.id),
-      seedFormState.skills,
-      skillBaseValueMap,
-      quickstartConfig,
-    ),
+  const [formState, setFormState] = useState<FormState>(seedState.formState);
+  const [quickstartAssignments, setQuickstartAssignments] = useState<QuickstartAssignments>(
+    seedState.quickstartAssignments,
   );
   useEffect(() => {
-    setQuickstartAssignments(
-      deriveQuickstartAssignments(
-        activeSkillOptions.map((skill) => skill.id),
-        seedFormState.skills,
-        skillBaseValueMap,
-        quickstartConfig,
-      ),
-    );
-  }, [activeSkillOptions, quickstartConfig, seedFormState.skills, skillBaseValueMap]);
+    setQuickstartAssignments(seedState.quickstartAssignments);
+  }, [seedState.quickstartAssignments]);
   const skillPointBudget = useMemo(
     () => (skillAllocationMode === 'budget' ? resolveSkillPointBudget(rules, formState.attributes) : 0),
     [formState.attributes, rules, skillAllocationMode],
@@ -327,7 +449,7 @@ export default function CharacterCreator({
   }
 
   function resetCreator() {
-    setFormState(seedFormState);
+    setFormState(seedState.formState);
     setFieldErrors({});
     setSubmitError('');
     setCurrentStep(0);
@@ -342,6 +464,10 @@ export default function CharacterCreator({
   }
 
   function updateField<Key extends keyof FormState>(key: Key, value: FormState[Key]) {
+    if (key === 'occupation') {
+      applyOccupationSelection(String(value ?? ''));
+      return;
+    }
     setFormState((current) => ({
       ...current,
       [key]: value,
@@ -352,6 +478,33 @@ export default function CharacterCreator({
       }
       const next = { ...prev };
       delete next[key as keyof CharacterFieldErrors];
+      return next;
+    });
+  }
+
+  function applyOccupationSelection(occupationName: string) {
+    const preset = resolveOccupationPresetState(occupationName);
+    const quickstartState = skillAllocationMode === 'quickstart' ? buildQuickstartPresetState(preset.skillIds) : null;
+    if (skillAllocationMode === 'quickstart') {
+      setQuickstartAssignments(quickstartState?.assignments ?? buildQuickstartPresetAssignments(preset.skillIds));
+    }
+    setFormState((current) => ({
+      ...current,
+      occupation: preset.occupation?.name ?? occupationName,
+      skills:
+        skillAllocationMode === 'quickstart'
+          ? (quickstartState?.skills ?? buildQuickstartPresetState(preset.skillIds).skills)
+          : buildPresetSkillValues(preset.skillIds),
+      inventory: activeEquipmentOptions.length > 0 ? preset.equipment.join('、') : current.inventory,
+    }));
+    setFieldErrors((prev) => {
+      if (!prev.occupation && !prev.skills && !prev.inventory) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next.occupation;
+      delete next.skills;
+      delete next.inventory;
       return next;
     });
   }
@@ -630,6 +783,35 @@ export default function CharacterCreator({
     });
   }
 
+  function applyRandomAll() {
+    const nextAttributes = buildRandomAttributes(activeAttributeOptions, effectiveAttributePointBudget);
+    const randomOccupation = pickRandomOccupation(activeOccupationOptions);
+    if (!randomOccupation) {
+      setFormState((current) => ({
+        ...current,
+        attributes: nextAttributes,
+        luck: rollLuck(),
+      }));
+      return;
+    }
+    const preset = resolveOccupationPresetState(randomOccupation.name);
+    const quickstartState = skillAllocationMode === 'quickstart' ? buildQuickstartPresetState(preset.skillIds) : null;
+    if (skillAllocationMode === 'quickstart') {
+      setQuickstartAssignments(quickstartState?.assignments ?? buildQuickstartPresetAssignments(preset.skillIds));
+    }
+    setFormState((current) => ({
+      ...current,
+      occupation: preset.occupation?.name ?? randomOccupation.name,
+      attributes: nextAttributes,
+      luck: rollLuck(),
+      skills:
+        skillAllocationMode === 'quickstart'
+          ? (quickstartState?.skills ?? buildQuickstartPresetState(preset.skillIds).skills)
+          : buildPresetSkillValues(preset.skillIds),
+      inventory: activeEquipmentOptions.length > 0 ? preset.equipment.join('、') : current.inventory,
+    }));
+  }
+
   async function handleComplete() {
     setSubmitError('');
     if (!onComplete) {
@@ -654,12 +836,12 @@ export default function CharacterCreator({
     if (!openRequestId) {
       return;
     }
-    setFormState(seedFormState);
+    setFormState(seedState.formState);
     setFieldErrors({});
     setSubmitError('');
     setCurrentStep(0);
     openCreator(true);
-  }, [openRequestId, seedFormState]);
+  }, [openRequestId, seedState.formState]);
 
   return (
     <div className="flex flex-wrap gap-3">
@@ -684,6 +866,7 @@ export default function CharacterCreator({
         submitError={submitError}
         onClose={closeCreator}
         onReset={resetCreator}
+        onRandomize={applyRandomAll}
         onPrevious={goPreviousStep}
         onNext={goNextStep}
         onComplete={handleComplete}

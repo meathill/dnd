@@ -12,6 +12,14 @@ export type ScriptSkillOption = {
   group: string;
 };
 
+export type ScriptOccupationOption = {
+  id: string;
+  name: string;
+  summary: string;
+  skillIds: string[];
+  equipment: string[];
+};
+
 export type ScriptOpeningMessage = {
   role: 'dm' | 'system' | 'player';
   content: string;
@@ -209,7 +217,7 @@ export type ScriptDefinition = {
   npcProfiles: ScriptNpcProfile[];
   skillOptions: ScriptSkillOption[];
   equipmentOptions: string[];
-  occupationOptions: string[];
+  occupationOptions: ScriptOccupationOption[];
   originOptions: string[];
   buffOptions: string[];
   debuffOptions: string[];

@@ -61,7 +61,10 @@ describe('人物卡创建', () => {
   it('传入剧本选项会显示职业与来源下拉', async () => {
     render(
       <CharacterCreator
-        occupationOptions={['神父', '警探']}
+        occupationOptions={[
+          { id: 'occupation-priest', name: '神父', summary: '', skillIds: ['occult'], equipment: ['圣经'] },
+          { id: 'occupation-detective', name: '警探', summary: '', skillIds: ['spotHidden'], equipment: ['手枪'] },
+        ]}
         originOptions={['松柏镇', '河口镇']}
         skillOptions={[{ id: 'occult', label: '神秘学', group: '学识' }]}
       />,
@@ -92,6 +95,41 @@ describe('人物卡创建', () => {
     const nextButton = screen.getByRole('button', { name: '下一步' });
     expect(nextButton).toBeDisabled();
     expect(screen.getByText('属性点总和超出上限 200')).toBeInTheDocument();
+  });
+
+  it('全随机会刷新职业与属性', async () => {
+    const randomMock = vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    render(
+      <CharacterCreator
+        occupationOptions={[
+          { id: 'occupation-priest', name: '神父', summary: '', skillIds: ['occult'], equipment: ['圣经'] },
+          { id: 'occupation-detective', name: '警探', summary: '', skillIds: ['spotHidden'], equipment: ['手枪'] },
+        ]}
+        originOptions={['松柏镇']}
+        skillOptions={[
+          { id: 'occult', label: '神秘学', group: '学识' },
+          { id: 'spotHidden', label: '侦查', group: '调查' },
+        ]}
+        equipmentOptions={['圣经', '手枪']}
+      />,
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: '创建角色' }));
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+
+    const firstInput = screen.getAllByRole('spinbutton')[0] as HTMLInputElement;
+    const beforeValue = firstInput.value;
+    await user.click(screen.getByRole('button', { name: '全随机' }));
+
+    const afterValue = (screen.getAllByRole('spinbutton')[0] as HTMLInputElement).value;
+    expect(afterValue).not.toBe(beforeValue);
+
+    await user.click(screen.getByRole('button', { name: '上一步' }));
+    const occupationTrigger = screen.getByRole('combobox', { name: '职业' });
+    expect(occupationTrigger).toHaveTextContent('警探');
+
+    randomMock.mockRestore();
   });
 
   it('技能点数超预算会禁用下一步', async () => {

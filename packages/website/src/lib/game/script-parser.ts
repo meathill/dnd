@@ -5,6 +5,7 @@ import type {
   ScriptStoryArc,
   ScriptNpcProfile,
   ScriptSkillOption,
+  ScriptOccupationOption,
   ScriptScene,
   ScriptEncounter,
   ScriptRuleOverrides,
@@ -90,6 +91,72 @@ function parseAttributeRanges(value: unknown): AttributeRangeMap {
   return value as AttributeRangeMap;
 }
 
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function resolveOccupationId(name: string, rawId: unknown, index: number): string {
+  if (typeof rawId === 'string' && rawId.trim()) {
+    return rawId.trim();
+  }
+  const slug = slugify(name);
+  if (slug) {
+    return `occupation-${slug}`;
+  }
+  return `occupation-${index + 1}`;
+}
+
+function parseOccupationOptions(value: unknown): ScriptOccupationOption[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry, index) => {
+      if (typeof entry === 'string') {
+        const name = entry.trim();
+        if (!name) {
+          return null;
+        }
+        return {
+          id: resolveOccupationId(name, null, index),
+          name,
+          summary: '',
+          skillIds: [],
+          equipment: [],
+        };
+      }
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const nameSource =
+        typeof entry.name === 'string'
+          ? entry.name
+          : typeof entry.label === 'string'
+            ? entry.label
+            : typeof entry.title === 'string'
+              ? entry.title
+              : '';
+      const name = nameSource.trim();
+      if (!name) {
+        return null;
+      }
+      const skillIds = parseStringArray(entry.skillIds ?? entry.skills);
+      const equipment = parseStringArray(entry.equipment ?? entry.items);
+      return {
+        id: resolveOccupationId(name, entry.id, index),
+        name,
+        summary: parseOptionalString(entry.summary),
+        skillIds,
+        equipment,
+      };
+    })
+    .filter((item): item is ScriptOccupationOption => Boolean(item));
+}
+
 export function parseScriptDefinition(payload: unknown, id: string): ScriptParseResult {
   if (!isRecord(payload)) {
     return { ok: false, error: '参数不合法' };
@@ -135,7 +202,7 @@ export function parseScriptDefinition(payload: unknown, id: string): ScriptParse
     npcProfiles,
     skillOptions: parseObjectArray<ScriptSkillOption>(payload.skillOptions),
     equipmentOptions: parseStringArray(payload.equipmentOptions),
-    occupationOptions: parseStringArray(payload.occupationOptions),
+    occupationOptions: parseOccupationOptions(payload.occupationOptions),
     originOptions: parseStringArray(payload.originOptions),
     buffOptions: parseStringArray(payload.buffOptions),
     debuffOptions: parseStringArray(payload.debuffOptions),
