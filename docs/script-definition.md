@@ -32,6 +32,10 @@
 - scenes: 场景列表（id/title/summary/location/hooks）
 - encounters: 遭遇列表（id/title/summary/enemies/danger）
 
+### 全局地图（对玩家可见）
+- background.explorableAreas: 可探索区域列表
+  - id / name / summary / description / dmNotes(仅 DM)
+
 ### DM 隐藏信息（不展示给玩家）
 - background: 背景真相与隐藏要素
   - overview / truth / themes / factions / locations / secrets
@@ -56,6 +60,10 @@ const script = {
     themes: ['交易', '恐惧'],
     factions: ['装修工作室', '物业'],
     locations: ['工作室', '凶宅'],
+    explorableAreas: [
+      { id: 'area-studio', name: '工作室', summary: '表面是装修公司。', description: '装修材料堆满前厅。' },
+      { id: 'area-haunted', name: '凶宅', summary: '诡异气息笼罩。', description: '门口残留盐圈。' },
+    ],
     secrets: ['隐藏利益链'],
   },
   storyArcs: [

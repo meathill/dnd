@@ -7,6 +7,7 @@ import type {
   ScriptNpcProfile,
   ScriptOccupationOption,
   ScriptRuleOverrides,
+  ScriptExplorableArea,
 } from '@/lib/game/types';
 import {
   ATTRIBUTE_KEYS,
@@ -17,6 +18,7 @@ import {
   type EncounterDraft,
   type NpcProfileDraft,
   type OccupationDraft,
+  type ExplorableAreaDraft,
 } from './script-editor-types';
 import {
   createId,
@@ -112,6 +114,13 @@ export function buildScriptDraft(script: ScriptDefinition): ScriptDraft {
     originOptionsText: toLineText(script.originOptions),
     buffOptionsText: toLineText(script.buffOptions),
     debuffOptionsText: toLineText(script.debuffOptions),
+    explorableAreas: script.background.explorableAreas.map((area) => ({
+      id: area.id,
+      name: area.name,
+      summary: area.summary,
+      description: area.description,
+      dmNotes: area.dmNotes ?? '',
+    })),
     attributeRanges: ranges,
     attributePointBudget: numberToText(script.attributePointBudget),
     skillLimit: numberToText(script.skillLimit),
@@ -281,6 +290,23 @@ export function buildScriptDefinition(draft: ScriptDraft): ScriptDefinition {
     })
     .filter((item): item is ScriptOccupationOption => Boolean(item));
 
+  const explorableAreas: ScriptExplorableArea[] = draft.explorableAreas
+    .map((area) => {
+      const name = area.name.trim();
+      if (!name) {
+        return null;
+      }
+      const dmNotes = area.dmNotes.trim();
+      return {
+        id: ensureId(area.id, name, 'area'),
+        name,
+        summary: area.summary.trim(),
+        description: area.description.trim(),
+        ...(dmNotes ? { dmNotes } : {}),
+      };
+    })
+    .filter((item): item is ScriptExplorableArea => Boolean(item));
+
   return {
     id: draft.id,
     title: draft.title.trim(),
@@ -294,6 +320,7 @@ export function buildScriptDefinition(draft: ScriptDraft): ScriptDefinition {
       themes: parseLineText(draft.background.themesText),
       factions: parseLineText(draft.background.factionsText),
       locations: parseLineText(draft.background.locationsText),
+      explorableAreas,
       secrets: parseLineText(draft.background.secretsText),
     },
     storyArcs,
@@ -383,5 +410,15 @@ export function createOccupationDraft(): OccupationDraft {
     summary: '',
     skillIdsText: '',
     equipmentText: '',
+  };
+}
+
+export function createExplorableAreaDraft(): ExplorableAreaDraft {
+  return {
+    id: createId('area'),
+    name: '',
+    summary: '',
+    description: '',
+    dmNotes: '',
   };
 }

@@ -6,6 +6,14 @@ export type ScriptScene = {
   hooks: string[];
 };
 
+export type ScriptExplorableArea = {
+  id: string;
+  name: string;
+  summary: string;
+  description: string;
+  dmNotes?: string;
+};
+
 export type ScriptSkillOption = {
   id: string;
   label: string;
@@ -48,6 +56,7 @@ export type ScriptBackground = {
   themes: string[];
   factions: string[];
   locations: string[];
+  explorableAreas: ScriptExplorableArea[];
   secrets: string[];
 };
 
@@ -358,6 +367,7 @@ export type GameMemorySnapshot = {
   vitals: GameMemoryVitals;
   presence: GameMemoryPresence;
   mapText: string;
+  locations: GameMemoryLocation[];
 };
 
 export type GameMemoryMapRecord = {

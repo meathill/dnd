@@ -77,7 +77,7 @@ export async function summarizeRounds({
     'debuffsAdd: string[]，debuffsRemove: string[]，',
     'alliesAdd: string[]，alliesRemove: string[]，',
     'npcs: { name, status, relation?, location?, notes?, isAlly? }[]，',
-    'locations: { name, status, notes? }[]，',
+    'locations: { name, status, notes? }[]（用于记录全局地图区域状态），',
     'threads: { title, status(open/resolved/blocked), notes? }[]，',
     'flags: { key, value }[]，',
     'notesAdd: string[]，',

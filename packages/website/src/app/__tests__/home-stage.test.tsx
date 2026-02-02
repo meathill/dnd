@@ -17,6 +17,7 @@ const sampleScript: ScriptDefinition = {
     themes: [],
     factions: [],
     locations: [],
+    explorableAreas: [],
     secrets: [],
   },
   storyArcs: [],

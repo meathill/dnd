@@ -23,7 +23,7 @@ function buildScript(partial?: Partial<ScriptDefinition>): ScriptDefinition {
     setting: '现代',
     difficulty: '中等',
     openingMessages: [],
-    background: { overview: '', truth: '', themes: [], factions: [], locations: [], secrets: [] },
+    background: { overview: '', truth: '', themes: [], factions: [], locations: [], explorableAreas: [], secrets: [] },
     storyArcs: [],
     npcProfiles: [],
     skillOptions: [],

@@ -12,6 +12,7 @@ import type {
   ScriptRuleOverrides,
   ScriptSkillOption,
   ScriptOccupationOption,
+  ScriptExplorableArea,
 } from '../game/types';
 
 export type ScriptRow = {
@@ -76,12 +77,14 @@ function parseScriptBackground(raw: string): ScriptBackground {
   const data = parseJsonRecord(raw);
   const overview = typeof data.overview === 'string' ? data.overview : '';
   const truth = typeof data.truth === 'string' ? data.truth : '';
+  const explorableAreas = parseExplorableAreas(data.explorableAreas ?? data.areas);
   return {
     overview,
     truth,
     themes: parseStringArray(data.themes),
     factions: parseStringArray(data.factions),
     locations: parseStringArray(data.locations),
+    explorableAreas,
     secrets: parseStringArray(data.secrets),
   };
 }
@@ -196,6 +199,84 @@ function resolveOccupationId(name: string, rawId: unknown, index: number): strin
     return `occupation-${slug}`;
   }
   return `occupation-${index + 1}`;
+}
+
+function resolveAreaId(name: string, rawId: unknown, index: number): string {
+  if (typeof rawId === 'string' && rawId.trim()) {
+    return rawId.trim();
+  }
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '');
+  if (slug) {
+    return `area-${slug}`;
+  }
+  return `area-${index + 1}`;
+}
+
+function parseExplorableAreas(value: unknown): ScriptExplorableArea[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry, index) => {
+      if (typeof entry === 'string') {
+        const name = entry.trim();
+        if (!name) {
+          return null;
+        }
+        return {
+          id: resolveAreaId(name, null, index),
+          name,
+          summary: '',
+          description: '',
+        };
+      }
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const nameSource =
+        typeof entry.name === 'string'
+          ? entry.name
+          : typeof entry.label === 'string'
+            ? entry.label
+            : typeof entry.title === 'string'
+              ? entry.title
+              : '';
+      const name = nameSource.trim();
+      if (!name) {
+        return null;
+      }
+      const summary = typeof entry.summary === 'string' ? entry.summary : '';
+      const description =
+        typeof entry.description === 'string'
+          ? entry.description
+          : typeof entry.detail === 'string'
+            ? entry.detail
+            : typeof entry.details === 'string'
+              ? entry.details
+              : typeof entry.predefined === 'string'
+                ? entry.predefined
+                : '';
+      const dmNotes =
+        typeof entry.dmNotes === 'string'
+          ? entry.dmNotes
+          : typeof entry.notes === 'string'
+            ? entry.notes
+            : typeof entry.secret === 'string'
+              ? entry.secret
+              : '';
+      return {
+        id: resolveAreaId(name, entry.id, index),
+        name,
+        summary,
+        description,
+        ...(dmNotes ? { dmNotes } : {}),
+      };
+    })
+    .filter((item): item is ScriptExplorableArea => Boolean(item));
 }
 
 function parseOccupationOptions(raw: string): ScriptOccupationOption[] {

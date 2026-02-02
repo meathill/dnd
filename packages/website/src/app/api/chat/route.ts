@@ -284,6 +284,17 @@ function buildScriptHiddenContext(script: ScriptDefinition): string {
   if (background.locations.length > 0) {
     parts.push(`关键地点：${background.locations.join('、')}`);
   }
+  if (background.explorableAreas.length > 0) {
+    const areas = background.explorableAreas
+      .map((area) => {
+        const summary = area.summary ? `：${area.summary}` : '';
+        const description = area.description ? `（${area.description}）` : '';
+        const dmNotes = area.dmNotes ? `【DM 备注：${area.dmNotes}】` : '';
+        return `- ${area.name}${summary}${description}${dmNotes}`;
+      })
+      .join('\n');
+    parts.push(`可探索区域：\n${areas}`);
+  }
   if (background.secrets.length > 0) {
     parts.push(`隐藏要点：${background.secrets.join('、')}`);
   }

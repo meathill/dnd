@@ -79,6 +79,8 @@ describe('人物卡面板', () => {
             sanity: { current: 42, max: 65 },
           },
           presence: { presentNpcs: [] },
+          mapText: '',
+          locations: [],
         },
       });
     });

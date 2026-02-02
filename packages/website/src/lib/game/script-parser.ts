@@ -10,6 +10,7 @@ import type {
   ScriptEncounter,
   ScriptRuleOverrides,
   AttributeRangeMap,
+  ScriptExplorableArea,
 } from './types';
 
 type JsonRecord = Record<string, unknown>;
@@ -63,16 +64,84 @@ function parseObjectArray<T>(value: unknown): T[] {
   return value.filter((item): item is T => typeof item === 'object' && item !== null) as T[];
 }
 
+function resolveAreaId(name: string, rawId: unknown, index: number): string {
+  if (typeof rawId === 'string' && rawId.trim()) {
+    return rawId.trim();
+  }
+  const slug = slugify(name);
+  if (slug) {
+    return `area-${slug}`;
+  }
+  return `area-${index + 1}`;
+}
+
+function parseExplorableAreas(value: unknown): ScriptExplorableArea[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry, index) => {
+      if (typeof entry === 'string') {
+        const name = entry.trim();
+        if (!name) {
+          return null;
+        }
+        return {
+          id: resolveAreaId(name, null, index),
+          name,
+          summary: '',
+          description: '',
+        };
+      }
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const nameSource =
+        typeof entry.name === 'string'
+          ? entry.name
+          : typeof entry.label === 'string'
+            ? entry.label
+            : typeof entry.title === 'string'
+              ? entry.title
+              : '';
+      const name = nameSource.trim();
+      if (!name) {
+        return null;
+      }
+      const summary = parseOptionalString(entry.summary);
+      const description = parseOptionalString(entry.description ?? entry.detail ?? entry.details ?? entry.predefined);
+      const dmNotes = parseOptionalString(entry.dmNotes ?? entry.notes ?? entry.secret);
+      return {
+        id: resolveAreaId(name, entry.id, index),
+        name,
+        summary,
+        description,
+        ...(dmNotes ? { dmNotes } : {}),
+      };
+    })
+    .filter((item): item is ScriptExplorableArea => Boolean(item));
+}
+
 function parseBackground(value: unknown): ScriptBackground {
   if (!isRecord(value)) {
-    return { overview: '', truth: '', themes: [], factions: [], locations: [], secrets: [] };
+    return {
+      overview: '',
+      truth: '',
+      themes: [],
+      factions: [],
+      locations: [],
+      explorableAreas: [],
+      secrets: [],
+    };
   }
+  const explorableAreas = parseExplorableAreas(value.explorableAreas ?? value.areas);
   return {
     overview: parseOptionalString(value.overview),
     truth: parseOptionalString(value.truth),
     themes: parseStringArray(value.themes),
     factions: parseStringArray(value.factions),
     locations: parseStringArray(value.locations),
+    explorableAreas,
     secrets: parseStringArray(value.secrets),
   };
 }
@@ -190,6 +259,12 @@ export function parseScriptDefinition(payload: unknown, id: string): ScriptParse
       (payload as { enemyProfiles?: unknown }).enemyProfiles,
   );
 
+  const background = parseBackground(payload.background);
+  const topLevelAreas = parseExplorableAreas((payload as { explorableAreas?: unknown }).explorableAreas);
+  if (topLevelAreas.length > 0) {
+    background.explorableAreas = topLevelAreas;
+  }
+
   const script: ScriptDefinition = {
     id,
     title: title.value,
@@ -197,7 +272,7 @@ export function parseScriptDefinition(payload: unknown, id: string): ScriptParse
     setting: setting.value,
     difficulty: difficulty.value,
     openingMessages: parseObjectArray<ScriptOpeningMessage>(payload.openingMessages),
-    background: parseBackground(payload.background),
+    background,
     storyArcs: parseObjectArray<ScriptStoryArc>(payload.storyArcs),
     npcProfiles,
     skillOptions: parseObjectArray<ScriptSkillOption>(payload.skillOptions),

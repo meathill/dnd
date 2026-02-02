@@ -54,7 +54,7 @@ export default function ScriptBackgroundSection({ draft, mutateDraft }: ScriptBa
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-[var(--ink-soft)]">地点（每行一条）</Label>
+          <Label className="text-xs text-[var(--ink-soft)]">关键地点（仅 DM / 每行一条）</Label>
           <Textarea
             rows={3}
             value={draft.background.locationsText}

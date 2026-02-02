@@ -37,7 +37,23 @@ const sampleScript: ScriptDefinition = {
   setting: '现代',
   difficulty: '低',
   openingMessages: [],
-  background: { overview: '', truth: '', themes: [], factions: [], locations: [], secrets: [] },
+  background: {
+    overview: '',
+    truth: '',
+    themes: [],
+    factions: [],
+    locations: [],
+    explorableAreas: [
+      {
+        id: 'area-1',
+        name: '旧宅院子',
+        summary: '暴雨冲刷的碎符。',
+        description: '围栏残破，泥地上还能看见符纸灰。',
+        dmNotes: '符纸被撕裂。',
+      },
+    ],
+    secrets: [],
+  },
   storyArcs: [],
   npcProfiles: [
     {
@@ -111,5 +127,23 @@ describe('剧本编辑器', () => {
     });
 
     expect(await screen.findByRole('link', { name: 'NPC 档案' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '全局地图' })).toBeInTheDocument();
+  });
+
+  it('展示全局地图区域字段', async () => {
+    const fetchMock = vi.fn(async () => createResponse({ script: sampleScript }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    renderWithSession(<ScriptEditorContent scriptId="script-ally" />, {
+      userId: 'root',
+      displayName: 'Root',
+      settings: null,
+      isRoot: true,
+    });
+
+    expect(await screen.findByDisplayValue('旧宅院子')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('暴雨冲刷的碎符。')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('围栏残破，泥地上还能看见符纸灰。')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('符纸被撕裂。')).toBeInTheDocument();
   });
 });

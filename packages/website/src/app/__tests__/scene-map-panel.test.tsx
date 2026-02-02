@@ -1,53 +1,79 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi } from 'vitest';
 import SceneMapPanel from '../scene-map-panel';
 import { resetGameStore, useGameStore } from '../../lib/game/game-store';
+import type { ScriptDefinition } from '../../lib/game/types';
 
-describe('环境地图面板', () => {
+const sampleScript: ScriptDefinition = {
+  id: 'script-map',
+  title: '地图测试',
+  summary: '测试',
+  setting: '现代',
+  difficulty: '低',
+  openingMessages: [],
+  background: {
+    overview: '',
+    truth: '',
+    themes: [],
+    factions: [],
+    locations: [],
+    explorableAreas: [
+      {
+        id: 'area-1',
+        name: '旧宅院子',
+        summary: '暴雨冲刷的碎符。',
+        description: '围栏残破，泥地上还能看见符纸灰。',
+      },
+    ],
+    secrets: [],
+  },
+  storyArcs: [],
+  npcProfiles: [],
+  skillOptions: [],
+  equipmentOptions: [],
+  occupationOptions: [],
+  originOptions: [],
+  buffOptions: [],
+  debuffOptions: [],
+  attributeRanges: {},
+  attributePointBudget: 0,
+  skillLimit: 0,
+  equipmentLimit: 0,
+  buffLimit: 0,
+  debuffLimit: 0,
+  rules: {},
+  scenes: [],
+  encounters: [],
+};
+
+describe('全局地图面板', () => {
   afterEach(() => {
     act(() => {
       resetGameStore();
     });
-    vi.restoreAllMocks();
   });
 
-  it('支持选择历史地图版本', async () => {
-    const maps = [
-      {
-        id: 'map-1',
-        gameId: 'game-1',
-        roundIndex: 1,
-        content: '旧地图内容',
-        createdAt: '2026-01-01T10:00:00.000Z',
-      },
-      {
-        id: 'map-2',
-        gameId: 'game-1',
-        roundIndex: 2,
-        content: '新地图内容',
-        createdAt: '2026-01-01T10:05:00.000Z',
-      },
-    ];
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ maps }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
+  it('展示可探索区域与状态', async () => {
     act(() => {
-      useGameStore.setState({ activeGameId: 'game-1', mapText: '当前地图' });
+      useGameStore.setState({
+        memory: {
+          vitals: {},
+          presence: { presentNpcs: [] },
+          mapText: '',
+          locations: [{ name: '旧宅院子', status: '已探索' }],
+        },
+      });
     });
 
-    render(<SceneMapPanel />);
+    render(<SceneMapPanel script={sampleScript} />);
 
-    expect(await screen.findByText('当前地图')).toBeInTheDocument();
+    expect(screen.getByText('旧宅院子')).toBeInTheDocument();
+    expect(screen.getByText('已探索')).toBeInTheDocument();
 
     const user = userEvent.setup();
-    const trigger = await screen.findByLabelText('地图版本');
-    await user.click(trigger);
-    await user.click(await screen.findByText(/回合 1/));
+    await user.click(screen.getByText('旧宅院子'));
 
-    expect(await screen.findByText('旧地图内容')).toBeInTheDocument();
+    expect(await screen.findByText('预设描述')).toBeInTheDocument();
+    expect(screen.getByText('围栏残破，泥地上还能看见符纸灰。')).toBeInTheDocument();
   });
 });

@@ -639,5 +639,6 @@ export function buildMemorySnapshot(state: GameMemoryState): GameMemorySnapshot 
     vitals: state.vitals,
     presence: state.presence,
     mapText: state.mapText,
+    locations: state.locations,
   };
 }

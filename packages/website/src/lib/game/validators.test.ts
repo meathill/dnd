@@ -34,6 +34,7 @@ const baseScript: ScriptDefinition = {
     themes: [],
     factions: [],
     locations: [],
+    explorableAreas: [],
     secrets: [],
   },
   storyArcs: [],

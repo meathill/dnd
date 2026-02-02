@@ -68,6 +68,14 @@ export type OccupationDraft = {
   equipmentText: string;
 };
 
+export type ExplorableAreaDraft = {
+  id: string;
+  name: string;
+  summary: string;
+  description: string;
+  dmNotes: string;
+};
+
 export type ScriptDraft = {
   id: string;
   title: string;
@@ -91,6 +99,7 @@ export type ScriptDraft = {
   originOptionsText: string;
   buffOptionsText: string;
   debuffOptionsText: string;
+  explorableAreas: ExplorableAreaDraft[];
   attributeRanges: Record<AttributeKey, { min: string; max: string }>;
   attributePointBudget: string;
   skillLimit: string;

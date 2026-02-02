@@ -9,6 +9,7 @@ const navItems = [
   { id: 'script-section-basic', label: '基础信息' },
   { id: 'script-section-opening', label: '开场对白' },
   { id: 'script-section-background', label: '背景设定' },
+  { id: 'script-section-areas', label: '全局地图' },
   { id: 'script-section-arcs', label: '剧情走向' },
   { id: 'script-section-scenes', label: '场景清单' },
   { id: 'script-section-encounters', label: '遭遇清单' },

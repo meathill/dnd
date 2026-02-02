@@ -18,6 +18,7 @@ const baseScriptRow = {
     themes: [],
     factions: [],
     locations: [],
+    explorableAreas: [],
     secrets: [],
   }),
   story_arcs_json: JSON.stringify([]),
