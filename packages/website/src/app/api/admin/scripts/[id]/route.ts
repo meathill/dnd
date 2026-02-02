@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireRoot } from '@/app/api/admin/admin-utils';
+import { requireAdmin } from '@/app/api/admin/admin-utils';
 import { deleteScript, getScriptById, updateScript } from '@/lib/db/repositories';
 import { parseScriptDefinition } from '@/lib/game/script-parser';
 
@@ -13,7 +13,7 @@ async function resolveScriptId(context: RouteContext): Promise<string> {
 }
 
 export async function GET(request: Request, context: RouteContext) {
-  const adminContext = await requireRoot(request);
+  const adminContext = await requireAdmin(request);
   if (adminContext instanceof NextResponse) {
     return adminContext;
   }
@@ -35,7 +35,7 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function PUT(request: Request, context: RouteContext) {
-  const adminContext = await requireRoot(request);
+  const adminContext = await requireAdmin(request);
   if (adminContext instanceof NextResponse) {
     return adminContext;
   }
@@ -67,7 +67,7 @@ export async function PUT(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(request: Request, context: RouteContext) {
-  const adminContext = await requireRoot(request);
+  const adminContext = await requireAdmin(request);
   if (adminContext instanceof NextResponse) {
     return adminContext;
   }

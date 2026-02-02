@@ -8,7 +8,7 @@ export type AdminContext = {
   userId: string;
 };
 
-export async function requireRoot(request: Request): Promise<AdminContext | NextResponse> {
+export async function requireAdmin(request: Request): Promise<AdminContext | NextResponse> {
   const cookie = request.headers.get('cookie');
   if (!cookie) {
     return NextResponse.json({ error: '未登录无法访问全局配置' }, { status: 401 });
@@ -18,11 +18,23 @@ export async function requireRoot(request: Request): Promise<AdminContext | Next
   if (!authSession?.user) {
     return NextResponse.json({ error: '未登录无法访问全局配置' }, { status: 401 });
   }
-  const userId = authSession.user.id;
+  const db = await getDatabase();
+  return { db, userId: authSession.user.id };
+}
+
+export async function requireRoot(request: Request): Promise<AdminContext | NextResponse> {
+  const authContext = await requireAdmin(request);
+  if (authContext instanceof NextResponse) {
+    return authContext;
+  }
+  const auth = await getAuth();
+  const authSession = await auth.api.getSession({ headers: request.headers });
+  if (!authSession?.user) {
+    return NextResponse.json({ error: '未登录无法访问全局配置' }, { status: 401 });
+  }
   const rootAllowed = await isRootUser(authSession.user);
   if (!rootAllowed) {
     return NextResponse.json({ error: '需要 root 权限' }, { status: 403 });
   }
-  const db = await getDatabase();
-  return { db, userId };
+  return authContext;
 }

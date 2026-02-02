@@ -8,7 +8,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "d1:migrate:local": "wrangler d1 migrations apply dnd --local",
-    "d1:migrate": "wrangler d1 migrations apply dnd",
+    "d1:migrate": "wrangler d1 migrations apply dnd --remote",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",

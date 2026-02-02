@@ -36,7 +36,6 @@ function formatProfileLabel(profile: DmProfileSummary): string {
 export function AdminDmProfilesContent() {
   const router = useRouter();
   const { session, requestAuth } = useSession();
-  const isRoot = session?.isRoot ?? false;
   const [profiles, setProfiles] = useState<DmProfileSummary[]>([]);
   const [createDraft, setCreateDraft] = useState<DmProfileCreateDraft>(buildCreateDraft());
   const [statusMessage, setStatusMessage] = useState('');
@@ -51,7 +50,7 @@ export function AdminDmProfilesContent() {
 
   const loadProfiles = useCallback(
     async function loadProfiles() {
-      if (!isRoot) {
+      if (!session) {
         return;
       }
       setIsLoading(true);
@@ -70,7 +69,7 @@ export function AdminDmProfilesContent() {
         setIsLoading(false);
       }
     },
-    [isRoot],
+    [session],
   );
 
   useEffect(() => {
@@ -135,16 +134,6 @@ export function AdminDmProfilesContent() {
         <Button onClick={handleRequestAuth} size="sm">
           登录 / 注册
         </Button>
-      </section>
-    );
-  }
-
-  if (!isRoot) {
-    return (
-      <section className={panelClassName}>
-        <p className={sectionTitleClassName}>DM 风格</p>
-        <h2 className="text-xl font-semibold text-[var(--ink-strong)]">需要 Root 权限</h2>
-        <p className="text-sm text-[var(--ink-muted)]">当前账号没有管理 DM 风格的权限。</p>
       </section>
     );
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createDmProfile, listDmProfiles } from '@/lib/db/repositories';
-import { requireRoot } from '@/app/api/admin/admin-utils';
+import { requireAdmin } from '@/app/api/admin/admin-utils';
 
 type CreateProfilePayload = {
   name?: unknown;
@@ -33,7 +33,7 @@ function parseCreatePayload(payload: unknown) {
 }
 
 export async function GET(request: Request) {
-  const context = await requireRoot(request);
+  const context = await requireAdmin(request);
   if (context instanceof NextResponse) {
     return context;
   }
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const context = await requireRoot(request);
+  const context = await requireAdmin(request);
   if (context instanceof NextResponse) {
     return context;
   }

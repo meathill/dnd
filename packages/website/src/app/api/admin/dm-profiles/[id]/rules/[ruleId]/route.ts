@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { deleteDmProfileRule, updateDmProfileRule } from '@/lib/db/repositories';
 import type { DmGuidePhase } from '@/lib/game/types';
-import { requireRoot } from '@/app/api/admin/admin-utils';
+import { requireAdmin } from '@/app/api/admin/admin-utils';
 
 type RouteContext = {
   params: Promise<{ id?: string; ruleId?: string }>;
@@ -59,7 +59,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!ruleId) {
     return NextResponse.json({ error: '缺少规则编号' }, { status: 400 });
   }
-  const authContext = await requireRoot(request);
+  const authContext = await requireAdmin(request);
   if (authContext instanceof NextResponse) {
     return authContext;
   }
@@ -91,7 +91,7 @@ export async function DELETE(request: Request, context: RouteContext) {
   if (!ruleId) {
     return NextResponse.json({ error: '缺少规则编号' }, { status: 400 });
   }
-  const authContext = await requireRoot(request);
+  const authContext = await requireAdmin(request);
   if (authContext instanceof NextResponse) {
     return authContext;
   }

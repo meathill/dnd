@@ -23,7 +23,6 @@ type ScriptEditorPageProps = {
 export function ScriptEditorContent({ scriptId }: ScriptEditorPageProps) {
   const router = useRouter();
   const { session, requestAuth } = useSession();
-  const isRoot = session?.isRoot ?? false;
   const [draft, setDraft] = useState<ScriptDraft | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +34,7 @@ export function ScriptEditorContent({ scriptId }: ScriptEditorPageProps) {
 
   const loadScript = useCallback(
     async function loadScript() {
-      if (!isRoot) {
+      if (!session) {
         return;
       }
       setIsLoading(true);
@@ -54,7 +53,7 @@ export function ScriptEditorContent({ scriptId }: ScriptEditorPageProps) {
         setIsLoading(false);
       }
     },
-    [scriptId, isRoot],
+    [scriptId, session],
   );
 
   useEffect(() => {
@@ -156,18 +155,6 @@ export function ScriptEditorContent({ scriptId }: ScriptEditorPageProps) {
           <Button onClick={handleRequestAuth} size="sm">
             登录 / 注册
           </Button>
-        </section>
-      </div>
-    );
-  }
-
-  if (!isRoot) {
-    return (
-      <div className={frameClassName}>
-        <section className={panelClassName}>
-          <p className={sectionTitleClassName}>剧本编辑</p>
-          <h2 className="text-xl font-semibold text-[var(--ink-strong)]">需要 Root 权限</h2>
-          <p className="text-sm text-[var(--ink-muted)]">当前账号没有管理剧本的权限。</p>
         </section>
       </div>
     );

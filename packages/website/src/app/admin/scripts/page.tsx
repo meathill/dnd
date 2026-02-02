@@ -38,7 +38,6 @@ function formatScriptLabel(script: ScriptDefinition): string {
 function AdminScriptsContent() {
   const router = useRouter();
   const { session, requestAuth } = useSession();
-  const isRoot = session?.isRoot ?? false;
   const [scripts, setScripts] = useState<ScriptDefinition[]>([]);
   const [createDraft, setCreateDraft] = useState<ScriptCreateDraft>(buildCreateDraft());
   const [statusMessage, setStatusMessage] = useState('');
@@ -53,7 +52,7 @@ function AdminScriptsContent() {
 
   const loadScripts = useCallback(
     async function loadScripts() {
-      if (!isRoot) {
+      if (!session) {
         return;
       }
       setIsLoading(true);
@@ -72,7 +71,7 @@ function AdminScriptsContent() {
         setIsLoading(false);
       }
     },
-    [isRoot],
+    [session],
   );
 
   useEffect(() => {
@@ -137,16 +136,6 @@ function AdminScriptsContent() {
         <Button onClick={handleRequestAuth} size="sm">
           登录 / 注册
         </Button>
-      </section>
-    );
-  }
-
-  if (!isRoot) {
-    return (
-      <section className={panelClassName}>
-        <p className={sectionTitleClassName}>剧本列表</p>
-        <h2 className="text-xl font-semibold text-[var(--ink-strong)]">需要 Root 权限</h2>
-        <p className="text-sm text-[var(--ink-muted)]">当前账号没有管理剧本的权限。</p>
       </section>
     );
   }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createDmProfileRule, listDmProfileRules } from '@/lib/db/repositories';
 import type { DmGuidePhase } from '@/lib/game/types';
-import { requireRoot } from '@/app/api/admin/admin-utils';
+import { requireAdmin } from '@/app/api/admin/admin-utils';
 
 type RouteContext = {
   params: Promise<{ id?: string }>;
@@ -49,7 +49,7 @@ export async function GET(request: Request, context: RouteContext) {
   if (!id) {
     return NextResponse.json({ error: '缺少 DM 编号' }, { status: 400 });
   }
-  const authContext = await requireRoot(request);
+  const authContext = await requireAdmin(request);
   if (authContext instanceof NextResponse) {
     return authContext;
   }
@@ -68,7 +68,7 @@ export async function POST(request: Request, context: RouteContext) {
   if (!id) {
     return NextResponse.json({ error: '缺少 DM 编号' }, { status: 400 });
   }
-  const authContext = await requireRoot(request);
+  const authContext = await requireAdmin(request);
   if (authContext instanceof NextResponse) {
     return authContext;
   }

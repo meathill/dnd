@@ -52,7 +52,6 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
   const [isNavOpen, setIsNavOpen] = useState(false);
 
   const isLoggedIn = Boolean(session);
-  const isRoot = session?.isRoot ?? false;
 
   const loadSession = useCallback(async () => {
     try {
@@ -260,7 +259,7 @@ export default function AppShell({ activeNav, scriptId, gameId, children }: AppS
         >
           设置
         </Button>
-        {isRoot ? (
+        {isLoggedIn ? (
           <>
             <Button
               className="w-full justify-start"

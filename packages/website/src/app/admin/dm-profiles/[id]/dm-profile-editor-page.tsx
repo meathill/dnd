@@ -21,7 +21,6 @@ type DmProfileEditorPageProps = {
 export function DmProfileEditorContent({ profileId }: DmProfileEditorPageProps) {
   const router = useRouter();
   const { session, requestAuth } = useSession();
-  const isRoot = session?.isRoot ?? false;
   const [draft, setDraft] = useState<DmProfileDetail | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -37,7 +36,7 @@ export function DmProfileEditorContent({ profileId }: DmProfileEditorPageProps) 
 
   const loadProfile = useCallback(
     async function loadProfile() {
-      if (!isRoot) {
+      if (!session) {
         return;
       }
       setIsLoading(true);
@@ -56,7 +55,7 @@ export function DmProfileEditorContent({ profileId }: DmProfileEditorPageProps) 
         setIsLoading(false);
       }
     },
-    [profileId, isRoot],
+    [profileId, session],
   );
 
   useEffect(() => {
@@ -279,18 +278,6 @@ export function DmProfileEditorContent({ profileId }: DmProfileEditorPageProps) 
           <Button onClick={handleRequestAuth} size="sm">
             登录 / 注册
           </Button>
-        </section>
-      </div>
-    );
-  }
-
-  if (!isRoot) {
-    return (
-      <div className={frameClassName}>
-        <section className={panelClassName}>
-          <p className={sectionTitleClassName}>DM 风格编辑</p>
-          <h2 className="text-xl font-semibold text-[var(--ink-strong)]">需要 Root 权限</h2>
-          <p className="text-sm text-[var(--ink-muted)]">当前账号没有管理 DM 风格的权限。</p>
         </section>
       </div>
     );

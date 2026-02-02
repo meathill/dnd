@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireRoot } from '@/app/api/admin/admin-utils';
+import { requireAdmin } from '@/app/api/admin/admin-utils';
 import { createScript, getScriptById, listScripts } from '@/lib/db/repositories';
 import { parseScriptDefinition } from '@/lib/game/script-parser';
 
@@ -31,7 +31,7 @@ function resolveScriptId(payload: ScriptPayload): string {
 }
 
 export async function GET(request: Request) {
-  const context = await requireRoot(request);
+  const context = await requireAdmin(request);
   if (context instanceof NextResponse) {
     return context;
   }
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const context = await requireRoot(request);
+  const context = await requireAdmin(request);
   if (context instanceof NextResponse) {
     return context;
   }
