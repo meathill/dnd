@@ -7,8 +7,9 @@ type ParsedChatModules = {
 
 const sectionLabels = ['叙事', '掷骰', '绘图'] as const;
 type SectionLabel = (typeof sectionLabels)[number];
+type SectionModuleType = Extract<ChatModule, { content: string }>['type'];
 
-const sectionTypeMap: Record<SectionLabel, ChatModule['type']> = {
+const sectionTypeMap: Record<SectionLabel, SectionModuleType> = {
   叙事: 'narrative',
   掷骰: 'dice',
   绘图: 'map',

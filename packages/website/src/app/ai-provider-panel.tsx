@@ -62,8 +62,8 @@ export default function AiProviderPanel({
   const resolvedFastModel = normalizeModel(activeProviderValue, 'fast', activeFastModelValue);
   const resolvedGeneralModel = normalizeModel(activeProviderValue, 'general', activeGeneralModelValue);
 
-  function handleProviderChange(value: string) {
-    if (!isAiProvider(value)) {
+  function handleProviderChange(value: string | null) {
+    if (!value || !isAiProvider(value)) {
       return;
     }
     if (!provider) {
@@ -86,14 +86,20 @@ export default function AiProviderPanel({
     }
   }
 
-  function handleFastModelChange(value: string) {
+  function handleFastModelChange(value: string | null) {
+    if (!value) {
+      return;
+    }
     if (!fastModel) {
       setInternalFastModel(value);
     }
     onFastModelChange?.(value);
   }
 
-  function handleGeneralModelChange(value: string) {
+  function handleGeneralModelChange(value: string | null) {
+    if (!value) {
+      return;
+    }
     if (!generalModel) {
       setInternalGeneralModel(value);
     }

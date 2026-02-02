@@ -122,7 +122,7 @@ export default function CharacterCreatorStepBasic({
               {hasOccupationOptions ? (
                 <Select
                   value={occupationOptions?.includes(formState.occupation) ? formState.occupation : occupationValue}
-                  onValueChange={(value) => onFieldChange('occupation', value)}
+                  onValueChange={(value) => onFieldChange('occupation', value ?? '')}
                 >
                   <SelectTrigger aria-label="职业" className="bg-[rgba(255,255,255,0.8)]" size="sm">
                     <SelectValue placeholder="职业" />
@@ -161,7 +161,7 @@ export default function CharacterCreatorStepBasic({
               {hasOriginOptions ? (
                 <Select
                   value={originOptions?.includes(formState.origin) ? formState.origin : originValue}
-                  onValueChange={(value) => onFieldChange('origin', value)}
+                  onValueChange={(value) => onFieldChange('origin', value ?? '')}
                 >
                   <SelectTrigger aria-label="出身" className="bg-[rgba(255,255,255,0.8)]" size="sm">
                     <SelectValue placeholder="出身" />

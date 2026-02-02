@@ -16,14 +16,21 @@ type ScriptOpeningSectionProps = {
 };
 
 export default function ScriptOpeningSection({ draft, mutateDraft }: ScriptOpeningSectionProps) {
-  function handleOpeningMessageChange(
+  function handleOpeningMessageChange<T extends keyof ScriptDraft['openingMessages'][number]>(
     index: number,
-    field: keyof ScriptDraft['openingMessages'][number],
-    value: string,
+    field: T,
+    value: ScriptDraft['openingMessages'][number][T],
   ) {
     mutateDraft((next) => {
       next.openingMessages[index][field] = value;
     });
+  }
+
+  function resolveRole(value: string | null): ScriptDraft['openingMessages'][number]['role'] {
+    if (value === 'dm' || value === 'system' || value === 'player') {
+      return value;
+    }
+    return 'dm';
   }
 
   function handleAddOpeningMessage() {
@@ -54,7 +61,7 @@ export default function ScriptOpeningSection({ draft, mutateDraft }: ScriptOpeni
                   <Label className="text-[10px] text-[var(--ink-soft)]">角色</Label>
                   <Select
                     value={message.role}
-                    onValueChange={(value) => handleOpeningMessageChange(index, 'role', value)}
+                    onValueChange={(value) => handleOpeningMessageChange(index, 'role', resolveRole(value))}
                   >
                     <SelectTrigger size="sm">
                       <SelectValue placeholder="选择角色" />

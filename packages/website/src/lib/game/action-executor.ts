@@ -300,7 +300,7 @@ export function executeActionPlan({
   const modules: ChatModule[] = [];
   const summaryLines: string[] = [];
   const ruleUpdates: Record<string, number> = {};
-  const actions =
+  const actions: ActionSpec[] =
     analysis.actions.length > 0
       ? analysis.actions
       : analysis.needsDice

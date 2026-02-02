@@ -22,7 +22,7 @@ export function getDefaultModel(provider: AiProvider, kind: AiModelKind): string
 }
 
 export function normalizeModel(provider: AiProvider, kind: AiModelKind, value?: string): string {
-  const options = AI_MODEL_CATALOG[provider][kind];
+  const options = listModels(provider, kind);
   if (typeof value === 'string') {
     const trimmed = value.trim();
     if (trimmed && options.includes(trimmed)) {
@@ -33,5 +33,5 @@ export function normalizeModel(provider: AiProvider, kind: AiModelKind, value?: 
 }
 
 export function isAllowedModel(provider: AiProvider, kind: AiModelKind, value: string): boolean {
-  return AI_MODEL_CATALOG[provider][kind].includes(value);
+  return listModels(provider, kind).includes(value);
 }

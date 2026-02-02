@@ -13,7 +13,7 @@ import type {
   ScriptSkillOption,
 } from '../game/types';
 
-type ScriptRow = {
+export type ScriptRow = {
   id: string;
   title: string;
   summary: string;

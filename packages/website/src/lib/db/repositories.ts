@@ -21,6 +21,7 @@ import type { CharacterPayload, CreateGamePayload } from '../game/validators';
 import { DEFAULT_TRAINED_SKILL_VALUE, DEFAULT_UNTRAINED_SKILL_VALUE } from '../game/rules';
 import { parseMemoryState, parseRoundSummaries } from '../game/memory';
 import { mapScriptRow, serializeCharacterPayload, serializeScriptDefinition } from './mappers';
+import type { ScriptRow } from './mappers';
 import type { UserSettings } from '../session/session-types';
 import { normalizeModel } from '../ai/ai-models';
 
@@ -334,14 +335,14 @@ function mapCharacterRow(row: CharacterRow): CharacterRecord {
 
 export async function listScripts(db: D1Database): Promise<ScriptDefinition[]> {
   const result = await db.prepare(`SELECT ${SCRIPT_COLUMNS} FROM scripts ORDER BY created_at DESC`).all();
-  return result.results.map((row) => mapScriptRow(row as Record<string, string>));
+  return result.results.map((row) => mapScriptRow(row as ScriptRow));
 }
 
 export async function getScriptById(db: D1Database, scriptId: string): Promise<ScriptDefinition | null> {
   const result = await db
     .prepare(`SELECT ${SCRIPT_COLUMNS} FROM scripts WHERE id = ? LIMIT 1`)
     .bind(scriptId)
-    .first<Record<string, string>>();
+    .first<ScriptRow>();
   return result ? mapScriptRow(result) : null;
 }
 
@@ -519,7 +520,6 @@ export async function createCharacter(
 
   return {
     id,
-    scriptId: payload.scriptId,
     ...payload,
     createdAt: now,
     updatedAt: now,

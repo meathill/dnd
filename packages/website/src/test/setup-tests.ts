@@ -17,7 +17,7 @@ if (!globalThis.ResizeObserver) {
 }
 
 if (!globalThis.IntersectionObserver) {
-  globalThis.IntersectionObserver = StubIntersectionObserver;
+  globalThis.IntersectionObserver = StubIntersectionObserver as unknown as typeof IntersectionObserver;
 }
 
 if (globalThis.Element && !globalThis.Element.prototype.getAnimations) {

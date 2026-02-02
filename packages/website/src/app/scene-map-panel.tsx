@@ -94,7 +94,7 @@ export default function SceneMapPanel({ script }: SceneMapPanelProps) {
               <Label className="text-xs text-[var(--ink-soft)]" htmlFor="map-version-select">
                 版本
               </Label>
-              <Select value={selectedMapId} onValueChange={setSelectedMapId}>
+              <Select value={selectedMapId} onValueChange={(value) => setSelectedMapId(value ?? 'latest')}>
                 <SelectTrigger id="map-version-select" size="sm" aria-label="地图版本">
                   <SelectValue placeholder="最新地图" />
                 </SelectTrigger>

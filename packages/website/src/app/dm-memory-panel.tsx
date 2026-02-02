@@ -25,6 +25,8 @@ const SECTION_OPTIONS: Array<{ id: SectionKey; label: string }> = [
   { id: 'state', label: '状态 JSON' },
 ];
 
+const SECTION_KEY_SET = new Set<SectionKey>(SECTION_OPTIONS.map((item) => item.id));
+
 function formatTime(value: string): string {
   if (!value) {
     return '无';
@@ -109,6 +111,12 @@ export default function DmMemoryPanel() {
     });
   }
 
+  function normalizeSectionKeys(value: Array<unknown | null>): SectionKey[] {
+    return value.filter(
+      (item): item is SectionKey => typeof item === 'string' && SECTION_KEY_SET.has(item as SectionKey),
+    );
+  }
+
   return (
     <section className="panel-card flex flex-col gap-3 rounded-lg max-h-80 overflow-auto">
       <div className="flex items-center justify-between gap-2">
@@ -155,7 +163,7 @@ export default function DmMemoryPanel() {
           })}
         </div>
       </div>
-      <Accordion type="multiple" value={openSections} onValueChange={(value) => setOpenSections(value as SectionKey[])}>
+      <Accordion multiple value={openSections} onValueChange={(value) => setOpenSections(normalizeSectionKeys(value))}>
         {activeSections.map((section) => {
           switch (section.id) {
             case 'shortSummary':

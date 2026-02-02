@@ -25,7 +25,7 @@ export default function DmProfilePanel({ profiles, value, onChange, isDisabled =
     [profiles, selectedId, defaultProfile],
   );
 
-  function handleProfileChange(nextValue: string) {
+  function handleProfileChange(nextValue: string | null) {
     onChange?.(nextValue || null);
   }
 

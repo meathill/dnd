@@ -76,7 +76,10 @@ export default function ScriptNpcSection({ draft, mutateDraft }: ScriptNpcSectio
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-[var(--ink-soft)]">立场</Label>
-                    <Select value={npc.role} onValueChange={(value) => handleNpcChange(index, 'role', value)}>
+                    <Select
+                      value={npc.role}
+                      onValueChange={(value) => handleNpcChange(index, 'role', value ?? 'neutral')}
+                    >
                       <SelectTrigger size="sm">
                         <SelectValue placeholder="选择立场" />
                       </SelectTrigger>

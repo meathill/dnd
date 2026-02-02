@@ -189,10 +189,15 @@ function ScriptDetailContent({ scriptId }: ScriptDetailPageProps) {
         setStatusMessage(message);
         return { ok: false, fieldErrors: data.fieldErrors, message };
       }
-      const nextCharacter = { ...data.character, isUsed: false, gameId: null };
+      const savedCharacter = data.character;
+      if (!savedCharacter) {
+        setStatusMessage('人物卡保存失败');
+        return { ok: false, message: '人物卡保存失败' };
+      }
+      const nextCharacter = { ...savedCharacter, isUsed: false, gameId: null };
       setCharacter(nextCharacter);
-      setCharacterOptions((current) => [nextCharacter, ...current.filter((item) => item.id !== data.character.id)]);
-      setSelectedCharacterId(data.character.id);
+      setCharacterOptions((current) => [nextCharacter, ...current.filter((item) => item.id !== savedCharacter.id)]);
+      setSelectedCharacterId(savedCharacter.id);
       setEditorMode('create');
       setEditorTargetId(null);
       setEditorFormState(null);

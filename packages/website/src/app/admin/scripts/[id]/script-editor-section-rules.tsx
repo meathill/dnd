@@ -14,10 +14,17 @@ type ScriptRulesSectionProps = {
 };
 
 export default function ScriptRulesSection({ draft, mutateDraft }: ScriptRulesSectionProps) {
-  function handleRuleChange(field: keyof ScriptDraft['rules'], value: string) {
+  function handleRuleChange<T extends keyof ScriptDraft['rules']>(field: T, value: ScriptDraft['rules'][T]) {
     mutateDraft((next) => {
       next.rules[field] = value;
     });
+  }
+
+  function resolveSkillAllocationMode(value: string | null): ScriptDraft['rules']['skillAllocationMode'] {
+    if (value === 'budget' || value === 'selection' || value === 'quickstart') {
+      return value;
+    }
+    return '';
   }
 
   return (
@@ -78,7 +85,7 @@ export default function ScriptRulesSection({ draft, mutateDraft }: ScriptRulesSe
           <Label className="text-xs text-[var(--ink-soft)]">分配方式</Label>
           <Select
             value={draft.rules.skillAllocationMode || 'default'}
-            onValueChange={(value) => handleRuleChange('skillAllocationMode', value === 'default' ? '' : value)}
+            onValueChange={(value) => handleRuleChange('skillAllocationMode', resolveSkillAllocationMode(value))}
           >
             <SelectTrigger size="sm">
               <SelectValue placeholder="保持默认" />

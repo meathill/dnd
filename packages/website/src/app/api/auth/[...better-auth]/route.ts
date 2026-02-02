@@ -10,7 +10,7 @@ function isSignUpRequest(request: Request): boolean {
 
 export async function GET(request: Request) {
   const auth = await getAuth();
-  const handler = toNextJsHandler((auth as { handler?: unknown }).handler ?? auth);
+  const handler = toNextJsHandler(auth);
   return handler.GET(request);
 }
 
@@ -22,6 +22,6 @@ export async function POST(request: Request) {
     }
   }
   const auth = await getAuth();
-  const handler = toNextJsHandler((auth as { handler?: unknown }).handler ?? auth);
+  const handler = toNextJsHandler(auth);
   return handler.POST(request);
 }

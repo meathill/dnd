@@ -308,6 +308,12 @@ export function normalizeMemoryDelta(raw: unknown): GameMemoryDelta {
       threads: [],
       flags: [],
       notesAdd: [],
+      dmNotesAdd: [],
+      vitals: {},
+      presence: {
+        presentNpcsAdd: [],
+        presentNpcsRemove: [],
+      },
     };
   }
   const record = raw as Record<string, unknown>;
@@ -433,10 +439,18 @@ export function parseMemoryState(raw: string): GameMemoryState {
     const data = JSON.parse(raw) as Record<string, unknown>;
     return {
       allies: normalizeStringList(data.allies),
-      npcs: Array.isArray(data.npcs) ? data.npcs.map(normalizeNpc).filter(Boolean) : [],
-      locations: Array.isArray(data.locations) ? data.locations.map(normalizeLocation).filter(Boolean) : [],
-      threads: Array.isArray(data.threads) ? data.threads.map(normalizeThread).filter(Boolean) : [],
-      flags: Array.isArray(data.flags) ? data.flags.map(normalizeFlag).filter(Boolean) : [],
+      npcs: Array.isArray(data.npcs)
+        ? data.npcs.map(normalizeNpc).filter((item): item is GameMemoryNpc => Boolean(item))
+        : [],
+      locations: Array.isArray(data.locations)
+        ? data.locations.map(normalizeLocation).filter((item): item is GameMemoryLocation => Boolean(item))
+        : [],
+      threads: Array.isArray(data.threads)
+        ? data.threads.map(normalizeThread).filter((item): item is GameMemoryThread => Boolean(item))
+        : [],
+      flags: Array.isArray(data.flags)
+        ? data.flags.map(normalizeFlag).filter((item): item is GameMemoryFlag => Boolean(item))
+        : [],
       notes: normalizeStringList(data.notes),
       dmNotes: normalizeStringList(data.dmNotes),
       vitals: normalizeVitalsState(data.vitals),
