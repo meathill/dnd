@@ -465,9 +465,7 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
             };
             setMessages((current) =>
               current.map((message) =>
-                message.id === streamId
-                  ? { ...message, toolCalls: [...(message.toolCalls ?? []), callInfo] }
-                  : message,
+                message.id === streamId ? { ...message, toolCalls: [...(message.toolCalls ?? []), callInfo] } : message,
               ),
             );
           } else if (event.type === 'tool_result') {
@@ -477,9 +475,7 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
                   return message;
                 }
                 const nextCalls = message.toolCalls.map((call) =>
-                  call.callId === event.callId
-                    ? { ...call, status: 'done' as const, result: event.result }
-                    : call,
+                  call.callId === event.callId ? { ...call, status: 'done' as const, result: event.result } : call,
                 );
                 return { ...message, toolCalls: nextCalls };
               }),

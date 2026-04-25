@@ -64,12 +64,7 @@ function mergeModelOptions(
   return choices;
 }
 
-function resolveSelected(
-  current: string,
-  ids: string[],
-  provider: AiProvider,
-  kind: 'fast' | 'general',
-): string {
+function resolveSelected(current: string, ids: string[], provider: AiProvider, kind: 'fast' | 'general'): string {
   const trimmed = current.trim();
   if (trimmed && ids.includes(trimmed)) return trimmed;
   return ids[0] ?? normalizeModel(provider, kind, trimmed);
@@ -134,7 +129,9 @@ export default function AiProviderPanel({
     }
     onProviderChange?.(value);
     const nextFastIds = mergeModelOptions(listModels(value, 'fast'), extraModels, value, 'fast').map((o) => o.value);
-    const nextGeneralIds = mergeModelOptions(listModels(value, 'general'), extraModels, value, 'general').map((o) => o.value);
+    const nextGeneralIds = mergeModelOptions(listModels(value, 'general'), extraModels, value, 'general').map(
+      (o) => o.value,
+    );
     const nextFastModel = nextFastIds[0] ?? getDefaultModel(value, 'fast');
     const nextGeneralModel = nextGeneralIds[0] ?? getDefaultModel(value, 'general');
     if (!nextFastIds.includes(activeFastModelValue) && !isAllowedModel(value, 'fast', activeFastModelValue)) {
@@ -143,7 +140,10 @@ export default function AiProviderPanel({
       }
       onFastModelChange?.(nextFastModel);
     }
-    if (!nextGeneralIds.includes(activeGeneralModelValue) && !isAllowedModel(value, 'general', activeGeneralModelValue)) {
+    if (
+      !nextGeneralIds.includes(activeGeneralModelValue) &&
+      !isAllowedModel(value, 'general', activeGeneralModelValue)
+    ) {
       if (!generalModel) {
         setInternalGeneralModel(nextGeneralModel);
       }

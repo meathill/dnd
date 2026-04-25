@@ -1,10 +1,7 @@
 import { Agent } from '@openai/agents';
 import type { CharacterRecord, GameRuleOverrides, ScriptDefinition } from '../game/types';
 import { dmTools } from './dm-tools';
-import {
-  resolveTrainedSkillValue,
-  resolveUntrainedSkillValue,
-} from '../game/rules';
+import { resolveTrainedSkillValue, resolveUntrainedSkillValue } from '../game/rules';
 
 // ============================================================================
 // GameAgentContext —— Agent 运行时上下文
@@ -52,9 +49,7 @@ function buildCharacterSummary(script: ScriptDefinition, character: CharacterRec
           ? (skillBaseValues[skillId] as number)
           : untrainedValue;
       const value =
-        typeof rawValue === 'number' && Number.isFinite(rawValue)
-          ? rawValue
-          : rawValue ? trainedValue : baseValue;
+        typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : rawValue ? trainedValue : baseValue;
       if (value <= baseValue) {
         return null;
       }

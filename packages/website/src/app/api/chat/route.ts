@@ -233,9 +233,7 @@ export async function POST(request: Request) {
     // ==========================================
     const { env } = await getCloudflareContext({ async: true });
     const generalModelId = settings?.generalModel?.trim() || '';
-    const customModel = generalModelId
-      ? await findAiModelByLookup(db, 'openai', 'general', generalModelId)
-      : null;
+    const customModel = generalModelId ? await findAiModelByLookup(db, 'openai', 'general', generalModelId) : null;
     const envRecord = env as unknown as Record<string, string | undefined>;
     const openaiClient = new OpenAI({
       apiKey: customModel?.apiKey || envRecord.OPENAI_API_KEY || '',
@@ -248,8 +246,7 @@ export async function POST(request: Request) {
     // ==========================================
     // 构建 Agent 运行上下文
     // ==========================================
-    const imageModel =
-      (env as unknown as Record<string, string | undefined>).OPENAI_IMAGE_MODEL || 'gpt-image-2';
+    const imageModel = (env as unknown as Record<string, string | undefined>).OPENAI_IMAGE_MODEL || 'gpt-image-2';
     const agentContext: GameAgentContext = {
       script,
       character: activeCharacter,
@@ -360,9 +357,8 @@ export async function POST(request: Request) {
             (module) => module.type !== 'dice' && module.type !== 'suggestions',
           );
           // 将工具调用的骰子结果作为 dice module 插入
-          const diceModules = diceResults.length > 0
-            ? [{ type: 'dice' as const, content: diceResults.join('\n') }]
-            : [];
+          const diceModules =
+            diceResults.length > 0 ? [{ type: 'dice' as const, content: diceResults.join('\n') }] : [];
           const mergedModules = [...diceModules, ...filteredModules];
           const assistantContent = buildMessageContentFromModules(mergedModules, fullText);
           const assistantRecord = await createGameMessage(db, {
@@ -397,9 +393,8 @@ export async function POST(request: Request) {
               const filteredModules = parsed.modules.filter(
                 (module) => module.type !== 'dice' && module.type !== 'suggestions',
               );
-              const diceModules = diceResults.length > 0
-                ? [{ type: 'dice' as const, content: diceResults.join('\n') }]
-                : [];
+              const diceModules =
+                diceResults.length > 0 ? [{ type: 'dice' as const, content: diceResults.join('\n') }] : [];
               const mergedModules = [...diceModules, ...filteredModules];
               const assistantContent = buildMessageContentFromModules(mergedModules, fullText);
               await createGameMessage(db, {

@@ -6,14 +6,7 @@ import GlobalConfigShell from '@/app/admin/global-config-shell';
 import { useSession } from '@/lib/session/session-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -198,18 +191,14 @@ function AdminAiModelsContent() {
           <div>
             <p className={sectionTitleClassName}>已配置模型</p>
             <h3 className="text-lg font-semibold text-[var(--ink-strong)]">模型清单</h3>
-            <p className="text-xs text-[var(--ink-muted)]">
-              用户的「AI 提供方」选择会从此列表 + 内置目录中读取。
-            </p>
+            <p className="text-xs text-[var(--ink-muted)]">用户的「AI 提供方」选择会从此列表 + 内置目录中读取。</p>
           </div>
           <Button onClick={handleOpenCreateDialog} size="sm">
             新建模型
           </Button>
         </div>
 
-        {displayStatus && !isDialogOpen ? (
-          <p className="text-xs text-[var(--accent-ember)]">{displayStatus}</p>
-        ) : null}
+        {displayStatus && !isDialogOpen ? <p className="text-xs text-[var(--accent-ember)]">{displayStatus}</p> : null}
 
         {models.length === 0 ? (
           <div className="rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] p-3 text-xs text-[var(--ink-soft)]">
@@ -366,9 +355,7 @@ function AdminAiModelsContent() {
               <Input
                 id="aim-api-key"
                 onChange={(event) => setDraft((d) => ({ ...d, apiKey: event.target.value }))}
-                placeholder={
-                  draft.apiKey ? '留空表示不修改' : '为空时使用环境变量 OPENAI_API_KEY / GEMINI_API_KEY'
-                }
+                placeholder={draft.apiKey ? '留空表示不修改' : '为空时使用环境变量 OPENAI_API_KEY / GEMINI_API_KEY'}
                 type="password"
                 value={draft.apiKey}
               />

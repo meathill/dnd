@@ -99,7 +99,9 @@ const outcomeStyles: Record<string, { color: string; badge: string }> = {
 };
 
 function parseDiceResult(result: string): ParsedDiceResult {
-  const match = result.match(/^([^（(]+?)(?:检定)?\s*(?:（[^）]*）)?\s*1D100\s*→\s*(\d+)\s*\/\s*(\d+)[，,]\s*([^（(]+)(?:[（(]([^）)]+)[）)])?/);
+  const match = result.match(
+    /^([^（(]+?)(?:检定)?\s*(?:（[^）]*）)?\s*1D100\s*→\s*(\d+)\s*\/\s*(\d+)[，,]\s*([^（(]+)(?:[（(]([^）)]+)[）)])?/,
+  );
   if (match) {
     return {
       label: match[1].trim(),
@@ -118,7 +120,7 @@ function buildTitle(call: ToolCallDisplay): string {
       checkType?: string;
       target?: string;
     };
-    const typeLabel = args.checkType ? checkTypeLabels[args.checkType] ?? '检定' : '检定';
+    const typeLabel = args.checkType ? (checkTypeLabels[args.checkType] ?? '检定') : '检定';
     const target = args.target ? `· ${args.target}` : '';
     return `${typeLabel} ${target}`.trim();
   }
@@ -210,9 +212,7 @@ function ToolCardShell({
             <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-soft)]">Tool</span>
             <span className="truncate text-sm font-medium text-[var(--ink-strong)]">{buildTitle(call)}</span>
           </div>
-          {reason ? (
-            <p className="truncate text-xs text-[var(--ink-soft)]">{reason}</p>
-          ) : null}
+          {reason ? <p className="truncate text-xs text-[var(--ink-soft)]">{reason}</p> : null}
         </div>
         {rightSlot ??
           (isPending ? (
@@ -232,12 +232,7 @@ function DiceCard({ call }: { call: ToolCallDisplay }) {
   const tone = parsed ? outcomeStyles[parsed.outcome] : null;
   const rightSlot =
     tone && parsed?.outcome ? (
-      <span
-        className={cn(
-          'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium text-white',
-          tone.badge,
-        )}
-      >
+      <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium text-white', tone.badge)}>
         {parsed.outcome}
       </span>
     ) : isPending ? (
@@ -310,13 +305,9 @@ function RoleplayNpcCard({ call, payload }: { call: ToolCallDisplay; payload: Ro
           <>
             <p>
               <span className="font-medium text-[var(--ink-strong)]">{payload.npc.name}</span>
-              {payload.npc.role ? (
-                <span className="ml-2 text-[var(--ink-soft)]">{payload.npc.role}</span>
-              ) : null}
+              {payload.npc.role ? <span className="ml-2 text-[var(--ink-soft)]">{payload.npc.role}</span> : null}
             </p>
-            {payload.npc.summary ? (
-              <p className="mt-1 whitespace-pre-line">{payload.npc.summary}</p>
-            ) : null}
+            {payload.npc.summary ? <p className="mt-1 whitespace-pre-line">{payload.npc.summary}</p> : null}
             {payload.npc.traits && payload.npc.traits.length > 0 ? (
               <p className="mt-1 text-[var(--ink-soft)]">特性：{payload.npc.traits.join('、')}</p>
             ) : null}
@@ -337,12 +328,7 @@ function ImageCard({ call, payload }: { call: ToolCallDisplay; payload: ImagePay
         ) : src ? (
           <figure className="overflow-hidden rounded-lg border border-[rgba(27,20,12,0.08)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              alt={payload.caption ?? '生成的图像'}
-              className="block h-auto w-full"
-              loading="lazy"
-              src={src}
-            />
+            <img alt={payload.caption ?? '生成的图像'} className="block h-auto w-full" loading="lazy" src={src} />
             {payload.caption ? (
               <figcaption className="bg-[rgba(27,20,12,0.04)] px-2 py-1 text-[11px] text-[var(--ink-muted)]">
                 {payload.caption}
@@ -388,9 +374,7 @@ export default function ToolCard({ call }: ToolCardProps) {
 
   return (
     <ToolCardShell call={call}>
-      {call.result ? (
-        <p className="mt-2 whitespace-pre-line text-xs text-[var(--ink-muted)]">{call.result}</p>
-      ) : null}
+      {call.result ? <p className="mt-2 whitespace-pre-line text-xs text-[var(--ink-muted)]">{call.result}</p> : null}
     </ToolCardShell>
   );
 }

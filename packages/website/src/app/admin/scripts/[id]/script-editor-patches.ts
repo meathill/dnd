@@ -191,11 +191,15 @@ export function describeScriptPatch(patch: ScriptPatch): string {
     case 'background':
       return `更新背景设定（${Object.keys(patch.patch).join('、') || '无字段'}）`;
     case 'npc':
-      return patch.patch.id ? `更新 NPC「${patch.patch.name ?? patch.patch.id}」` : `新增 NPC「${patch.patch.name ?? '未命名'}」`;
+      return patch.patch.id
+        ? `更新 NPC「${patch.patch.name ?? patch.patch.id}」`
+        : `新增 NPC「${patch.patch.name ?? '未命名'}」`;
     case 'npc_remove':
       return `移除 NPC（id=${patch.id}）`;
     case 'scene':
-      return patch.patch.id ? `更新场景「${patch.patch.title ?? patch.patch.id}」` : `新增场景「${patch.patch.title ?? '未命名'}」`;
+      return patch.patch.id
+        ? `更新场景「${patch.patch.title ?? patch.patch.id}」`
+        : `新增场景「${patch.patch.title ?? '未命名'}」`;
     case 'scene_remove':
       return `移除场景（id=${patch.id}）`;
     case 'options':

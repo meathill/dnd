@@ -41,10 +41,7 @@ const attributeAliasMap: Record<string, string> = {
   education: 'education',
 };
 
-function resolveAttributeValue(
-  character: GameAgentContext['character'],
-  label: string,
-): number | null {
+function resolveAttributeValue(character: GameAgentContext['character'], label: string): number | null {
   const key = attributeAliasMap[label.trim()];
   if (!key) {
     return null;
@@ -53,10 +50,7 @@ function resolveAttributeValue(
   return typeof value === 'number' ? value : null;
 }
 
-function resolveSkillId(
-  script: GameAgentContext['script'],
-  label: string,
-): string | null {
+function resolveSkillId(script: GameAgentContext['script'], label: string): string | null {
   const trimmed = label.trim();
   if (!trimmed) {
     return null;
@@ -107,7 +101,7 @@ export const rollDiceTool = tool({
     reason: z.string().optional().describe('检定原因的简要说明'),
   }),
   execute: async (args, runContext) => {
-    const { script, character, gameRules } = (runContext?.context as GameAgentContext);
+    const { script, character, gameRules } = runContext?.context as GameAgentContext;
     const { checkType, target, difficulty, reason } = args;
 
     const checkKey = buildCheckKey(checkType, target, script);
@@ -140,13 +134,9 @@ export const rollDiceTool = tool({
     } else {
       // skill / combat
       const skillId = resolveSkillId(script, target) ?? target.trim();
-      const skillLabel = script.skillOptions.find(
-        (opt) => opt.id === skillId,
-      )?.label ?? target.trim();
+      const skillLabel = script.skillOptions.find((opt) => opt.id === skillId)?.label ?? target.trim();
       label = skillLabel || '技能';
-      baseValue = skillId
-        ? resolveSkillValue(character, script, skillId)
-        : resolveUntrainedSkillValue(script.rules);
+      baseValue = skillId ? resolveSkillValue(character, script, skillId) : resolveUntrainedSkillValue(script.rules);
       result = checkSkill(dc, baseValue, difficulty);
       baseLabel = '技能值';
     }
@@ -159,11 +149,7 @@ export const rollDiceTool = tool({
   },
 });
 
-function buildCheckKey(
-  checkType: string,
-  target: string,
-  script: GameAgentContext['script'],
-): string {
+function buildCheckKey(checkType: string, target: string, script: GameAgentContext['script']): string {
   if (checkType === 'luck') {
     return 'luck';
   }
@@ -251,7 +237,7 @@ export const roleplayNpcTool = tool({
     nameOrId: z.string().describe('NPC 的 id 或姓名'),
   }),
   execute: async (args, runContext) => {
-    const { script } = (runContext?.context as GameAgentContext);
+    const { script } = runContext?.context as GameAgentContext;
     const query = args.nameOrId.trim();
     const profile =
       script.npcProfiles.find((npc) => npc.id === query) ??
@@ -309,13 +295,7 @@ export const drawMapTool = tool({
   }),
   execute: async (args, runContext) => {
     const prompt = `Hand-drawn tabletop RPG map illustration, top-down or isometric view, Cthulhu horror tone, ink and parchment aesthetic. ${args.prompt}`;
-    return runImageGeneration(
-      (runContext?.context as GameAgentContext),
-      prompt,
-      args.size,
-      'map',
-      args.caption,
-    );
+    return runImageGeneration(runContext?.context as GameAgentContext, prompt, args.size, 'map', args.caption);
   },
 });
 
@@ -332,7 +312,7 @@ export const drawCharacterArtTool = tool({
   execute: async (args, runContext) => {
     const prompt = `Moody character portrait illustration, painterly style, cinematic lighting, 1920s Cthulhu mythos vibe. ${args.prompt}`;
     return runImageGeneration(
-      (runContext?.context as GameAgentContext),
+      runContext?.context as GameAgentContext,
       prompt,
       args.size,
       'character_art',

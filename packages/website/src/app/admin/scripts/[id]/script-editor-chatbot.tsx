@@ -215,9 +215,7 @@ export default function ScriptEditorChatbot({ scriptId, onApplyPatch }: ScriptEd
             setStatusText('');
             setMessages((current) =>
               current.map((message) =>
-                message.id === assistantId
-                  ? { ...message, content: `${message.content}${event.text}` }
-                  : message,
+                message.id === assistantId ? { ...message, content: `${message.content}${event.text}` } : message,
               ),
             );
           } else if (event.type === 'tool_call') {
@@ -242,9 +240,7 @@ export default function ScriptEditorChatbot({ scriptId, onApplyPatch }: ScriptEd
             // no-op: tool result is already echoed via tool_call card
           } else if (event.type === 'done') {
             setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantId ? { ...message, streaming: false } : message,
-              ),
+              current.map((message) => (message.id === assistantId ? { ...message, streaming: false } : message)),
             );
             setStatusText('');
           } else if (event.type === 'error') {
@@ -255,9 +251,7 @@ export default function ScriptEditorChatbot({ scriptId, onApplyPatch }: ScriptEd
     } catch (error) {
       const message = error instanceof Error ? error.message : 'AI 请求失败';
       setErrorText(message);
-      setMessages((current) =>
-        current.map((item) => (item.id === assistantId ? { ...item, streaming: false } : item)),
-      );
+      setMessages((current) => current.map((item) => (item.id === assistantId ? { ...item, streaming: false } : item)));
     } finally {
       setIsSending(false);
       setStatusText('');
@@ -300,10 +294,7 @@ export default function ScriptEditorChatbot({ scriptId, onApplyPatch }: ScriptEd
         {messages.map((message) => {
           const isUser = message.role === 'user';
           return (
-            <div
-              className={cn('flex flex-col gap-1', isUser ? 'items-end' : 'items-start')}
-              key={message.id}
-            >
+            <div className={cn('flex flex-col gap-1', isUser ? 'items-end' : 'items-start')} key={message.id}>
               <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-soft)]">
                 {isUser ? '我' : '助手'}
               </span>
@@ -364,9 +355,7 @@ export default function ScriptEditorChatbot({ scriptId, onApplyPatch }: ScriptEd
 
       <div className="flex flex-col gap-2">
         {errorText ? <p className="text-xs text-[var(--accent-ember)]">{errorText}</p> : null}
-        {statusText && !errorText ? (
-          <p className="text-xs text-[var(--accent-river)]">{statusText}</p>
-        ) : null}
+        {statusText && !errorText ? <p className="text-xs text-[var(--accent-river)]">{statusText}</p> : null}
         <textarea
           className="min-h-[64px] w-full resize-none rounded-lg border border-[rgba(27,20,12,0.1)] bg-[rgba(255,255,255,0.75)] p-2 text-xs text-[var(--ink-strong)] placeholder:text-[var(--ink-soft)] focus:outline-none"
           disabled={isSending}

@@ -8,14 +8,7 @@ import { useSession } from '@/lib/session/session-context';
 import type { DmProfileSummary } from '@/lib/game/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -209,10 +202,7 @@ export function AdminDmProfilesContent() {
         )}
       </section>
 
-      <Dialog
-        open={isCreateDialogOpen}
-        onOpenChange={(open) => (!open ? handleCloseCreateDialog() : undefined)}
-      >
+      <Dialog open={isCreateDialogOpen} onOpenChange={(open) => (!open ? handleCloseCreateDialog() : undefined)}>
         <DialogPopup className="max-w-lg">
           <DialogHeader>
             <p className={sectionTitleClassName}>新建风格</p>
@@ -249,11 +239,7 @@ export function AdminDmProfilesContent() {
                 <p className="text-xs font-semibold text-[var(--ink-strong)]">设为默认风格</p>
                 <p className="text-[10px] text-[var(--ink-soft)]">默认风格会在设置中自动选中。</p>
               </div>
-              <Switch
-                aria-label="设为默认风格"
-                checked={createDraft.isDefault}
-                onCheckedChange={handleDefaultToggle}
-              />
+              <Switch aria-label="设为默认风格" checked={createDraft.isDefault} onCheckedChange={handleDefaultToggle} />
             </div>
             {statusMessage ? <p className="text-xs text-[var(--accent-ember)]">{statusMessage}</p> : null}
           </DialogPanel>

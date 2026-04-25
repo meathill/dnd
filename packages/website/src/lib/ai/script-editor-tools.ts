@@ -24,7 +24,8 @@ export const patchBasicTool = tool({
 
 export const patchBackgroundTool = tool({
   name: 'patch_background',
-  description: '修改剧本背景章节（总览、核心真相、主题、势力、关键地点、隐藏要点）。列表字段请传数组，后端会替换整个列表。',
+  description:
+    '修改剧本背景章节（总览、核心真相、主题、势力、关键地点、隐藏要点）。列表字段请传数组，后端会替换整个列表。',
   parameters: z.object({
     overview: z.string().optional().describe('背景总览，多段可用 \\n\\n 分隔'),
     truth: z.string().optional().describe('核心真相（对玩家隐藏）'),
@@ -41,8 +42,7 @@ export const patchBackgroundTool = tool({
 
 export const patchNpcTool = tool({
   name: 'patch_npc',
-  description:
-    '新增或更新一个 NPC。如果传了已有的 id，则更新该 NPC；不传 id 视为新增。只需提供需要改写的字段。',
+  description: '新增或更新一个 NPC。如果传了已有的 id，则更新该 NPC；不传 id 视为新增。只需提供需要改写的字段。',
   parameters: z.object({
     id: z.string().optional().describe('已存在 NPC 的 id；留空表示新增'),
     name: z.string().optional(),
