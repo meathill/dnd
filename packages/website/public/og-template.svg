@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="肉团长 · AI 跑团助手">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1A0E2A"/>
+      <stop offset="55%" stop-color="#2A1740"/>
+      <stop offset="100%" stop-color="#3B1F5C"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="28%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#6E2FB8" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#2A1740" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="dieFaceOg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5B2A9E"/>
+      <stop offset="100%" stop-color="#2A1740"/>
+    </linearGradient>
+    <linearGradient id="goldOg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F5D87A"/>
+      <stop offset="100%" stop-color="#E5B23A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#bgGlow)"/>
+
+  <!-- Decorative faint d20 in background -->
+  <g opacity="0.08" stroke="#F5D87A" stroke-width="2" fill="none">
+    <polygon points="980,90 1100,160 1100,300 980,370 860,300 860,160"/>
+    <polygon points="980,150 1070,290 890,290"/>
+  </g>
+
+  <!-- Logo group (left) -->
+  <g transform="translate(120, 165) scale(4.7)">
+    <polygon
+      points="32,4 56.25,18 56.25,46 32,60 7.75,46 7.75,18"
+      fill="url(#dieFaceOg)"
+      stroke="url(#goldOg)"
+      stroke-width="2"
+      stroke-linejoin="round"
+    />
+    <g stroke="#E5B23A" stroke-opacity="0.45" stroke-width="0.9" fill="none" stroke-linejoin="round">
+      <polygon points="32,16 47.5,42 16.5,42"/>
+      <line x1="32" y1="16" x2="32" y2="4"/>
+      <line x1="47.5" y1="42" x2="56.25" y2="46"/>
+      <line x1="16.5" y1="42" x2="7.75" y2="46"/>
+    </g>
+    <text
+      x="32"
+      y="44"
+      text-anchor="middle"
+      font-family="'Noto Serif SC', 'Songti SC', 'STSong', 'Source Han Serif SC', 'Microsoft YaHei', serif"
+      font-weight="800"
+      font-size="32"
+      fill="url(#goldOg)"
+      stroke="#2A1740"
+      stroke-width="0.4"
+      paint-order="stroke fill"
+    >肉</text>
+    <circle cx="32" cy="9" r="1.6" fill="#F5D87A"/>
+  </g>
+
+  <!-- Title block (right) -->
+  <g transform="translate(560, 240)">
+    <text
+      x="0" y="0"
+      font-family="'Noto Serif SC', 'Songti SC', 'STSong', serif"
+      font-weight="800"
+      font-size="120"
+      fill="url(#goldOg)"
+    >肉团长</text>
+    <text
+      x="0" y="80"
+      font-family="'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif"
+      font-weight="500"
+      font-size="44"
+      fill="#E8DFFA"
+      letter-spacing="2"
+    >AI · 跑团助手</text>
+    <line x1="0" y1="118" x2="120" y2="118" stroke="url(#goldOg)" stroke-width="3"/>
+    <text
+      x="0" y="170"
+      font-family="'Noto Sans SC', 'PingFang SC', sans-serif"
+      font-weight="400"
+      font-size="26"
+      fill="#C8B8E0"
+    >以剧情、人物卡与环境为核心的 AI 跑团体验</text>
+  </g>
+</svg>
