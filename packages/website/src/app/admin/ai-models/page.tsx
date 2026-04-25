@@ -6,6 +6,14 @@ import GlobalConfigShell from '@/app/admin/global-config-shell';
 import { useSession } from '@/lib/session/session-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -72,6 +80,7 @@ function AdminAiModelsContent() {
   const [statusMessage, setStatusMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const loadModels = useCallback(
     async function loadModels() {
@@ -96,14 +105,21 @@ function AdminAiModelsContent() {
     void loadModels();
   }, [loadModels]);
 
-  function handleEdit(record: AiModelRecord) {
-    setDraft(fromRecord(record));
-    setStatusMessage('');
-  }
-
-  function handleResetForm() {
+  function handleOpenCreateDialog() {
     setDraft(emptyDraft());
     setStatusMessage('');
+    setIsDialogOpen(true);
+  }
+
+  function handleOpenEditDialog(record: AiModelRecord) {
+    setDraft(fromRecord(record));
+    setStatusMessage('');
+    setIsDialogOpen(true);
+  }
+
+  function handleCloseDialog() {
+    if (isSaving) return;
+    setIsDialogOpen(false);
   }
 
   async function handleSave() {
@@ -134,7 +150,7 @@ function AdminAiModelsContent() {
       });
       const data = (await response.json()) as { model?: AiModelRecord; error?: string };
       if (!response.ok || !data.model) throw new Error(data.error ?? '保存失败');
-      setStatusMessage(draft.id ? '已更新模型。' : '已创建模型。');
+      setIsDialogOpen(false);
       setDraft(emptyDraft());
       await loadModels();
     } catch (error) {
@@ -176,163 +192,28 @@ function AdminAiModelsContent() {
   const isEditing = Boolean(draft.id);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)] lg:h-full lg:overflow-hidden">
+    <>
       <section className={panelClassName}>
-        <div>
-          <p className={sectionTitleClassName}>{isEditing ? '编辑模型' : '新建模型'}</p>
-          <h3 className="text-lg font-semibold text-[var(--ink-strong)]">
-            {isEditing ? draft.label || '未命名模型' : '添加 AI 模型'}
-          </h3>
-          <p className="text-xs text-[var(--ink-muted)]">
-            创建后可在用户的「AI 提供方」面板中选择。可选填自定义 baseURL / API Key 以接入兼容服务。
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-1">
-            <Label className="text-xs text-[var(--ink-muted)]">Provider</Label>
-            <Select
-              value={draft.provider}
-              onValueChange={(value) => value && setDraft((d) => ({ ...d, provider: value as AiProvider }))}
-            >
-              <SelectTrigger size="sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="openai">OpenAI</SelectItem>
-                <SelectItem value="gemini">Gemini</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className={sectionTitleClassName}>已配置模型</p>
+            <h3 className="text-lg font-semibold text-[var(--ink-strong)]">模型清单</h3>
+            <p className="text-xs text-[var(--ink-muted)]">
+              用户的「AI 提供方」选择会从此列表 + 内置目录中读取。
+            </p>
           </div>
-          <div className="grid gap-1">
-            <Label className="text-xs text-[var(--ink-muted)]">用途（kind）</Label>
-            <Select
-              value={draft.kind}
-              onValueChange={(value) => value && setDraft((d) => ({ ...d, kind: value as AiModelKind }))}
-            >
-              <SelectTrigger size="sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fast">fast（快速审查）</SelectItem>
-                <SelectItem value="general">general（通用智能）</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="grid gap-1">
-          <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-model-id">
-            Model ID
-          </Label>
-          <Input
-            id="aim-model-id"
-            placeholder="例如：gpt-5-mini、qwen-max、deepseek-chat"
-            value={draft.modelId}
-            onChange={(event) => setDraft((d) => ({ ...d, modelId: event.target.value }))}
-          />
-        </div>
-
-        <div className="grid gap-1">
-          <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-label">
-            显示名称
-          </Label>
-          <Input
-            id="aim-label"
-            placeholder="例如：GPT-5 Mini（快速）"
-            value={draft.label}
-            onChange={(event) => setDraft((d) => ({ ...d, label: event.target.value }))}
-          />
-        </div>
-
-        <div className="grid gap-1">
-          <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-desc">
-            说明
-          </Label>
-          <Textarea
-            id="aim-desc"
-            placeholder="一句话说明用途/特点（可选）"
-            rows={2}
-            value={draft.description}
-            onChange={(event) => setDraft((d) => ({ ...d, description: event.target.value }))}
-          />
-        </div>
-
-        <div className="grid gap-1">
-          <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-base-url">
-            Base URL（可选）
-          </Label>
-          <Input
-            id="aim-base-url"
-            placeholder="例如 https://api.deepseek.com/v1"
-            value={draft.baseUrl}
-            onChange={(event) => setDraft((d) => ({ ...d, baseUrl: event.target.value }))}
-          />
-          <p className="text-[10px] text-[var(--ink-soft)]">兼容 OpenAI 协议的代理地址；留空则使用默认。</p>
-        </div>
-
-        <div className="grid gap-1">
-          <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-api-key">
-            API Key（可选，仅管理员可见）
-          </Label>
-          <Input
-            id="aim-api-key"
-            placeholder={draft.apiKey ? '留空表示不修改' : '为空时使用环境变量 OPENAI_API_KEY / GEMINI_API_KEY'}
-            type="password"
-            value={draft.apiKey}
-            onChange={(event) => setDraft((d) => ({ ...d, apiKey: event.target.value }))}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-1">
-            <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-sort">
-              排序
-            </Label>
-            <Input
-              id="aim-sort"
-              type="number"
-              value={draft.sortOrder}
-              onChange={(event) => setDraft((d) => ({ ...d, sortOrder: event.target.value }))}
-            />
-          </div>
-          <div className="flex items-end justify-between rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-2">
-            <div>
-              <p className="text-xs font-semibold text-[var(--ink-strong)]">启用</p>
-              <p className="text-[10px] text-[var(--ink-soft)]">关闭后用户面板中不显示。</p>
-            </div>
-            <Switch
-              aria-label="启用模型"
-              checked={draft.isActive}
-              onCheckedChange={(value) => setDraft((d) => ({ ...d, isActive: value }))}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <Button disabled={isSaving} onClick={handleSave} size="sm">
-            {isSaving ? '保存中...' : isEditing ? '保存修改' : '创建模型'}
+          <Button onClick={handleOpenCreateDialog} size="sm">
+            新建模型
           </Button>
-          {isEditing ? (
-            <Button onClick={handleResetForm} size="sm" variant="outline">
-              新建另一个
-            </Button>
-          ) : null}
         </div>
 
-        {displayStatus ? <p className="text-xs text-[var(--accent-ember)]">{displayStatus}</p> : null}
-      </section>
-
-      <section className={panelClassName}>
-        <div>
-          <p className={sectionTitleClassName}>已配置模型</p>
-          <h3 className="text-lg font-semibold text-[var(--ink-strong)]">模型清单</h3>
-          <p className="text-xs text-[var(--ink-muted)]">用户的「AI 提供方」选择会从此列表 + 内置目录中读取。</p>
-        </div>
+        {displayStatus && !isDialogOpen ? (
+          <p className="text-xs text-[var(--accent-ember)]">{displayStatus}</p>
+        ) : null}
 
         {models.length === 0 ? (
           <div className="rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] p-3 text-xs text-[var(--ink-soft)]">
-            还没有自定义模型。可以先在左侧表单创建一个。
+            还没有自定义模型。点击右上角「新建模型」开始添加。
           </div>
         ) : (
           <div className="space-y-2">
@@ -368,7 +249,7 @@ function AdminAiModelsContent() {
                     </p>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <Button onClick={() => handleEdit(model)} size="xs" variant="outline">
+                    <Button onClick={() => handleOpenEditDialog(model)} size="xs" variant="outline">
                       编辑
                     </Button>
                     <Button onClick={() => handleDelete(model)} size="xs" variant="destructive">
@@ -381,7 +262,157 @@ function AdminAiModelsContent() {
           </div>
         )}
       </section>
-    </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={(open) => (!open ? handleCloseDialog() : undefined)}>
+        <DialogPopup className="max-w-xl">
+          <DialogHeader>
+            <p className={sectionTitleClassName}>{isEditing ? '编辑模型' : '新建模型'}</p>
+            <DialogTitle className="text-xl font-semibold text-[var(--ink-strong)]">
+              {isEditing ? draft.label || '未命名模型' : '添加 AI 模型'}
+            </DialogTitle>
+            <p className="text-xs text-[var(--ink-muted)]">
+              创建后可在用户的「AI 提供方」面板中选择。可选填自定义 baseURL / API Key 以接入兼容服务。
+            </p>
+          </DialogHeader>
+
+          <DialogPanel className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1">
+                <Label className="text-xs text-[var(--ink-muted)]">Provider</Label>
+                <Select
+                  onValueChange={(value) => value && setDraft((d) => ({ ...d, provider: value as AiProvider }))}
+                  value={draft.provider}
+                >
+                  <SelectTrigger size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="openai">OpenAI</SelectItem>
+                    <SelectItem value="gemini">Gemini</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs text-[var(--ink-muted)]">用途（kind）</Label>
+                <Select
+                  onValueChange={(value) => value && setDraft((d) => ({ ...d, kind: value as AiModelKind }))}
+                  value={draft.kind}
+                >
+                  <SelectTrigger size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fast">fast（快速审查）</SelectItem>
+                    <SelectItem value="general">general（通用智能）</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-1">
+              <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-model-id">
+                Model ID
+              </Label>
+              <Input
+                id="aim-model-id"
+                onChange={(event) => setDraft((d) => ({ ...d, modelId: event.target.value }))}
+                placeholder="例如：gpt-5-mini、qwen-max、deepseek-chat"
+                value={draft.modelId}
+              />
+            </div>
+
+            <div className="grid gap-1">
+              <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-label">
+                显示名称
+              </Label>
+              <Input
+                id="aim-label"
+                onChange={(event) => setDraft((d) => ({ ...d, label: event.target.value }))}
+                placeholder="例如：GPT-5 Mini（快速）"
+                value={draft.label}
+              />
+            </div>
+
+            <div className="grid gap-1">
+              <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-desc">
+                说明
+              </Label>
+              <Textarea
+                id="aim-desc"
+                onChange={(event) => setDraft((d) => ({ ...d, description: event.target.value }))}
+                placeholder="一句话说明用途/特点（可选）"
+                rows={2}
+                value={draft.description}
+              />
+            </div>
+
+            <div className="grid gap-1">
+              <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-base-url">
+                Base URL（可选）
+              </Label>
+              <Input
+                id="aim-base-url"
+                onChange={(event) => setDraft((d) => ({ ...d, baseUrl: event.target.value }))}
+                placeholder="例如 https://api.deepseek.com/v1"
+                value={draft.baseUrl}
+              />
+              <p className="text-[10px] text-[var(--ink-soft)]">兼容 OpenAI 协议的代理地址；留空则使用默认。</p>
+            </div>
+
+            <div className="grid gap-1">
+              <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-api-key">
+                API Key（可选，仅管理员可见）
+              </Label>
+              <Input
+                id="aim-api-key"
+                onChange={(event) => setDraft((d) => ({ ...d, apiKey: event.target.value }))}
+                placeholder={
+                  draft.apiKey ? '留空表示不修改' : '为空时使用环境变量 OPENAI_API_KEY / GEMINI_API_KEY'
+                }
+                type="password"
+                value={draft.apiKey}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1">
+                <Label className="text-xs text-[var(--ink-muted)]" htmlFor="aim-sort">
+                  排序
+                </Label>
+                <Input
+                  id="aim-sort"
+                  onChange={(event) => setDraft((d) => ({ ...d, sortOrder: event.target.value }))}
+                  type="number"
+                  value={draft.sortOrder}
+                />
+              </div>
+              <div className="flex items-end justify-between rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-2">
+                <div>
+                  <p className="text-xs font-semibold text-[var(--ink-strong)]">启用</p>
+                  <p className="text-[10px] text-[var(--ink-soft)]">关闭后用户面板中不显示。</p>
+                </div>
+                <Switch
+                  aria-label="启用模型"
+                  checked={draft.isActive}
+                  onCheckedChange={(value) => setDraft((d) => ({ ...d, isActive: value }))}
+                />
+              </div>
+            </div>
+
+            {statusMessage ? <p className="text-xs text-[var(--accent-ember)]">{statusMessage}</p> : null}
+          </DialogPanel>
+
+          <DialogFooter className="justify-end" variant="bare">
+            <Button disabled={isSaving} onClick={handleCloseDialog} size="sm" variant="outline">
+              取消
+            </Button>
+            <Button disabled={isSaving} onClick={handleSave} size="sm">
+              {isSaving ? '保存中...' : isEditing ? '保存修改' : '创建模型'}
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+    </>
   );
 }
 
