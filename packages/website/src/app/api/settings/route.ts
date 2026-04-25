@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth/auth';
 import { getDatabase } from '@/lib/db/db';
-import { upsertUserSettings } from '@/lib/db/repositories';
+import { listActiveAiModelOptions, upsertUserSettings } from '@/lib/db/repositories';
 import type { AiProvider } from '@/lib/ai/ai-types';
 import { isAllowedModel, normalizeModel } from '@/lib/ai/ai-models';
 import type { UserSettings } from '@/lib/session/session-types';
@@ -10,7 +10,14 @@ function isAiProvider(value: string): value is AiProvider {
   return value === 'openai' || value === 'gemini';
 }
 
-function parseSettingsPayload(payload: unknown): UserSettings | null {
+type ParsedSettings = {
+  provider: AiProvider;
+  fastModel: string;
+  generalModel: string;
+  dmProfileId: string;
+};
+
+function parseSettingsPayload(payload: unknown): ParsedSettings | null {
   if (!payload || typeof payload !== 'object') {
     return null;
   }
@@ -20,18 +27,20 @@ function parseSettingsPayload(payload: unknown): UserSettings | null {
   }
   const fastModel = typeof data.fastModel === 'string' ? data.fastModel.trim() : '';
   const generalModel = typeof data.generalModel === 'string' ? data.generalModel.trim() : '';
-  if (fastModel && !isAllowedModel(data.provider, 'fast', fastModel)) {
-    return null;
-  }
-  if (generalModel && !isAllowedModel(data.provider, 'general', generalModel)) {
-    return null;
-  }
   const dmProfileId = typeof data.dmProfileId === 'string' ? data.dmProfileId.trim() : '';
   return {
     provider: data.provider,
-    fastModel: normalizeModel(data.provider, 'fast', fastModel),
-    generalModel: normalizeModel(data.provider, 'general', generalModel),
-    dmProfileId: dmProfileId || null,
+    fastModel,
+    generalModel,
+    dmProfileId,
+  };
+}
+
+function buildAllowedModelChecker(provider: AiProvider, kind: 'fast' | 'general', extras: string[]) {
+  return (modelId: string) => {
+    if (!modelId) return true;
+    if (isAllowedModel(provider, kind, modelId)) return true;
+    return extras.includes(modelId);
   };
 }
 
@@ -61,7 +70,28 @@ export async function POST(request: Request) {
     }
     const userId = authSession.user.id;
     const db = await getDatabase();
-    const saved = await upsertUserSettings(db, userId, settings);
+
+    const extras = await listActiveAiModelOptions(db);
+    const fastExtras = extras
+      .filter((m) => m.provider === settings.provider && m.kind === 'fast')
+      .map((m) => m.modelId);
+    const generalExtras = extras
+      .filter((m) => m.provider === settings.provider && m.kind === 'general')
+      .map((m) => m.modelId);
+    const isFastAllowed = buildAllowedModelChecker(settings.provider, 'fast', fastExtras);
+    const isGeneralAllowed = buildAllowedModelChecker(settings.provider, 'general', generalExtras);
+
+    if (!isFastAllowed(settings.fastModel) || !isGeneralAllowed(settings.generalModel)) {
+      return NextResponse.json({ error: '所选模型不在允许列表内' }, { status: 400 });
+    }
+
+    const finalSettings: UserSettings = {
+      provider: settings.provider,
+      fastModel: settings.fastModel || normalizeModel(settings.provider, 'fast', ''),
+      generalModel: settings.generalModel || normalizeModel(settings.provider, 'general', ''),
+      dmProfileId: settings.dmProfileId || null,
+    };
+    const saved = await upsertUserSettings(db, userId, finalSettings);
     return NextResponse.json({ settings: saved });
   } catch (error) {
     console.error('[api/settings] 保存设置失败', error);

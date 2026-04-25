@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/app/app-shell';
+import GlobalConfigShell from '@/app/admin/global-config-shell';
 import { useSession } from '@/lib/session/session-context';
 import type { DmProfileSummary } from '@/lib/game/types';
 import { Badge } from '@/components/ui/badge';
@@ -228,7 +229,9 @@ export function AdminDmProfilesContent() {
 export default function AdminDmProfilesPage() {
   return (
     <AppShell activeNav="admin-dm">
-      <AdminDmProfilesContent />
+      <GlobalConfigShell active="dm-profiles">
+        <AdminDmProfilesContent />
+      </GlobalConfigShell>
     </AppShell>
   );
 }

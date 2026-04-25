@@ -24,6 +24,7 @@ import { mapScriptRow, serializeCharacterPayload, serializeScriptDefinition } fr
 import type { ScriptRow } from './mappers';
 import type { UserSettings } from '../session/session-types';
 import { normalizeModel } from '../ai/ai-models';
+import type { AiModelInput, AiModelOption, AiModelRecord, AiProvider, AiModelKind } from '../ai/ai-types';
 
 const SCRIPT_COLUMNS =
   'id, title, summary, setting, difficulty, opening_messages_json, background_json, story_arcs_json, enemy_profiles_json, skill_options_json, equipment_options_json, occupation_options_json, origin_options_json, buff_options_json, debuff_options_json, attribute_ranges_json, attribute_point_budget, skill_limit, equipment_limit, buff_limit, debuff_limit, rules_json, scenes_json, encounters_json';
@@ -961,10 +962,14 @@ export async function getUserSettings(db: D1Database, userId: string): Promise<U
     return null;
   }
   const provider = parseProvider(row.ai_provider);
+  // 模型 id 既可能来自内置目录，也可能来自 ai_models 表的自定义条目；
+  // 只在为空时回落到目录默认值，避免把自定义模型重置掉。
+  const fastModel = row.ai_fast_model?.trim() || normalizeModel(provider, 'fast', '');
+  const generalModel = row.ai_general_model?.trim() || normalizeModel(provider, 'general', '');
   return {
     provider,
-    fastModel: normalizeModel(provider, 'fast', row.ai_fast_model ?? ''),
-    generalModel: normalizeModel(provider, 'general', row.ai_general_model ?? ''),
+    fastModel,
+    generalModel,
     dmProfileId: row.dm_profile_id ?? null,
   };
 }
@@ -976,8 +981,9 @@ export async function upsertUserSettings(
 ): Promise<UserSettings> {
   const now = new Date().toISOString();
   const provider = settings.provider;
-  const fastModel = normalizeModel(provider, 'fast', settings.fastModel);
-  const generalModel = normalizeModel(provider, 'general', settings.generalModel);
+  // 同 getUserSettings：保留原样，只在为空时给个回落。
+  const fastModel = settings.fastModel?.trim() || normalizeModel(provider, 'fast', '');
+  const generalModel = settings.generalModel?.trim() || normalizeModel(provider, 'general', '');
   await db
     .prepare(
       `INSERT INTO user_settings (user_id, ai_provider, ai_fast_model, ai_general_model, dm_profile_id, created_at, updated_at)
@@ -1283,4 +1289,171 @@ export async function getUserRole(db: D1Database, userId: string): Promise<strin
     .bind(userId)
     .first<UserRoleRow>();
   return row?.role ?? null;
+}
+
+type AiModelRow = {
+  id: string;
+  provider: string;
+  model_id: string;
+  kind: string;
+  label: string;
+  description: string;
+  base_url: string;
+  api_key: string;
+  sort_order: number;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+};
+
+function parseAiProvider(value: string): AiProvider {
+  return value === 'gemini' ? 'gemini' : 'openai';
+}
+
+function parseAiModelKind(value: string): AiModelKind {
+  return value === 'general' ? 'general' : 'fast';
+}
+
+function mapAiModelRecord(row: AiModelRow): AiModelRecord {
+  const provider = parseAiProvider(row.provider);
+  const kind = parseAiModelKind(row.kind);
+  return {
+    id: row.id,
+    provider,
+    modelId: row.model_id,
+    kind,
+    label: row.label,
+    description: row.description ?? '',
+    baseUrl: row.base_url ?? '',
+    apiKey: row.api_key ?? '',
+    sortOrder: Number(row.sort_order ?? 0),
+    isActive: Boolean(row.is_active),
+    hasCustomEndpoint: Boolean(row.base_url) || Boolean(row.api_key),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toAiModelOption(record: AiModelRecord): AiModelOption {
+  return {
+    id: record.id,
+    provider: record.provider,
+    modelId: record.modelId,
+    kind: record.kind,
+    label: record.label,
+    description: record.description,
+    isActive: record.isActive,
+    sortOrder: record.sortOrder,
+    hasCustomEndpoint: record.hasCustomEndpoint,
+  };
+}
+
+function generateAiModelId(): string {
+  const random = Math.random().toString(36).slice(2, 10);
+  return `aim_${Date.now().toString(36)}_${random}`;
+}
+
+export async function listAiModels(db: D1Database): Promise<AiModelRecord[]> {
+  const rows = await db
+    .prepare(
+      'SELECT id, provider, model_id, kind, label, description, base_url, api_key, sort_order, is_active, created_at, updated_at FROM ai_models ORDER BY sort_order ASC, created_at ASC',
+    )
+    .all<AiModelRow>();
+  return (rows.results ?? []).map(mapAiModelRecord);
+}
+
+export async function listActiveAiModelOptions(db: D1Database): Promise<AiModelOption[]> {
+  const rows = await db
+    .prepare(
+      'SELECT id, provider, model_id, kind, label, description, base_url, api_key, sort_order, is_active, created_at, updated_at FROM ai_models WHERE is_active = 1 ORDER BY sort_order ASC, label ASC',
+    )
+    .all<AiModelRow>();
+  return (rows.results ?? []).map(mapAiModelRecord).map(toAiModelOption);
+}
+
+export async function getAiModelById(db: D1Database, id: string): Promise<AiModelRecord | null> {
+  if (!id) return null;
+  const row = await db
+    .prepare(
+      'SELECT id, provider, model_id, kind, label, description, base_url, api_key, sort_order, is_active, created_at, updated_at FROM ai_models WHERE id = ? LIMIT 1',
+    )
+    .bind(id)
+    .first<AiModelRow>();
+  return row ? mapAiModelRecord(row) : null;
+}
+
+export async function createAiModel(db: D1Database, input: AiModelInput): Promise<AiModelRecord> {
+  const now = new Date().toISOString();
+  const id = generateAiModelId();
+  await db
+    .prepare(
+      `INSERT INTO ai_models (id, provider, model_id, kind, label, description, base_url, api_key, sort_order, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      id,
+      input.provider,
+      input.modelId,
+      input.kind,
+      input.label,
+      input.description ?? '',
+      input.baseUrl ?? '',
+      input.apiKey ?? '',
+      input.sortOrder ?? 0,
+      input.isActive === false ? 0 : 1,
+      now,
+      now,
+    )
+    .run();
+  const created = await getAiModelById(db, id);
+  if (!created) {
+    throw new Error('AI 模型创建失败');
+  }
+  return created;
+}
+
+export async function updateAiModel(
+  db: D1Database,
+  id: string,
+  input: Partial<AiModelInput>,
+): Promise<AiModelRecord | null> {
+  const existing = await getAiModelById(db, id);
+  if (!existing) return null;
+  const next = {
+    provider: input.provider ?? existing.provider,
+    modelId: input.modelId ?? existing.modelId,
+    kind: input.kind ?? existing.kind,
+    label: input.label ?? existing.label,
+    description: input.description ?? existing.description,
+    baseUrl: input.baseUrl ?? existing.baseUrl,
+    apiKey: input.apiKey ?? existing.apiKey,
+    sortOrder: input.sortOrder ?? existing.sortOrder,
+    isActive: input.isActive ?? existing.isActive,
+  };
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `UPDATE ai_models SET provider = ?, model_id = ?, kind = ?, label = ?, description = ?, base_url = ?, api_key = ?, sort_order = ?, is_active = ?, updated_at = ? WHERE id = ?`,
+    )
+    .bind(
+      next.provider,
+      next.modelId,
+      next.kind,
+      next.label,
+      next.description,
+      next.baseUrl,
+      next.apiKey,
+      next.sortOrder,
+      next.isActive ? 1 : 0,
+      now,
+      id,
+    )
+    .run();
+  return getAiModelById(db, id);
+}
+
+export async function deleteAiModel(db: D1Database, id: string): Promise<boolean> {
+  if (!id) return false;
+  const result = await db.prepare('DELETE FROM ai_models WHERE id = ?').bind(id).run();
+  return result.success;
 }

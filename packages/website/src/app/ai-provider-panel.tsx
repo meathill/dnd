@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import type { AiProvider } from '../lib/ai/ai-types';
+import { useEffect, useMemo, useState } from 'react';
+import type { AiModelOption, AiProvider } from '../lib/ai/ai-types';
 import { getDefaultModel, isAllowedModel, listModels, normalizeModel } from '../lib/ai/ai-models';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
@@ -40,6 +40,41 @@ function getProviderOption(provider: AiProvider): ProviderOption {
   return providerOptions.find((option) => option.id === provider) ?? providerOptions[0];
 }
 
+type ModelChoice = { value: string; label: string };
+
+function mergeModelOptions(
+  builtInIds: string[],
+  extras: AiModelOption[],
+  provider: AiProvider,
+  kind: 'fast' | 'general',
+): ModelChoice[] {
+  const seen = new Set<string>();
+  const choices: ModelChoice[] = [];
+  for (const id of builtInIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    choices.push({ value: id, label: id });
+  }
+  for (const extra of extras) {
+    if (extra.provider !== provider || extra.kind !== kind) continue;
+    if (seen.has(extra.modelId)) continue;
+    seen.add(extra.modelId);
+    choices.push({ value: extra.modelId, label: extra.label || extra.modelId });
+  }
+  return choices;
+}
+
+function resolveSelected(
+  current: string,
+  ids: string[],
+  provider: AiProvider,
+  kind: 'fast' | 'general',
+): string {
+  const trimmed = current.trim();
+  if (trimmed && ids.includes(trimmed)) return trimmed;
+  return ids[0] ?? normalizeModel(provider, kind, trimmed);
+}
+
 export default function AiProviderPanel({
   provider,
   fastModel,
@@ -52,15 +87,43 @@ export default function AiProviderPanel({
   const [internalProvider, setInternalProvider] = useState<AiProvider>(provider ?? 'openai');
   const [internalFastModel, setInternalFastModel] = useState(fastModel ?? '');
   const [internalGeneralModel, setInternalGeneralModel] = useState(generalModel ?? '');
+  const [extraModels, setExtraModels] = useState<AiModelOption[]>([]);
   const activeProviderValue = provider ?? internalProvider;
   const activeFastModelValue = fastModel ?? internalFastModel;
   const activeGeneralModelValue = generalModel ?? internalGeneralModel;
 
+  useEffect(() => {
+    let aborted = false;
+    void (async () => {
+      try {
+        const response = await fetch('/api/ai-models', { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = (await response.json()) as { models?: AiModelOption[] };
+        if (!aborted) {
+          setExtraModels(data.models ?? []);
+        }
+      } catch {
+        // 网络失败时回落到内置目录
+      }
+    })();
+    return () => {
+      aborted = true;
+    };
+  }, []);
+
   const activeProvider = useMemo(() => getProviderOption(activeProviderValue), [activeProviderValue]);
-  const fastOptions = useMemo(() => listModels(activeProviderValue, 'fast'), [activeProviderValue]);
-  const generalOptions = useMemo(() => listModels(activeProviderValue, 'general'), [activeProviderValue]);
-  const resolvedFastModel = normalizeModel(activeProviderValue, 'fast', activeFastModelValue);
-  const resolvedGeneralModel = normalizeModel(activeProviderValue, 'general', activeGeneralModelValue);
+  const fastOptions = useMemo(
+    () => mergeModelOptions(listModels(activeProviderValue, 'fast'), extraModels, activeProviderValue, 'fast'),
+    [activeProviderValue, extraModels],
+  );
+  const generalOptions = useMemo(
+    () => mergeModelOptions(listModels(activeProviderValue, 'general'), extraModels, activeProviderValue, 'general'),
+    [activeProviderValue, extraModels],
+  );
+  const fastIds = useMemo(() => fastOptions.map((option) => option.value), [fastOptions]);
+  const generalIds = useMemo(() => generalOptions.map((option) => option.value), [generalOptions]);
+  const resolvedFastModel = resolveSelected(activeFastModelValue, fastIds, activeProviderValue, 'fast');
+  const resolvedGeneralModel = resolveSelected(activeGeneralModelValue, generalIds, activeProviderValue, 'general');
 
   function handleProviderChange(value: string | null) {
     if (!value || !isAiProvider(value)) {
@@ -70,15 +133,17 @@ export default function AiProviderPanel({
       setInternalProvider(value);
     }
     onProviderChange?.(value);
-    const nextFastModel = getDefaultModel(value, 'fast');
-    const nextGeneralModel = getDefaultModel(value, 'general');
-    if (!isAllowedModel(value, 'fast', activeFastModelValue)) {
+    const nextFastIds = mergeModelOptions(listModels(value, 'fast'), extraModels, value, 'fast').map((o) => o.value);
+    const nextGeneralIds = mergeModelOptions(listModels(value, 'general'), extraModels, value, 'general').map((o) => o.value);
+    const nextFastModel = nextFastIds[0] ?? getDefaultModel(value, 'fast');
+    const nextGeneralModel = nextGeneralIds[0] ?? getDefaultModel(value, 'general');
+    if (!nextFastIds.includes(activeFastModelValue) && !isAllowedModel(value, 'fast', activeFastModelValue)) {
       if (!fastModel) {
         setInternalFastModel(nextFastModel);
       }
       onFastModelChange?.(nextFastModel);
     }
-    if (!isAllowedModel(value, 'general', activeGeneralModelValue)) {
+    if (!nextGeneralIds.includes(activeGeneralModelValue) && !isAllowedModel(value, 'general', activeGeneralModelValue)) {
       if (!generalModel) {
         setInternalGeneralModel(nextGeneralModel);
       }
@@ -147,8 +212,8 @@ export default function AiProviderPanel({
           </SelectTrigger>
           <SelectContent>
             {fastOptions.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -172,8 +237,8 @@ export default function AiProviderPanel({
           </SelectTrigger>
           <SelectContent>
             {generalOptions.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>
