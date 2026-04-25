@@ -8,13 +8,21 @@ import { useSession } from '@/lib/session/session-context';
 import type { DmProfileSummary } from '@/lib/game/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
 const sectionTitleClassName = 'text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]';
-const panelClassName = 'panel-card flex flex-col gap-3 py-3 sm:py-4 lg:h-full lg:max-h-dvh';
+const panelClassName = 'panel-card flex flex-col gap-3 p-3 sm:p-4 lg:h-full lg:max-h-dvh';
 
 type DmProfileCreateDraft = {
   name: string;
@@ -42,6 +50,7 @@ export function AdminDmProfilesContent() {
   const [statusMessage, setStatusMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const displayStatus = statusMessage || (isLoading ? '正在加载...' : '');
 
@@ -87,6 +96,17 @@ export function AdminDmProfilesContent() {
 
   function handleDefaultToggle(isDefault: boolean) {
     setCreateDraft((current) => ({ ...current, isDefault }));
+  }
+
+  function handleOpenCreateDialog() {
+    setCreateDraft(buildCreateDraft());
+    setStatusMessage('');
+    setIsCreateDialogOpen(true);
+  }
+
+  function handleCloseCreateDialog() {
+    if (isCreating) return;
+    setIsCreateDialogOpen(false);
   }
 
   async function handleCreateProfile() {
@@ -140,55 +160,21 @@ export function AdminDmProfilesContent() {
   }
 
   return (
-    <div className="grid px-4 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:overflow-hidden">
+    <>
       <section className={`${panelClassName} lg:overflow-auto`}>
-        <div>
-          <p className={sectionTitleClassName}>新建风格</p>
-          <h2 className="text-lg font-semibold text-[var(--ink-strong)]">基础信息</h2>
-          <p className="text-xs text-[var(--ink-muted)]">创建后进入风格编辑页。</p>
-        </div>
-        <div className="grid gap-2">
-          <Label className="text-xs text-[var(--ink-muted)]" htmlFor="dm-profile-name">
-            风格名称
-          </Label>
-          <Input
-            id="dm-profile-name"
-            value={createDraft.name}
-            onChange={(event) => handleCreateDraftChange(event.target.value, 'name')}
-            placeholder="例如：温和推进"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label className="text-xs text-[var(--ink-muted)]" htmlFor="dm-profile-summary">
-            简介
-          </Label>
-          <Textarea
-            id="dm-profile-summary"
-            value={createDraft.summary}
-            onChange={(event) => handleCreateDraftChange(event.target.value, 'summary')}
-            placeholder="简短描述风格特点"
-            rows={3}
-          />
-        </div>
-        <div className="flex items-center justify-between rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold text-[var(--ink-strong)]">设为默认风格</p>
-            <p className="text-[10px] text-[var(--ink-soft)]">默认风格会在设置中自动选中。</p>
+            <p className={sectionTitleClassName}>DM 风格</p>
+            <h2 className="text-lg font-semibold text-[var(--ink-strong)]">已有风格</h2>
+            <p className="text-xs text-[var(--ink-muted)]">选择风格进入编辑模式。</p>
           </div>
-          <Switch checked={createDraft.isDefault} onCheckedChange={handleDefaultToggle} aria-label="设为默认风格" />
+          <Button onClick={handleOpenCreateDialog} size="sm">
+            新建风格
+          </Button>
         </div>
-        <Button disabled={isCreating} onClick={handleCreateProfile} size="sm">
-          {isCreating ? '创建中...' : '创建风格'}
-        </Button>
-        {displayStatus ? <p className="text-xs text-[var(--accent-ember)]">{displayStatus}</p> : null}
-      </section>
-
-      <section className={`${panelClassName} lg:overflow-auto`}>
-        <div>
-          <p className={sectionTitleClassName}>DM 风格</p>
-          <h2 className="text-lg font-semibold text-[var(--ink-strong)]">已有风格</h2>
-          <p className="text-xs text-[var(--ink-muted)]">选择风格进入编辑模式。</p>
-        </div>
+        {displayStatus && !isCreateDialogOpen ? (
+          <p className="text-xs text-[var(--accent-ember)]">{displayStatus}</p>
+        ) : null}
         {profileOptions.length === 0 ? (
           <div className="rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.6)] p-3 text-xs text-[var(--ink-soft)]">
             暂无 DM 风格，请先创建。
@@ -222,7 +208,67 @@ export function AdminDmProfilesContent() {
           </div>
         )}
       </section>
-    </div>
+
+      <Dialog
+        open={isCreateDialogOpen}
+        onOpenChange={(open) => (!open ? handleCloseCreateDialog() : undefined)}
+      >
+        <DialogPopup className="max-w-lg">
+          <DialogHeader>
+            <p className={sectionTitleClassName}>新建风格</p>
+            <DialogTitle className="text-xl font-semibold text-[var(--ink-strong)]">基础信息</DialogTitle>
+            <p className="text-sm text-[var(--ink-muted)]">创建后进入风格编辑页。</p>
+          </DialogHeader>
+
+          <DialogPanel className="space-y-3">
+            <div className="grid gap-2">
+              <Label className="text-xs text-[var(--ink-muted)]" htmlFor="dm-profile-name">
+                风格名称
+              </Label>
+              <Input
+                id="dm-profile-name"
+                onChange={(event) => handleCreateDraftChange(event.target.value, 'name')}
+                placeholder="例如：温和推进"
+                value={createDraft.name}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-xs text-[var(--ink-muted)]" htmlFor="dm-profile-summary">
+                简介
+              </Label>
+              <Textarea
+                id="dm-profile-summary"
+                onChange={(event) => handleCreateDraftChange(event.target.value, 'summary')}
+                placeholder="简短描述风格特点"
+                rows={3}
+                value={createDraft.summary}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-3">
+              <div>
+                <p className="text-xs font-semibold text-[var(--ink-strong)]">设为默认风格</p>
+                <p className="text-[10px] text-[var(--ink-soft)]">默认风格会在设置中自动选中。</p>
+              </div>
+              <Switch
+                aria-label="设为默认风格"
+                checked={createDraft.isDefault}
+                onCheckedChange={handleDefaultToggle}
+              />
+            </div>
+            {statusMessage ? <p className="text-xs text-[var(--accent-ember)]">{statusMessage}</p> : null}
+          </DialogPanel>
+
+          <DialogFooter className="justify-end" variant="bare">
+            <Button disabled={isCreating} onClick={handleCloseCreateDialog} size="sm" variant="outline">
+              取消
+            </Button>
+            <Button disabled={isCreating} onClick={handleCreateProfile} size="sm">
+              {isCreating ? '创建中...' : '创建风格'}
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+    </>
   );
 }
 
