@@ -1457,3 +1457,20 @@ export async function deleteAiModel(db: D1Database, id: string): Promise<boolean
   const result = await db.prepare('DELETE FROM ai_models WHERE id = ?').bind(id).run();
   return result.success;
 }
+
+// 给 chat 路由用：根据 provider + kind + modelId 找对应 DB 模型记录（含 baseUrl/apiKey）。
+export async function findAiModelByLookup(
+  db: D1Database,
+  provider: AiProvider,
+  kind: AiModelKind,
+  modelId: string,
+): Promise<AiModelRecord | null> {
+  if (!modelId) return null;
+  const row = await db
+    .prepare(
+      'SELECT id, provider, model_id, kind, label, description, base_url, api_key, sort_order, is_active, created_at, updated_at FROM ai_models WHERE provider = ? AND kind = ? AND model_id = ? AND is_active = 1 LIMIT 1',
+    )
+    .bind(provider, kind, modelId)
+    .first<AiModelRow>();
+  return row ? mapAiModelRecord(row) : null;
+}

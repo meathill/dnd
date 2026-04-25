@@ -11,11 +11,9 @@ import {
   RunToolCallOutputItem,
 } from '@openai/agents';
 import { requireAdmin } from '@/app/api/admin/admin-utils';
-import { getScriptById, getUserSettings } from '@/lib/db/repositories';
+import { findAiModelByLookup, getScriptById, getUserSettings } from '@/lib/db/repositories';
 import { createScriptEditorAgent, type ScriptEditorAgentContext } from '@/lib/ai/script-editor-agent';
 import { normalizeModel } from '@/lib/ai/ai-models';
-
-export const runtime = 'edge';
 
 type ChatHistoryEntry = {
   role: 'user' | 'assistant';
@@ -85,13 +83,14 @@ export async function POST(request: Request) {
     }
 
     const provider = settings?.provider ?? 'openai';
-    const generalModel = normalizeModel(provider, 'general', settings?.generalModel);
+    const generalModel = settings?.generalModel?.trim() || normalizeModel(provider, 'general', '');
 
     const { env } = await getCloudflareContext({ async: true });
-    const openaiClient = new OpenAI({
-      apiKey: env.OPENAI_API_KEY,
-      baseURL: env.OPENAI_BASE_URL || undefined,
-    });
+    const customModel = await findAiModelByLookup(adminContext.db, provider, 'general', generalModel);
+    const envRecord = env as unknown as Record<string, string | undefined>;
+    const apiKey = customModel?.apiKey || envRecord.OPENAI_API_KEY || '';
+    const baseURL = customModel?.baseUrl || envRecord.OPENAI_BASE_URL || undefined;
+    const openaiClient = new OpenAI({ apiKey, baseURL });
     setDefaultOpenAIClient(openaiClient);
     setTracingDisabled(true);
 
@@ -110,7 +109,9 @@ export async function POST(request: Request) {
         try {
           controller.enqueue(sse({ type: 'status', text: '助手正在思考...' }));
 
-          const result = run(agent, agentInput, {
+          // SDK 类型对 assistant 项要求 status 字段，这里把简单的 {role,content} 历史
+          // 直接传入即可——运行时 OpenAI agents SDK 会接受标准 chat 消息形态。
+          const result = await run(agent, agentInput as unknown as Parameters<typeof run>[1], {
             context: agentContext,
             stream: true,
             maxTurns: 6,

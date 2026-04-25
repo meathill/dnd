@@ -136,6 +136,14 @@ export type ChatModule =
       content: string;
     };
 
+export type ToolCallDisplay = {
+  callId: string;
+  name: string;
+  args: Record<string, unknown>;
+  status: 'pending' | 'done';
+  result?: string;
+};
+
 export type ChatMessage = {
   id: string;
   role: ChatRole;
@@ -144,6 +152,7 @@ export type ChatMessage = {
   content: string;
   modules?: ChatModule[];
   isStreaming?: boolean;
+  toolCalls?: ToolCallDisplay[];
 };
 
 export type DmGuidePhase = 'analysis' | 'narration';

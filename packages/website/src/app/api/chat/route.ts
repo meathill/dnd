@@ -1,30 +1,34 @@
 import { NextResponse } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { generateChatCompletion, streamChatCompletion } from '@/lib/ai/ai-provider';
-import type { AiMessage, AiProvider } from '@/lib/ai/ai-types';
+import OpenAI from 'openai';
+import {
+  run,
+  setDefaultOpenAIClient,
+  setTracingDisabled,
+  RunItemStreamEvent,
+  RunRawModelStreamEvent,
+  RunToolCallItem,
+  RunToolCallOutputItem,
+} from '@openai/agents';
+import { dmAgent, type GameAgentContext } from '@/lib/ai/dm-agent';
 import { getAuth } from '@/lib/auth/auth';
 import { getDatabase } from '@/lib/db/db';
 import {
   createGameMessage,
   createGameMessages,
+  findAiModelByLookup,
   getActiveDmProfile,
   getCharacterByIdForUser,
   getGameByIdForUser,
   getScriptById,
   getUserSettings,
   listGameMessages,
-  updateGameRuleOverrides,
 } from '@/lib/db/repositories';
-import { DEFAULT_ANALYSIS_GUIDE, DEFAULT_NARRATION_GUIDE, buildFallbackDmProfile } from '@/lib/game/dm-profiles';
-import { buildMessageContentFromModules, parseChatModules } from '@/lib/game/chat-parser';
-import { executeActionPlan } from '@/lib/game/action-executor';
-import type { InputAnalysis } from '@/lib/game/input-analyzer';
-import { buildAnalysisPrompts, parseInputAnalysis } from '@/lib/game/input-analyzer';
+import { DEFAULT_NARRATION_GUIDE, buildFallbackDmProfile } from '@/lib/game/dm-profiles';
+import { parseChatModules, buildMessageContentFromModules } from '@/lib/game/chat-parser';
 import { buildMemoryContext } from '@/lib/game/memory';
 import { refreshGameMemory } from '@/lib/game/memory-updater';
-import { resolveTrainedSkillValue, resolveUntrainedSkillValue } from '@/lib/game/rules';
 import type { ChatMessage, ChatRole, CharacterRecord, GameMessageRecord, ScriptDefinition } from '@/lib/game/types';
-import { normalizeModel } from '@/lib/ai/ai-models';
 
 type ChatRequest = {
   gameId: string;
@@ -41,8 +45,6 @@ type ChatHistoryEntry = {
   role: ChatRole;
   content: string;
 };
-
-const DEFAULT_PROVIDER: AiProvider = 'openai';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -75,32 +77,6 @@ function buildChatMessage(record: GameMessageRecord): ChatMessage {
     content: record.content,
     modules: record.modules,
   };
-}
-
-function mapRoleToAiRole(role: ChatRole): AiMessage['role'] {
-  if (role === 'player') {
-    return 'user';
-  }
-  if (role === 'system') {
-    return 'system';
-  }
-  return 'assistant';
-}
-
-function buildHistoryMessages(messages: ChatHistoryEntry[]): AiMessage[] {
-  return messages
-    .filter((message) => message.role !== 'system')
-    .map((message) => ({
-      role: mapRoleToAiRole(message.role),
-      content: message.content,
-    }));
-}
-
-function mapRecordsToHistory(messages: GameMessageRecord[]): ChatHistoryEntry[] {
-  return messages.map((message) => ({
-    role: message.role,
-    content: message.content,
-  }));
 }
 
 function parseHistoryEntries(raw: unknown): ChatHistoryEntry[] {
@@ -137,247 +113,11 @@ function ensureHistoryIncludesInput(history: ChatHistoryEntry[], input: string):
   return history;
 }
 
-function buildInvalidAnalysis(reason: string): InputAnalysis {
-  return {
-    allowed: false,
-    reason,
-    intent: 'invalid',
-    needsDice: false,
-    diceType: 'none',
-    diceTarget: '',
-    difficulty: 'normal',
-    tags: [],
-    actions: [],
-  };
-}
-
-async function analyzeInput({
-  provider,
-  model,
-  input,
-  script,
-  character,
-  recentHistory,
-  analysisGuide,
-  memoryContext,
-}: {
-  provider: AiProvider;
-  model: string;
-  input: string;
-  script: ScriptDefinition;
-  character: CharacterRecord;
-  recentHistory?: string;
-  analysisGuide?: string;
-  memoryContext?: string;
-}): Promise<InputAnalysis> {
-  const { systemPrompt, userPrompt } = buildAnalysisPrompts(
-    script,
-    character,
-    input,
-    recentHistory,
-    analysisGuide,
-    memoryContext,
-  );
-  const messages: AiMessage[] = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt },
-  ];
-  try {
-    const result = await generateChatCompletion({
-      provider,
-      model,
-      messages,
-      maxOutputTokens: 600,
-    });
-    let parsed = parseInputAnalysis(result.text, input);
-    if (parsed.intent !== 'invalid') {
-      return parsed;
-    }
-    console.warn('[api/chat] 意图解析失败，尝试重试。', result.text.slice(0, 400));
-    const retry = await generateChatCompletion({
-      provider,
-      model,
-      messages: [
-        { role: 'system', content: `${systemPrompt}\n仅输出 JSON，对象外不要任何文字。` },
-        { role: 'user', content: userPrompt },
-      ],
-      maxOutputTokens: 600,
-    });
-    parsed = parseInputAnalysis(retry.text, input);
-    if (parsed.intent === 'invalid') {
-      console.warn('[api/chat] 重试解析失败。', retry.text.slice(0, 400));
-    }
-    return parsed;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '意图解析失败';
-    console.error('[api/chat] 意图解析失败', error);
-    return buildInvalidAnalysis(`意图解析失败：${message}`);
-  }
-}
-
-function buildRecentHistoryText(messages: ChatHistoryEntry[]): string {
-  const visibleMessages = messages.filter((message) => message.role !== 'system');
-  if (visibleMessages.length === 0) {
-    return '无';
-  }
-  const labeled = visibleMessages.map((message) => {
-    const roleLabel = message.role === 'player' ? '玩家' : '肉团长';
-    return `${roleLabel}：${message.content}`;
-  });
-  return labeled.join('\n');
-}
-
-function buildCharacterSummary(script: ScriptDefinition, character: CharacterRecord): string {
-  const parts: string[] = [];
-  parts.push(`角色：${character.name}（${character.occupation} / ${character.origin}）`);
-  if (character.age.trim()) {
-    parts.push(`年龄：${character.age}`);
-  }
-  const labelMap = new Map(script.skillOptions.map((skill) => [skill.id, skill.label]));
-  const trainedValue = resolveTrainedSkillValue(script.rules);
-  const untrainedValue = resolveUntrainedSkillValue(script.rules);
-  const skillBaseValues = script.rules.skillBaseValues ?? {};
-  const skillList = Object.entries(character.skills as Record<string, unknown>)
-    .map(([skillId, rawValue]) => {
-      const baseValue =
-        typeof skillBaseValues[skillId] === 'number' && Number.isFinite(skillBaseValues[skillId])
-          ? (skillBaseValues[skillId] as number)
-          : untrainedValue;
-      const value =
-        typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : rawValue ? trainedValue : baseValue;
-      if (value <= baseValue) {
-        return null;
-      }
-      return labelMap.get(skillId) ?? skillId;
-    })
-    .filter((item): item is string => Boolean(item));
-  if (skillList.length > 0) {
-    parts.push(`技能：${skillList.join('、')}`);
-  }
-  if (character.inventory.length > 0) {
-    parts.push(`装备：${character.inventory.join('、')}`);
-  }
-  if (character.buffs.length > 0) {
-    parts.push(`Buff：${character.buffs.join('、')}`);
-  }
-  if (character.debuffs.length > 0) {
-    parts.push(`Debuff：${character.debuffs.join('、')}`);
-  }
-  return parts.join('\n');
-}
-
-function buildScriptHiddenContext(script: ScriptDefinition): string {
-  const parts: string[] = [];
-  const background = script.background;
-  if (background.overview) {
-    parts.push(`背景设定：${background.overview}`);
-  }
-  if (background.truth) {
-    parts.push(`核心真相：${background.truth}`);
-  }
-  if (background.themes.length > 0) {
-    parts.push(`主题：${background.themes.join('、')}`);
-  }
-  if (background.factions.length > 0) {
-    parts.push(`势力：${background.factions.join('、')}`);
-  }
-  if (background.locations.length > 0) {
-    parts.push(`关键地点：${background.locations.join('、')}`);
-  }
-  if (background.explorableAreas.length > 0) {
-    const areas = background.explorableAreas
-      .map((area) => {
-        const summary = area.summary ? `：${area.summary}` : '';
-        const description = area.description ? `（${area.description}）` : '';
-        const dmNotes = area.dmNotes ? `【DM 备注：${area.dmNotes}】` : '';
-        return `- ${area.name}${summary}${description}${dmNotes}`;
-      })
-      .join('\n');
-    parts.push(`可探索区域：\n${areas}`);
-  }
-  if (background.secrets.length > 0) {
-    parts.push(`隐藏要点：${background.secrets.join('、')}`);
-  }
-  if (script.storyArcs.length > 0) {
-    const arcs = script.storyArcs
-      .map((arc, index) => {
-        const beats = arc.beats.length > 0 ? `（关键点：${arc.beats.join(' / ')}）` : '';
-        const reveals = arc.reveals.length > 0 ? `（揭示：${arc.reveals.join(' / ')}）` : '';
-        return `${index + 1}. ${arc.title}：${arc.summary}${beats}${reveals}`;
-      })
-      .join('\n');
-    parts.push(`故事走向：\n${arcs}`);
-  }
-  if (script.npcProfiles.length > 0) {
-    const npcs = script.npcProfiles
-      .map((npc) => {
-        const attacks = npc.attacks
-          .map(
-            (attack) =>
-              `${attack.name} ${attack.chance}% ${attack.damage}${attack.effect ? `（${attack.effect}）` : ''}`,
-          )
-          .join('；');
-        const skills = npc.skills.map((skill) => `${skill.name}${skill.value}`).join('、');
-        const traits = npc.traits.join('、');
-        const roleLabel = npc.role === 'ally' ? '友方' : npc.role === 'enemy' ? '敌对' : '中立';
-        return [
-          `- ${npc.name}（${roleLabel} / ${npc.type} / 威胁：${npc.threat} / HP:${npc.hp}${
-            npc.armor ? ` / 甲:${npc.armor}` : ''
-          }${npc.move ? ` / 移动:${npc.move}` : ''}）`,
-          npc.summary ? `  描述：${npc.summary}` : '',
-          npc.useWhen ? `  使用时机：${npc.useWhen}` : '',
-          npc.status ? `  当前状态：${npc.status}` : '',
-          attacks ? `  攻击：${attacks}` : '',
-          skills ? `  技能：${skills}` : '',
-          traits ? `  特性：${traits}` : '',
-          npc.tactics ? `  战术：${npc.tactics}` : '',
-          npc.weakness ? `  弱点：${npc.weakness}` : '',
-          npc.sanityLoss ? `  理智损失：${npc.sanityLoss}` : '',
-        ]
-          .filter(Boolean)
-          .join('\n');
-      })
-      .join('\n');
-    parts.push(`NPC 设定：\n${npcs}`);
-  }
-  return parts.join('\n');
-}
-
-function buildSystemPrompt(
-  script: ScriptDefinition,
-  character: CharacterRecord,
-  analysis: ReturnType<typeof parseInputAnalysis>,
-  actionSummary: string,
-  narrationGuide: string,
-  memoryContext: string,
-): string {
-  const guideText = narrationGuide.trim();
-  const hiddenContext = buildScriptHiddenContext(script);
-  const promptParts = [
-    '你是“肉团长”，负责主持 COC 跑团。请用中文叙事并推动剧情。',
-    '掷骰由系统函数执行，已执行动作内包含结果，请勿自行掷骰或编造掷骰结果。',
-    '准则：遵循剧本与房规优先级；保持克苏鲁氛围；每次回复简洁有推进。',
-    '不要输出行动建议列表或项目符号清单，叙事中不要复述掷骰结果。',
-    `剧本：${script.title}（${script.setting} / 难度：${script.difficulty}）`,
-    `简介：${script.summary}`,
-    hiddenContext ? `DM 隐藏信息（不可直接透露玩家，需通过线索逐步揭示）：\n${hiddenContext}` : '',
-    buildCharacterSummary(script, character),
-    memoryContext ? `历史摘要与世界状态：\n${memoryContext}` : '历史摘要与世界状态：无',
-    `玩家意图：${analysis.intent}`,
-    `检定需求：${analysis.needsDice ? '是' : '否'}（${analysis.diceType}${analysis.diceTarget ? ` / ${analysis.diceTarget}` : ''}）`,
-    `难度：${analysis.difficulty}`,
-    `已执行动作：${actionSummary || '无'}`,
-    '请按以下格式输出：',
-    '【叙事】',
-    '...剧情描述...',
-    '【绘图】',
-    '使用 ASCII/emoji 简要呈现位置关系与周边环境，控制在 40 列以内；若无需更新则写“无”。',
-    '不要输出多余的解释或前后缀。',
-  ];
-  if (guideText) {
-    promptParts.splice(4, 0, guideText);
-  }
-  return promptParts.join('\n');
+function mapRecordsToHistory(messages: GameMessageRecord[]): ChatHistoryEntry[] {
+  return messages.map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
 }
 
 function buildSseEvent(payload: unknown): Uint8Array {
@@ -387,6 +127,16 @@ function buildSseEvent(payload: unknown): Uint8Array {
 
 function buildStatusEvent(text: string): StatusEvent {
   return { type: 'status', text };
+}
+
+// 将对话历史转换为 @openai/agents 需要的输入格式
+function buildAgentInput(history: ChatHistoryEntry[]): Array<{ role: 'user' | 'assistant'; content: string }> {
+  return history
+    .filter((message) => message.role !== 'system')
+    .map((message) => ({
+      role: (message.role === 'player' ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: message.content,
+    }));
 }
 
 async function scheduleMemoryRefresh(task: () => Promise<void>) {
@@ -442,11 +192,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '游戏数据不完整' }, { status: 404 });
     }
 
-    const provider = settings?.provider ?? DEFAULT_PROVIDER;
-    const fastModel = normalizeModel(provider, 'fast', settings?.fastModel);
-    const model = normalizeModel(provider, 'general', settings?.generalModel);
     const dmProfile = (await getActiveDmProfile(db, settings?.dmProfileId)) ?? buildFallbackDmProfile();
-    const analysisGuide = dmProfile.analysisGuide || DEFAULT_ANALYSIS_GUIDE;
     const narrationGuide = dmProfile.narrationGuide || DEFAULT_NARRATION_GUIDE;
 
     const existingMessages = await listGameMessages(db, game.id);
@@ -462,13 +208,14 @@ export async function POST(request: Request) {
         })),
       );
     }
+
     let activeCharacter = character;
     let memoryContext = '无';
     try {
       const memoryResult = await refreshGameMemory({
         db,
-        provider,
-        model: fastModel,
+        provider: 'openai',
+        model: settings?.fastModel || 'gpt-5-mini',
         gameId: game.id,
         script,
         character,
@@ -479,11 +226,57 @@ export async function POST(request: Request) {
       console.warn('[api/chat] 记忆刷新失败', error);
     }
 
+    // ==========================================
+    // 配置 OpenAI Client 给 @openai/agents 使用
+    // 优先使用 ai_models 表中匹配 general 模型的自定义 baseURL/apiKey，
+    // 否则回落到环境变量 OPENAI_API_KEY / OPENAI_BASE_URL。
+    // ==========================================
+    const { env } = await getCloudflareContext({ async: true });
+    const generalModelId = settings?.generalModel?.trim() || '';
+    const customModel = generalModelId
+      ? await findAiModelByLookup(db, 'openai', 'general', generalModelId)
+      : null;
+    const envRecord = env as unknown as Record<string, string | undefined>;
+    const openaiClient = new OpenAI({
+      apiKey: customModel?.apiKey || envRecord.OPENAI_API_KEY || '',
+      baseURL: customModel?.baseUrl || envRecord.OPENAI_BASE_URL || undefined,
+    });
+    setDefaultOpenAIClient(openaiClient);
+    // Edge 环境不需要追踪，关闭避免不必要的网络请求
+    setTracingDisabled(true);
+
+    // ==========================================
+    // 构建 Agent 运行上下文
+    // ==========================================
+    const imageModel =
+      (env as unknown as Record<string, string | undefined>).OPENAI_IMAGE_MODEL || 'gpt-image-2';
+    const agentContext: GameAgentContext = {
+      script,
+      character: activeCharacter,
+      gameRules: game.ruleOverrides,
+      memoryContext,
+      narrationGuide,
+      generateImage: async ({ prompt, size }) => {
+        const response = await openaiClient.images.generate({
+          model: imageModel,
+          prompt,
+          size,
+          n: 1,
+        });
+        const item = response.data?.[0];
+        return {
+          b64: item?.b64_json,
+          url: item?.url,
+        };
+      },
+    };
+
     const stream = new ReadableStream({
       async start(controller) {
         let fullText = '';
+        const diceResults: string[] = [];
         try {
-          controller.enqueue(buildSseEvent(buildStatusEvent('理解玩家指令')));
+          controller.enqueue(buildSseEvent(buildStatusEvent('DM 正在思考...')));
 
           const playerSpeaker = `玩家 · ${activeCharacter.name}`;
           await createGameMessage(db, {
@@ -497,86 +290,80 @@ export async function POST(request: Request) {
           const historySource = chatRequest.history?.length
             ? ensureHistoryIncludesInput(chatRequest.history, chatRequest.input)
             : mapRecordsToHistory(await listGameMessages(db, game.id));
-          const historyForAnalysis = historySource.slice(-8);
-          const analysis = await analyzeInput({
-            provider,
-            model: fastModel,
-            input: chatRequest.input,
-            script,
-            character: activeCharacter,
-            recentHistory: buildRecentHistoryText(historyForAnalysis),
-            analysisGuide,
-            memoryContext,
-          });
-
-          if (!analysis.allowed || analysis.intent === 'invalid') {
-            const noticeText = analysis.reason || '该指令不符合当前剧本，请换一种表达方式。';
-            controller.enqueue(buildSseEvent(buildStatusEvent(`玩家指令超出可行范围：${noticeText}`)));
-            const modules = [{ type: 'notice', content: noticeText }] as const;
-            const assistantRecord = await createGameMessage(db, {
-              gameId: game.id,
-              role: 'system',
-              speaker: '系统',
-              content: noticeText,
-              modules: [...modules],
-            });
-            controller.enqueue(buildSseEvent({ type: 'done', message: buildChatMessage(assistantRecord) }));
-            return;
-          }
-
-          controller.enqueue(buildSseEvent(buildStatusEvent('玩家指令合法，世界因你而变')));
-          controller.enqueue(buildSseEvent(buildStatusEvent('执行投骰操作')));
-
-          const actionExecution = executeActionPlan({
-            analysis,
-            script,
-            character: activeCharacter,
-            gameRules: game.ruleOverrides,
-          });
-          if (Object.keys(actionExecution.ruleUpdates).length > 0) {
-            const mergedOverrides = {
-              ...(game.ruleOverrides.checkDcOverrides ?? {}),
-              ...actionExecution.ruleUpdates,
-            };
-            await updateGameRuleOverrides(db, game.id, mergedOverrides);
-            game.ruleOverrides.checkDcOverrides = mergedOverrides;
-          }
-
-          controller.enqueue(buildSseEvent(buildStatusEvent('开始生成结果')));
-          controller.enqueue(buildSseEvent(buildStatusEvent('交给通用AI大模型结合剧本生成内容')));
-
           const recentHistory = historySource.slice(-18);
-          const messages: AiMessage[] = [
-            {
-              role: 'system',
-              content: buildSystemPrompt(
-                script,
-                activeCharacter,
-                analysis,
-                actionExecution.summary,
-                narrationGuide,
-                memoryContext,
-              ),
-            },
-            ...buildHistoryMessages(recentHistory),
-          ];
+          const agentInput = buildAgentInput(recentHistory);
 
-          for await (const chunk of streamChatCompletion({
-            provider,
-            model,
-            messages,
-            maxOutputTokens: 800,
-          })) {
-            fullText += chunk;
-            controller.enqueue(buildSseEvent({ type: 'delta', text: chunk }));
+          // ==========================================
+          // 使用 @openai/agents Runner 流式运行 DM Agent
+          // ==========================================
+          controller.enqueue(buildSseEvent(buildStatusEvent('肉团长正在展开叙事...')));
+
+          const result = await run(dmAgent, agentInput as unknown as Parameters<typeof run>[1], {
+            context: agentContext,
+            stream: true,
+            maxTurns: 8,
+          });
+
+          for await (const event of result) {
+            if (event instanceof RunRawModelStreamEvent) {
+              // 原始文本 delta —— 流式推送给前端
+              const rawEvent = event.data as Record<string, unknown>;
+              const choices = rawEvent?.choices as Array<{ delta?: { content?: string } }> | undefined;
+              const delta = choices?.[0]?.delta?.content;
+              if (delta) {
+                fullText += delta;
+                controller.enqueue(buildSseEvent({ type: 'delta', text: delta }));
+              }
+            } else if (event instanceof RunItemStreamEvent) {
+              const item = event.item;
+              if (item instanceof RunToolCallItem) {
+                // Agent 决定调用工具 —— 通知前端展示 ToolCard
+                const raw = item.rawItem as { name?: string; arguments?: string; callId?: string; call_id?: string };
+                const toolName = raw.name ?? 'unknown';
+                const callId = raw.callId ?? raw.call_id ?? `${toolName}-${Date.now()}`;
+                controller.enqueue(
+                  buildSseEvent({
+                    type: 'status',
+                    text: `执行检定：${toolName}`,
+                  }),
+                );
+                controller.enqueue(
+                  buildSseEvent({
+                    type: 'tool_call',
+                    callId,
+                    name: toolName,
+                    arguments: raw.arguments ?? '{}',
+                  }),
+                );
+              } else if (item instanceof RunToolCallOutputItem) {
+                // 工具执行完毕 —— 通知前端展示结果
+                const raw = item.rawItem as { callId?: string; call_id?: string; name?: string };
+                const callId = raw.callId ?? raw.call_id ?? raw.name ?? 'unknown';
+                const output = typeof item.output === 'string' ? item.output : JSON.stringify(item.output);
+                diceResults.push(output);
+                controller.enqueue(
+                  buildSseEvent({
+                    type: 'tool_result',
+                    callId,
+                    result: output,
+                  }),
+                );
+              }
+            }
           }
 
+          // ==========================================
+          // 保存 DM 回复到数据库
+          // ==========================================
           const parsed = parseChatModules(fullText);
           const filteredModules = parsed.modules.filter(
             (module) => module.type !== 'dice' && module.type !== 'suggestions',
           );
-          const mergedModules =
-            actionExecution.modules.length > 0 ? [...actionExecution.modules, ...filteredModules] : filteredModules;
+          // 将工具调用的骰子结果作为 dice module 插入
+          const diceModules = diceResults.length > 0
+            ? [{ type: 'dice' as const, content: diceResults.join('\n') }]
+            : [];
+          const mergedModules = [...diceModules, ...filteredModules];
           const assistantContent = buildMessageContentFromModules(mergedModules, fullText);
           const assistantRecord = await createGameMessage(db, {
             gameId: game.id,
@@ -590,8 +377,8 @@ export async function POST(request: Request) {
             try {
               await refreshGameMemory({
                 db,
-                provider,
-                model: fastModel,
+                provider: 'openai',
+                model: settings?.fastModel || 'gpt-5-mini',
                 gameId: game.id,
                 script,
                 character: activeCharacter,
@@ -602,6 +389,30 @@ export async function POST(request: Request) {
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'AI 请求失败';
+          console.error('[api/chat] Agent 运行失败', error);
+          // 保留已生成的片段，避免用户回滚时丢失叙事
+          if (fullText.trim()) {
+            try {
+              const parsed = parseChatModules(fullText);
+              const filteredModules = parsed.modules.filter(
+                (module) => module.type !== 'dice' && module.type !== 'suggestions',
+              );
+              const diceModules = diceResults.length > 0
+                ? [{ type: 'dice' as const, content: diceResults.join('\n') }]
+                : [];
+              const mergedModules = [...diceModules, ...filteredModules];
+              const assistantContent = buildMessageContentFromModules(mergedModules, fullText);
+              await createGameMessage(db, {
+                gameId: game.id,
+                role: 'dm',
+                speaker: '肉团长',
+                content: assistantContent,
+                modules: mergedModules,
+              });
+            } catch (persistError) {
+              console.warn('[api/chat] 部分叙事保存失败', persistError);
+            }
+          }
           controller.enqueue(buildSseEvent({ type: 'error', error: message }));
         } finally {
           controller.close();

@@ -5,6 +5,7 @@ import type { ChangeEvent } from 'react';
 import CharacterCardPanel from './character-card-panel';
 import DmMemoryPanel from './dm-memory-panel';
 import SceneMapPanel from './scene-map-panel';
+import ToolCard from './tool-card';
 import { chatMessages, quickActions } from './home-data';
 import { useGameStore } from '../lib/game/game-store';
 import type {
@@ -15,6 +16,7 @@ import type {
   GameMemorySnapshot,
   ScriptDefinition,
   ScriptOpeningMessage,
+  ToolCallDisplay,
 } from '../lib/game/types';
 import { cn } from '../lib/utils';
 import { Button } from '../components/ui/button';
@@ -58,7 +60,18 @@ type StreamEvent =
   | { type: 'delta'; text: string }
   | { type: 'done'; message: ChatMessage }
   | { type: 'error'; error: string }
-  | { type: 'status'; text: string };
+  | { type: 'status'; text: string }
+  | { type: 'tool_call'; callId: string; name: string; arguments: string }
+  | { type: 'tool_result'; callId: string; result: string };
+
+function parseToolArguments(raw: string): Record<string, unknown> {
+  try {
+    const value = JSON.parse(raw);
+    return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
 
 function consumeSseBuffer(buffer: string): { events: StreamEvent[]; rest: string } {
   const normalized = buffer.replace(/\r/g, '');
@@ -422,14 +435,55 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
             markDmOutputStarted();
             setMessages((current) => {
               streamMessageIdRef.current = null;
-              const nextMessages = current.map((message) =>
-                message.id === streamId ? { ...event.message, isStreaming: false } : message,
-              );
+              const nextMessages = current.map((message) => {
+                if (message.id !== streamId) {
+                  return message;
+                }
+                const preservedToolCalls = message.toolCalls;
+                const mergedModules = preservedToolCalls?.length
+                  ? event.message.modules?.filter((module) => module.type !== 'dice')
+                  : event.message.modules;
+                return {
+                  ...event.message,
+                  modules: mergedModules,
+                  toolCalls: preservedToolCalls,
+                  isStreaming: false,
+                };
+              });
               return nextMessages;
             });
             scheduleMemorySync();
           } else if (event.type === 'status') {
             updateStatusIndicators(event.text);
+          } else if (event.type === 'tool_call') {
+            markDmOutputStarted();
+            const callInfo: ToolCallDisplay = {
+              callId: event.callId,
+              name: event.name,
+              args: parseToolArguments(event.arguments),
+              status: 'pending',
+            };
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === streamId
+                  ? { ...message, toolCalls: [...(message.toolCalls ?? []), callInfo] }
+                  : message,
+              ),
+            );
+          } else if (event.type === 'tool_result') {
+            setMessages((current) =>
+              current.map((message) => {
+                if (message.id !== streamId || !message.toolCalls) {
+                  return message;
+                }
+                const nextCalls = message.toolCalls.map((call) =>
+                  call.callId === event.callId
+                    ? { ...call, status: 'done' as const, result: event.result }
+                    : call,
+                );
+                return { ...message, toolCalls: nextCalls };
+              }),
+            );
           } else if (event.type === 'error') {
             throw new Error(event.error);
           }
@@ -477,6 +531,13 @@ export default function GameStage({ script = null, initialMessages = [] }: GameS
                     styles.bubble,
                   )}
                 >
+                  {message.toolCalls && message.toolCalls.length > 0 ? (
+                    <div className="mb-3 space-y-2">
+                      {message.toolCalls.map((call) => (
+                        <ToolCard call={call} key={call.callId} />
+                      ))}
+                    </div>
+                  ) : null}
                   {message.modules && message.modules.length > 0 ? (
                     renderModules(message.modules)
                   ) : (
