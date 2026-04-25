@@ -9,8 +9,10 @@ import type { ScriptDefinition } from '@/lib/game/types';
 import { Button } from '@/components/ui/button';
 import ScriptEditorForm from './script-editor-form';
 import ScriptEditorSidebar from './script-editor-sidebar';
+import ScriptEditorChatbot from './script-editor-chatbot';
 import type { ScriptDraft } from './script-editor-types';
 import { buildScriptDefinition, buildScriptDraft } from './script-editor-mappers';
+import { applyScriptPatch, type ScriptPatch } from './script-editor-patches';
 
 const sectionTitleClassName = 'text-xs uppercase tracking-[0.18em] text-[var(--ink-soft)]';
 const panelClassName = 'panel-card flex flex-col gap-3 p-3 sm:p-4 lg:h-full lg:max-h-dvh lg:overflow-auto';
@@ -145,6 +147,11 @@ export function ScriptEditorContent({ scriptId }: ScriptEditorPageProps) {
     });
   }
 
+  function handleApplyPatch(patch: ScriptPatch) {
+    setDraft((current) => (current ? applyScriptPatch(current, patch) : current));
+    setStatusMessage('已应用 AI 建议，记得点击「保存修改」同步到服务器。');
+  }
+
   if (!session) {
     return (
       <div className={frameClassName}>
@@ -178,7 +185,7 @@ export function ScriptEditorContent({ scriptId }: ScriptEditorPageProps) {
   }
 
   return (
-    <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:h-full lg:overflow-hidden">
+    <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[14rem_minmax(0,1fr)_22rem] lg:h-full lg:overflow-hidden">
       <div className="lg:overflow-auto">
         <ScriptEditorSidebar />
       </div>
@@ -206,6 +213,10 @@ export function ScriptEditorContent({ scriptId }: ScriptEditorPageProps) {
 
         <ScriptEditorForm draft={draft} onDraftChange={handleDraftChange} />
       </section>
+
+      <div className="lg:overflow-hidden">
+        <ScriptEditorChatbot draft={draft} onApplyPatch={handleApplyPatch} scriptId={draft.id} />
+      </div>
 
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
