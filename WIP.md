@@ -1,49 +1,73 @@
 # WIP
 
-## 目标
-将跑团助手从 Chatbot 架构升级为 **单 DM Agent + Skills** 架构。
-Agent Runner 运行在 **Edge Runtime API Route** 中（`@openai/agents`），前端通过 SSE 事件流接收文本和工具调用结果。
+## 当前目标
 
-## 架构变更记录
+当前阶段先做 COC 能力底座，不继续投入纯浏览器 Agent / client 集成。
 
-### 决策：Agent 运行环境
-- ❌ ~~Browser-Side Agent~~：`@openai/agents` 底层依赖 Node.js SDK，纯浏览器 webpack 打包有 polyfill 风险
-- ✅ **Edge Runtime API Route**：官方支持 Edge 环境，密钥天然在服务端，兼容 Cloudflare Workers 部署
-- ❌ ~~Gemini 支持~~：暂时搁置。`@openai/agents` 锁定 OpenAI 协议，Gemini 需要 `@google/genai` SDK，两者协议不兼容。验证 Agent 跑团优先
+正确顺序：
 
-### 已淘汰的文件
-- `src/app/api/llm-proxy/route.ts` — 不再需要独立 Proxy 层，Agent 直接在 API Route 中调用 OpenAI
-- `src/lib/ai/use-dm-agent.ts` — 前端 Agent Runner 方案已废弃
+1. 引入 `coc-7e-lite` 最小规则书
+2. 基于规则书制作模组
+3. 模组可玩后再引导游戏
+4. 游玩过程中持续记录可检索内容
+
+## 当前判断
+
+- COC 比 DND 更适合新手入坑，当前优先支持 COC。
+- 规则书不是普通参考资料，而是降低模组制作和游玩成本的标准库。
+- 模组应优先引用规则书实体，不应复制或重新生成标准 NPC、怪物、技能和基础规则。
+- COC 不强行套 DND 的 CR 模型，第一版使用场景风险评估：战斗风险、理智风险、线索门槛、新手友好度。
+
+## 本阶段产出物
+
+- `coc-7e-lite` 最小规则包
+- 规则书查询与实体读取函数
+- COC 场景风险评估函数
+- 支持 `rulesetId` 和规则书引用的模组结构
+- 更新后的 DM system prompt 与 skills 规划
+- 覆盖规则书能力的单元测试
 
 ## Todo
 
-### Phase 1: Agent 基础设施 ✅
-- [x] 引入 `@openai/agents` + `openai` + `zod` 依赖
-- [x] 创建 `src/lib/ai/dm-agent.ts` — DM Agent 定义，动态 instructions 注入剧本/角色/记忆
-- [x] 创建 `src/lib/ai/dm-tools.ts` — `roll_dice` 工具，复用 `rules.ts` 检定逻辑
-- [x] 重构 `/api/chat/route.ts` — 用 `Runner.run()` 替换 `input-analyzer` + `action-executor` 管线
-- [x] SSE 流新增 `tool_call` 和 `tool_result` 事件类型
+### Phase 1: COC 规则书底座
+- [ ] 定义规则书实体类型与引用类型
+- [ ] 创建 `coc-7e-lite` 最小规则包
+- [ ] 提供规则书查询、实体读取函数
+- [ ] 提供 COC 场景风险评估函数
 
-### Phase 2: 前端 ToolCard UI ✅
-- [x] 在 `game-stage.tsx` 中处理新的 `tool_call` / `tool_result` SSE 事件
-- [x] 创建 `<ToolCard />` 基础组件，展示检定过程动画
-- [x] 骰子动画卡片（掷骰 → 翻转 → 结果揭晓的 CSS 微动画）
-- [x] 状态指示器适配新的 Agent 思考过程
+### Phase 2: 模组结构接入
+- [ ] `ScriptDefinition` 增加 `rulesetId`
+- [ ] 遭遇和 NPC 支持规则书引用
+- [ ] 剧本解析器支持缺省 `coc-7e-lite`
+- [ ] 示例剧本接入默认规则书
 
-### Phase 3: 扩展技能 ✅
-- [x] `create_temp_npc` — 随机生成临时 NPC 属性
-- [x] `roleplay_npc` — 规范化 NPC 对话行为（从剧本取档）
-- [x] `draw_map` — 通过 OpenAI Images API（`gpt-image-2`，可用 `OPENAI_IMAGE_MODEL` 覆盖）生成地图
-- [x] `draw_character_art` — 复用同一图像通道生成立绘
+### Phase 3: Prompt / Skills 规范化
+- [ ] 更新 DM system prompt：先规则书，再模组，再主持游戏
+- [ ] 更新 skills 文档：新增规则书能力组
+- [ ] 明确 COC 风险评估与可玩性校验的职责边界
 
-### Phase 4: 优化
-- [ ] 长对话下的 Token 消耗与性能测试
-- [x] Agent maxTurns 提升到 8（容纳多次检定 + NPC + 绘图）；错误中断时持久化已生成的叙事片段
-- [ ] 考虑恢复 Gemini 支持（等待 `@openai/agents` 支持自定义 Model Provider 或 Gemini OpenAI 兼容层成熟）
+### Phase 4: 测试验证
+- [ ] 覆盖规则书查询测试
+- [ ] 覆盖标准实体读取测试
+- [ ] 覆盖 COC 场景风险评估测试
+- [ ] 覆盖模组解析默认 `rulesetId` 与规则书引用测试
+
+### Phase 5: Client 设计准备
+- [ ] 基于能力验证结果设计 client 消费接口
+- [ ] 明确哪些规则书能力在前端本地执行，哪些需要服务端能力
+- [ ] 再决定 runner 方案，不提前绑定 SDK
 
 ---
 
-## 遗留 / 待确认 (Backlog)
-- [ ] 全局地图功能补全（原有 WIP 遗留）
-- [ ] 编辑器表单与 DM 隐藏信息（原有 WIP 遗留）
-- [x] 清理废弃文件（llm-proxy, use-dm-agent）
+## 暂缓事项
+
+- [ ] 纯浏览器 Agent Loop 落地
+- [ ] 大规模前端 ToolCard 打磨
+- [ ] DND / 其他规则系统接入
+- [ ] 围绕某个 SDK 进行深度绑定式重构
+
+## 遗留 / Backlog
+
+- [ ] 全局地图功能补全
+- [ ] 编辑器表单与 DM 隐藏信息
+- [ ] Gemini 或其他模型接入策略评估

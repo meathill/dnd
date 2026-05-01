@@ -23,6 +23,7 @@ const baseCharacter = {
 
 const baseScript: ScriptDefinition = {
   id: 'script-validate',
+  rulesetId: 'coc-7e-lite',
   title: '限定剧本',
   summary: '限制人物卡选项。',
   setting: '现代',

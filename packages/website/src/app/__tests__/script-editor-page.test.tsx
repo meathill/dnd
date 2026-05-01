@@ -32,6 +32,7 @@ function renderWithSession(node: ReactNode, session: SessionInfo | null) {
 
 const sampleScript: ScriptDefinition = {
   id: 'script-ally',
+  rulesetId: 'coc-7e-lite',
   title: '友方测试',
   summary: '用于验证 NPC 表单。',
   setting: '现代',

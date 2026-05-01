@@ -2,6 +2,7 @@ import type { ScriptDefinition } from './types';
 
 export const SAMPLE_SCRIPT: ScriptDefinition = {
   id: 'script-exorcism-door',
+  rulesetId: 'coc-7e-lite',
   title: '破门驱邪',
   summary: '郊外孤宅传来哭声，被邪灵附身的孩子被锁在地下室。',
   setting: '1996 年郊外小镇 · 暴雨夜',
@@ -23,11 +24,11 @@ export const SAMPLE_SCRIPT: ScriptDefinition = {
     },
   ],
   background: {
-    overview: '',
-    truth: '',
-    themes: [],
-    factions: [],
-    locations: [],
+    overview: '格林家老宅被传出附身与驱魔失败的流言，旧教堂不愿让事态继续扩散。',
+    truth: '真正的问题不是单纯附身，而是地下祈祷室中残留的失败仪式撕开了一个小型灵性裂口。',
+    themes: ['信仰失效', '家庭崩塌', '失控仪式'],
+    factions: ['旧教堂', '格林家残余亲属', '暗中观察的邪教徒'],
+    locations: ['格林家老宅', '地下祈祷室', '旧教堂'],
     explorableAreas: [
       {
         id: 'area-yard',
@@ -58,10 +59,50 @@ export const SAMPLE_SCRIPT: ScriptDefinition = {
         dmNotes: '邪灵在此地现形，战斗或驱魔关键场景。',
       },
     ],
-    secrets: [],
+    secrets: ['符纸被撕裂并非邪灵自己所为，而是有人先一步闯入。', '地下室的哭声会诱导调查员贸然深入。'],
   },
-  storyArcs: [],
-  npcProfiles: [],
+  storyArcs: [
+    {
+      id: 'arc-entry',
+      title: '踏入老宅',
+      summary: '调查员需要顶着暴雨进入老宅，判断这里究竟发生了什么。',
+      beats: ['进入院子', '突破正门', '发现拖拽痕迹'],
+      reveals: ['有人先于调查员闯入老宅'],
+    },
+    {
+      id: 'arc-basement',
+      title: '地下室显形',
+      summary: '调查员在祈祷室直面失控仪式残留，并决定封印或驱散。',
+      beats: ['确认哭声来源', '识别盐圈与刻痕', '处理灵体显形'],
+      reveals: ['失败仪式才是灾祸根源'],
+    },
+  ],
+  npcProfiles: [
+    {
+      id: 'npc-grace-neighbor',
+      name: '格蕾丝太太',
+      type: '受惊邻居',
+      role: 'neutral',
+      threat: '低',
+      summary: '住在老宅附近的寡妇，昨夜目睹了异常灯光和闯入者身影。',
+      useWhen: '调查员在外围打听老宅消息时',
+      status: '惊魂未定',
+      hp: 10,
+      attacks: [],
+      skills: [{ name: '心理学', value: 35 }],
+      traits: ['不愿靠近老宅', '记得一顶黑色雨帽'],
+      tactics: '只有在安抚后才愿意透露完整信息。',
+      weakness: '容易被再次吓到而语无伦次。',
+      sanityLoss: '0/0',
+      rulebookRef: {
+        source: 'rulebook',
+        rulesetId: 'coc-7e-lite',
+        entityId: 'npc-frightened-witness',
+        entityType: 'npc_template',
+        note: '套用受惊目击者模板，并替换为老宅邻居。',
+      },
+    },
+  ],
   skillOptions: [
     { id: 'spotHidden', label: '侦查', group: '调查' },
     { id: 'listen', label: '聆听', group: '调查' },
@@ -167,6 +208,18 @@ export const SAMPLE_SCRIPT: ScriptDefinition = {
       summary: '护法信徒阻挡外来者进入地下室。',
       npcs: ['邪教徒 x3'],
       danger: '中',
+      difficultyIntent: 'moderate',
+      riskNotes: '不应要求玩家正面杀穿，可用惊吓、驱散或绕行处理。',
+      rulebookRefs: [
+        {
+          source: 'rulebook',
+          rulesetId: 'coc-7e-lite',
+          entityId: 'npc-cultist-basic',
+          entityType: 'npc_template',
+          count: 2,
+          note: '地下室入口的低阶护法。',
+        },
+      ],
     },
     {
       id: 'encounter-possessed',
@@ -174,6 +227,18 @@ export const SAMPLE_SCRIPT: ScriptDefinition = {
       summary: '附身孩童失控，邪灵在仪式中现形。',
       npcs: ['被附身的孩童 x1', '影灵 x1'],
       danger: '高',
+      difficultyIntent: 'high',
+      riskNotes: '战斗只是表象，核心解法应是仪式、限制行动和环境压制。',
+      rulebookRefs: [
+        {
+          source: 'rulebook',
+          rulesetId: 'coc-7e-lite',
+          entityId: 'creature-minor-spirit',
+          entityType: 'creature',
+          count: 1,
+          note: '附身仪式失败后显形的低阶怨灵。',
+        },
+      ],
     },
   ],
 };

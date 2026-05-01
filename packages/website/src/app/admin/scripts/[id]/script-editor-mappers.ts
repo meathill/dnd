@@ -9,6 +9,7 @@ import type {
   ScriptRuleOverrides,
   ScriptExplorableArea,
 } from '@/lib/game/types';
+import { DEFAULT_RULESET_ID } from '@/lib/game/types';
 import {
   ATTRIBUTE_KEYS,
   type ScriptDraft,
@@ -309,6 +310,7 @@ export function buildScriptDefinition(draft: ScriptDraft): ScriptDefinition {
 
   return {
     id: draft.id,
+    rulesetId: DEFAULT_RULESET_ID,
     title: draft.title.trim(),
     summary: draft.summary.trim(),
     setting: draft.setting.trim(),

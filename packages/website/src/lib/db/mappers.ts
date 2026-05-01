@@ -14,6 +14,7 @@ import type {
   ScriptOccupationOption,
   ScriptExplorableArea,
 } from '../game/types';
+import { DEFAULT_RULESET_ID } from '../game/types';
 
 export type ScriptRow = {
   id: string;
@@ -353,6 +354,7 @@ export function mapScriptRow(row: ScriptRow): ScriptDefinition {
   }));
   return {
     id: row.id,
+    rulesetId: DEFAULT_RULESET_ID,
     title: row.title,
     summary: row.summary,
     setting: row.setting,

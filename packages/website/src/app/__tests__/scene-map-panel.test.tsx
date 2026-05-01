@@ -6,6 +6,7 @@ import type { ScriptDefinition } from '../../lib/game/types';
 
 const sampleScript: ScriptDefinition = {
   id: 'script-map',
+  rulesetId: 'coc-7e-lite',
   title: '地图测试',
   summary: '测试',
   setting: '现代',

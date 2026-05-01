@@ -6,6 +6,7 @@ import type { ScriptDefinition } from '../../lib/game/types';
 
 const sampleScript: ScriptDefinition = {
   id: 'script-1',
+  rulesetId: 'coc-7e-lite',
   title: '风暴旧宅',
   summary: '暴雨夜的驱邪行动。',
   setting: '现代',

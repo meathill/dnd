@@ -11,6 +11,7 @@ const originalFetch = global.fetch;
 
 const sampleScript: ScriptDefinition = {
   id: 'script-open',
+  rulesetId: 'coc-7e-lite',
   title: '开场测试',
   summary: '测试剧本开场对白。',
   setting: '现代',

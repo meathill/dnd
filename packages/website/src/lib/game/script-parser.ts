@@ -11,7 +11,10 @@ import type {
   ScriptRuleOverrides,
   AttributeRangeMap,
   ScriptExplorableArea,
+  RulebookEntityRef,
+  RulebookEntityType,
 } from './types';
+import { DEFAULT_RULESET_ID } from './types';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -62,6 +65,75 @@ function parseObjectArray<T>(value: unknown): T[] {
     return [];
   }
   return value.filter((item): item is T => typeof item === 'object' && item !== null) as T[];
+}
+
+const RULEBOOK_ENTITY_TYPES = new Set<RulebookEntityType>([
+  'rule',
+  'skill',
+  'occupation_template',
+  'npc_template',
+  'creature',
+  'hazard',
+  'sanity_loss',
+  'scene_risk_guideline',
+]);
+
+function parseRulebookEntityType(value: unknown): RulebookEntityType | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim() as RulebookEntityType;
+  return RULEBOOK_ENTITY_TYPES.has(trimmed) ? trimmed : undefined;
+}
+
+function parseOptionalRecord(value: unknown): Record<string, unknown> | undefined {
+  return isRecord(value) ? value : undefined;
+}
+
+function parseRulebookRef(value: unknown, defaultRulesetId: string): RulebookEntityRef | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const entityId = parseOptionalString(value.entityId ?? value.id);
+  if (!entityId) {
+    return null;
+  }
+  const rulesetId = parseOptionalString(value.rulesetId) || defaultRulesetId;
+  const count = parseNumber(value.count);
+  const entityType = parseRulebookEntityType(value.entityType ?? value.type);
+  const note = parseOptionalString(value.note ?? value.notes);
+  return {
+    source: 'rulebook',
+    rulesetId,
+    entityId,
+    ...(entityType ? { entityType } : {}),
+    ...(count > 0 ? { count: Math.floor(count) } : {}),
+    ...(parseOptionalRecord(value.overrides) ? { overrides: parseOptionalRecord(value.overrides) } : {}),
+    ...(note ? { note } : {}),
+  };
+}
+
+function parseRulebookRefs(value: unknown, defaultRulesetId: string): RulebookEntityRef[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => parseRulebookRef(entry, defaultRulesetId))
+    .filter((item): item is RulebookEntityRef => Boolean(item));
+}
+
+function withOptionalRulebookRef<T extends JsonRecord>(
+  record: T,
+  defaultRulesetId: string,
+): T & { rulebookRef?: RulebookEntityRef } {
+  const rulebookRef = parseRulebookRef(record.rulebookRef, defaultRulesetId);
+  if (!rulebookRef) {
+    return { ...record };
+  }
+  return {
+    ...record,
+    rulebookRef,
+  };
 }
 
 function resolveAreaId(name: string, rawId: unknown, index: number): string {
@@ -248,15 +320,20 @@ export function parseScriptDefinition(payload: unknown, id: string): ScriptParse
     return difficulty;
   }
 
+  const rulesetId = parseOptionalString(payload.rulesetId) || DEFAULT_RULESET_ID;
   const encountersInput = parseObjectArray<ScriptEncounter & { enemies?: string[] }>(payload.encounters);
   const encounters = encountersInput.map((encounter) => ({
     ...encounter,
     npcs: Array.isArray(encounter.npcs) ? encounter.npcs : Array.isArray(encounter.enemies) ? encounter.enemies : [],
+    rulebookRefs: parseRulebookRefs((encounter as JsonRecord).rulebookRefs, rulesetId),
   }));
 
-  const npcProfiles = parseObjectArray<ScriptNpcProfile>(
+  const npcProfilesInput = parseObjectArray<ScriptNpcProfile>(
     (payload as { npcProfiles?: unknown; enemyProfiles?: unknown }).npcProfiles ??
       (payload as { enemyProfiles?: unknown }).enemyProfiles,
+  );
+  const npcProfiles = npcProfilesInput.map(
+    (npc) => withOptionalRulebookRef(npc as JsonRecord, rulesetId) as ScriptNpcProfile,
   );
 
   const background = parseBackground(payload.background);
@@ -267,6 +344,7 @@ export function parseScriptDefinition(payload: unknown, id: string): ScriptParse
 
   const script: ScriptDefinition = {
     id,
+    rulesetId,
     title: title.value,
     summary: summary.value,
     setting: setting.value,

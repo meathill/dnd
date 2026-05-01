@@ -1,3 +1,46 @@
+export const DEFAULT_RULESET_ID = 'coc-7e-lite';
+
+export type RulebookEntityType =
+  | 'rule'
+  | 'skill'
+  | 'occupation_template'
+  | 'npc_template'
+  | 'creature'
+  | 'hazard'
+  | 'sanity_loss'
+  | 'scene_risk_guideline';
+
+export type RulesetDefinition = {
+  id: string;
+  name: string;
+  system: string;
+  summary: string;
+  source: string;
+};
+
+export type RulebookEntity = {
+  id: string;
+  rulesetId: string;
+  type: RulebookEntityType;
+  name: string;
+  summary: string;
+  tags: string[];
+  source: string;
+  data: Record<string, unknown>;
+};
+
+export type RulebookEntityRef = {
+  source: 'rulebook';
+  rulesetId: string;
+  entityId: string;
+  entityType?: RulebookEntityType;
+  count?: number;
+  overrides?: Record<string, unknown>;
+  note?: string;
+};
+
+export type CocSceneRiskLevel = 'low' | 'moderate' | 'high' | 'deadly';
+
 export type ScriptScene = {
   id: string;
   title: string;
@@ -40,6 +83,9 @@ export type ScriptEncounter = {
   summary: string;
   npcs: string[];
   danger: string;
+  rulebookRefs?: RulebookEntityRef[];
+  difficultyIntent?: CocSceneRiskLevel;
+  riskNotes?: string;
 };
 
 export type ScriptStoryArc = {
@@ -92,6 +138,7 @@ export type ScriptNpcProfile = {
   tactics: string;
   weakness: string;
   sanityLoss: string;
+  rulebookRef?: RulebookEntityRef;
 };
 
 export type ScriptRuleOverrides = {
@@ -225,6 +272,7 @@ export type CharacterFieldErrors = {
 
 export type ScriptDefinition = {
   id: string;
+  rulesetId: string;
   title: string;
   summary: string;
   setting: string;

@@ -34,6 +34,7 @@ type AuthClient = {
 
 const sampleScript: ScriptDefinition = {
   id: 'script-1',
+  rulesetId: 'coc-7e-lite',
   title: '测试剧本',
   summary: '测试',
   setting: '现代',
