@@ -6,15 +6,18 @@ import {
   type LocalAgentSkillDefinition,
 } from './skill-contract.ts';
 import { gameplaySkills } from './gameplay-skills.ts';
+import { moduleSkills } from './module-skills.ts';
 import { recordSkills } from './record-skills.ts';
 import { rulebookSkills } from './rulebook-skills.ts';
 
 export * from './gameplay-skills.ts';
+export * from './module-skills.ts';
 export * from './record-skills.ts';
 export * from './rulebook-skills.ts';
 
 export const localAgentSkills: LocalAgentSkillDefinition<unknown, unknown>[] = [
   ...rulebookSkills,
+  ...moduleSkills,
   ...gameplaySkills,
   ...recordSkills,
 ] as LocalAgentSkillDefinition<unknown, unknown>[];

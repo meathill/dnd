@@ -48,10 +48,10 @@
 
 ### Phase 5: Skills Contract
 - [x] 抽离规则书能力组的通用 skill schema
-- [ ] 抽离模组制作能力组的通用 skill schema
+- [x] 抽离模组制作能力组的通用 skill schema
 - [x] 抽离 `roll_dice` / `create_temp_npc` / `roleplay_npc` 的通用 contract
 - [x] 明确每个 skill 的入参、出参、触发条件、禁止行为
-- [ ] 补充适合 CC / Codex / OpenCode 直接消费的 skills 使用说明与示例
+- [x] 补充适合 CC / Codex / OpenCode 直接消费的 skills 使用说明与示例
 
 ### Phase 6: 本地文件存储
 - [x] 设计 `data/modules` / `data/characters` / `data/reports` 目录结构
@@ -60,7 +60,8 @@
 - [x] 让生成的模组、人物卡、战报落盘到工作区
 
 ### Phase 7: 外部 Agent 验证
-- [ ] 准备面向通用 Agent 的 skills 目录与接入说明
+- [x] 准备面向通用 Agent 的 skills 目录与接入说明
+- [x] 提供把 skills 安装到目标项目目录的脚本入口
 - [ ] 用至少一种外部 Agent 验证规则书查询、检定、记录落盘闭环
 - [ ] 记录哪些能力满足预期，哪些能力还需要补充或收敛
 

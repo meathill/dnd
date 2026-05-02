@@ -361,3 +361,9 @@
 2. 最小技能集验证通过
 3. 测试 case 可重复执行
 4. 输出 contract 初步稳定
+
+当前优先验证路径补充如下：
+
+1. 先把 `skills/` 交给外部通用 Agent 使用
+2. 优先验证 CC / Codex / OpenCode 一类宿主是否能稳定调用这些 skills
+3. 等 skills 边界稳定后，再考虑本地 runner 或 SDK 打包

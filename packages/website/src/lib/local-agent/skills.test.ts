@@ -46,6 +46,8 @@ describe('local agent skills', () => {
     expect(localAgentSkillContracts.length).toBeGreaterThanOrEqual(10);
     expect(localAgentSkillContracts.some((skill) => skill.name === 'roll_dice')).toBe(true);
     expect(localAgentSkillContracts.some((skill) => skill.name === 'save_local_report')).toBe(true);
+    expect(localAgentSkillContracts.some((skill) => skill.name === 'patch_npc')).toBe(true);
+    expect(localAgentSkillContracts.some((skill) => skill.name === 'patch_scene')).toBe(true);
     expect(localAgentSkillContracts.every((skill) => skill.version === 1)).toBe(true);
   });
 
@@ -112,5 +114,49 @@ describe('local agent skills', () => {
     expect(tempNpc.npc.attributes.strength).toBeGreaterThan(0);
     expect(tempNpc.npc.attributes.education).toBeGreaterThan(0);
     expect(tempNpc.npc.hp).toBeGreaterThan(0);
+  });
+
+  it('可以执行模组 patch skills 并返回结构化修改建议', async () => {
+    const patchNpc = (await executeLocalAgentSkill(
+      'patch_npc',
+      {
+        name: '亚伯神父',
+        type: '神职人员',
+        role: 'ally',
+        summary: '了解驱邪仪式，但不敢独自进入老宅。',
+      },
+      { rootDir: '/tmp/opencode' },
+    )) as {
+      kind: string;
+      action: string;
+      mode: string;
+      changedFields: string[];
+      summary: string;
+    };
+    const patchScene = (await executeLocalAgentSkill(
+      'patch_scene',
+      {
+        id: 'scene-basement',
+        summary: '让地下室场景更强调仪式痕迹与时间压力。',
+        hooks: ['破碎盐圈', '孩童哭声', '烧焦祷文'],
+      },
+      { rootDir: '/tmp/opencode' },
+    )) as {
+      targetId?: string;
+      mode: string;
+      patch: { hooks?: string[] };
+      summary: string;
+    };
+
+    expect(patchNpc.kind).toBe('module_patch');
+    expect(patchNpc.action).toBe('patch_npc');
+    expect(patchNpc.mode).toBe('create');
+    expect(patchNpc.changedFields).toContain('name');
+    expect(patchNpc.summary).toContain('建议新增 NPC');
+
+    expect(patchScene.targetId).toBe('scene-basement');
+    expect(patchScene.mode).toBe('update');
+    expect(patchScene.patch.hooks).toEqual(['破碎盐圈', '孩童哭声', '烧焦祷文']);
+    expect(patchScene.summary).toContain('建议更新场景');
   });
 });

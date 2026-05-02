@@ -1,0 +1,141 @@
+{
+  "name": "patch_background",
+  "version": 1,
+  "title": "修改模组背景",
+  "description": "修改模组背景章节，包括总览、核心真相、主题、势力、地点和隐藏要点。",
+  "group": "module",
+  "executionMode": "native",
+  "whenToUse": [
+    "用户要求补背景、核心真相、主题或隐藏信息时。",
+    "需要把世界观信息整理成结构化背景时。"
+  ],
+  "forbidden": [
+    "把未确认的候选设定直接当成既定事实。"
+  ],
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "overview": {
+        "type": "string",
+        "description": "背景总览。"
+      },
+      "truth": {
+        "type": "string",
+        "description": "核心真相。"
+      },
+      "themes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "主题关键词。"
+        },
+        "description": "主题列表。"
+      },
+      "factions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "势力。"
+        },
+        "description": "势力列表。"
+      },
+      "locations": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "关键地点。"
+        },
+        "description": "关键地点列表。"
+      },
+      "secrets": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "隐藏要点。"
+        },
+        "description": "隐藏要点列表。"
+      }
+    },
+    "required": [],
+    "description": "模组背景 patch 参数。",
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "const": "module_patch",
+        "description": "结果类型。"
+      },
+      "action": {
+        "type": "string",
+        "enum": [
+          "patch_basic",
+          "patch_background",
+          "patch_npc",
+          "remove_npc",
+          "patch_scene",
+          "remove_scene",
+          "patch_options"
+        ],
+        "description": "patch 动作。"
+      },
+      "targetType": {
+        "type": "string",
+        "enum": [
+          "script",
+          "background",
+          "npc",
+          "scene",
+          "options"
+        ],
+        "description": "修改目标类型。"
+      },
+      "targetId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "目标 id；新增时可为空。"
+      },
+      "mode": {
+        "type": "string",
+        "enum": [
+          "create",
+          "update",
+          "remove"
+        ],
+        "description": "修改模式。"
+      },
+      "changedFields": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "被修改字段。"
+        },
+        "description": "变更字段列表。"
+      },
+      "patch": {
+        "type": "object",
+        "description": "结构化对象，由宿主根据上下文继续消费。",
+        "additionalProperties": true
+      },
+      "summary": {
+        "type": "string",
+        "description": "中文摘要。"
+      }
+    },
+    "required": [
+      "kind",
+      "action",
+      "targetType",
+      "mode",
+      "changedFields",
+      "patch",
+      "summary"
+    ],
+    "description": "模组背景 patch。",
+    "additionalProperties": false
+  }
+}

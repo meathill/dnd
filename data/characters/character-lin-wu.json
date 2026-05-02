@@ -6,7 +6,7 @@
   "name": "林雾",
   "source": "demo",
   "createdAt": "2026-05-02T06:14:01.515Z",
-  "updatedAt": "2026-05-02T06:14:01.515Z",
+  "updatedAt": "2026-05-02T08:30:20.915Z",
   "data": {
     "id": "character-lin-wu",
     "scriptId": "script-exorcism-door",
@@ -46,7 +46,7 @@
     ],
     "debuffs": [],
     "note": "习惯先记录痕迹，再与目击者交谈。",
-    "createdAt": "2026-05-02T06:14:01.457Z",
-    "updatedAt": "2026-05-02T06:14:01.457Z"
+    "createdAt": "2026-05-02T08:30:20.833Z",
+    "updatedAt": "2026-05-02T08:30:20.833Z"
   }
 }
