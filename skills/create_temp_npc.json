@@ -1,0 +1,179 @@
+{
+  "name": "create_temp_npc",
+  "version": 1,
+  "title": "创建临时 NPC",
+  "description": "为现场交互需要的临时 NPC 生成即时人物卡。",
+  "group": "gameplay",
+  "executionMode": "native",
+  "whenToUse": [
+    "玩家与未预设的酒保、路人、门卫、店员、目击者等交互时。"
+  ],
+  "forbidden": [
+    "对关键 NPC 使用这个 skill 替代正式档案。",
+    "同一个临时 NPC 反复重建导致设定漂移。"
+  ],
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "NPC 姓名。"
+      },
+      "occupation": {
+        "type": "string",
+        "description": "职业或身份。"
+      },
+      "role": {
+        "type": "string",
+        "enum": [
+          "ally",
+          "neutral",
+          "enemy"
+        ],
+        "description": "与玩家的关系。",
+        "default": "neutral"
+      },
+      "personality": {
+        "type": "string",
+        "description": "人物性格或行为特征。"
+      },
+      "appearance": {
+        "type": "string",
+        "description": "外貌简述，可留空。"
+      },
+      "source": {
+        "type": "string",
+        "enum": [
+          "ai",
+          "manual",
+          "demo"
+        ],
+        "description": "产物来源，可留空。"
+      }
+    },
+    "required": [
+      "name",
+      "occupation",
+      "role",
+      "personality"
+    ],
+    "description": "临时 NPC 创建参数。",
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "const": "temp_npc",
+        "description": "结果类型。"
+      },
+      "npc": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "NPC 姓名。"
+          },
+          "occupation": {
+            "type": "string",
+            "description": "职业或身份。"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ally",
+              "neutral",
+              "enemy"
+            ],
+            "description": "关系。"
+          },
+          "personality": {
+            "type": "string",
+            "description": "性格。"
+          },
+          "appearance": {
+            "type": "string",
+            "description": "外貌。"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "strength": {
+                "type": "integer",
+                "description": "力量。"
+              },
+              "dexterity": {
+                "type": "integer",
+                "description": "敏捷。"
+              },
+              "constitution": {
+                "type": "integer",
+                "description": "体质。"
+              },
+              "size": {
+                "type": "integer",
+                "description": "体型。"
+              },
+              "intelligence": {
+                "type": "integer",
+                "description": "智力。"
+              },
+              "willpower": {
+                "type": "integer",
+                "description": "意志。"
+              },
+              "appearance": {
+                "type": "integer",
+                "description": "外貌。"
+              },
+              "education": {
+                "type": "integer",
+                "description": "教育。"
+              }
+            },
+            "required": [
+              "strength",
+              "dexterity",
+              "constitution",
+              "size",
+              "intelligence",
+              "willpower",
+              "appearance",
+              "education"
+            ],
+            "description": "NPC 属性。",
+            "additionalProperties": false
+          },
+          "hp": {
+            "type": "integer",
+            "description": "生命值。",
+            "minimum": 1
+          },
+          "generatedAt": {
+            "type": "string",
+            "description": "生成时间。"
+          }
+        },
+        "required": [
+          "name",
+          "occupation",
+          "role",
+          "personality",
+          "appearance",
+          "attributes",
+          "hp",
+          "generatedAt"
+        ],
+        "description": "结构化临时 NPC 卡。",
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "kind",
+      "npc"
+    ],
+    "description": "临时 NPC 创建结果。",
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "name": "roll_dice",
+  "version": 1,
+  "title": "执行检定",
+  "description": "执行技能、属性、幸运、理智或战斗检定，返回结构化结果与展示文本。",
+  "group": "gameplay",
+  "executionMode": "native",
+  "whenToUse": [
+    "技能检定。",
+    "属性检定。",
+    "幸运检定。",
+    "理智检定。",
+    "战斗技能判定。"
+  ],
+  "forbidden": [
+    "不调用 skill 就直接宣布成功或失败。",
+    "把纯叙事动作滥用成检定。"
+  ],
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "checkType": {
+        "type": "string",
+        "enum": [
+          "skill",
+          "attribute",
+          "luck",
+          "sanity",
+          "combat"
+        ],
+        "description": "检定类型。"
+      },
+      "target": {
+        "type": "string",
+        "description": "技能名、技能 id 或属性名。"
+      },
+      "difficulty": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "hard",
+          "extreme"
+        ],
+        "description": "检定难度。",
+        "default": "normal"
+      },
+      "reason": {
+        "type": "string",
+        "description": "检定原因，可留空。"
+      },
+      "dc": {
+        "type": "integer",
+        "description": "额外 DC 覆盖，可留空。",
+        "minimum": 1,
+        "maximum": 100
+      }
+    },
+    "required": [
+      "checkType",
+      "target"
+    ],
+    "description": "检定参数。",
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "checkType": {
+        "type": "string",
+        "enum": [
+          "skill",
+          "attribute",
+          "luck",
+          "sanity",
+          "combat"
+        ],
+        "description": "检定类型。"
+      },
+      "target": {
+        "type": "string",
+        "description": "检定目标。"
+      },
+      "difficulty": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "hard",
+          "extreme"
+        ],
+        "description": "检定难度。"
+      },
+      "roll": {
+        "type": "integer",
+        "description": "D100 掷骰结果。",
+        "minimum": 1,
+        "maximum": 100
+      },
+      "threshold": {
+        "type": "integer",
+        "description": "最终阈值。",
+        "minimum": 1,
+        "maximum": 100
+      },
+      "outcome": {
+        "type": "string",
+        "description": "成败结果。"
+      },
+      "baseValue": {
+        "type": "integer",
+        "description": "基础值。",
+        "minimum": 0,
+        "maximum": 100
+      },
+      "dc": {
+        "type": "integer",
+        "description": "最终 DC。",
+        "minimum": 1,
+        "maximum": 100
+      },
+      "text": {
+        "type": "string",
+        "description": "面向 UI 的简要文本。"
+      }
+    },
+    "required": [
+      "checkType",
+      "target",
+      "difficulty",
+      "roll",
+      "threshold",
+      "outcome",
+      "baseValue",
+      "dc",
+      "text"
+    ],
+    "description": "检定结果。",
+    "additionalProperties": false
+  }
+}

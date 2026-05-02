@@ -262,6 +262,33 @@
 - size
 - 图像结果或错误信息
 
+## 本地文件存储能力组
+
+### 作用
+
+把 AI 生成或整理后的模组、人物卡、战报稳定写入工作区文件，而不是只停留在会话上下文里。
+
+### 目录约定
+
+- `data/modules`：模组 JSON
+- `data/characters`：人物卡 JSON
+- `data/reports`：战报 Markdown
+- `skills/`：可供普通 AI Agent 消费的 skill contract
+- `prompts/`：固化后的 system prompt
+
+### 第一批能力
+
+- `save_local_module`：保存模组到 `data/modules`
+- `save_local_character`：保存人物卡到 `data/characters`
+- `save_local_report`：保存战报到 `data/reports`
+- `list_local_artifacts`：列出当前工作区已有产物
+
+### 禁止行为
+
+- 只在自然语言里说“已经保存”，但没有实际写入文件
+- 把战报、人物卡长期放在浏览器 `localStorage` 里冒充本地持久化
+- 生成重复产物前不检查现有文件，导致工作区内容漂移
+
 ## 最小可验证技能集
 
 建议当前先聚焦以下 4 个能力，优先把基础闭环做稳定：

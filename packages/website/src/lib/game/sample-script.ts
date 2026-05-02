@@ -1,4 +1,4 @@
-import type { ScriptDefinition } from './types';
+import type { ScriptDefinition } from './types.ts';
 
 export const SAMPLE_SCRIPT: ScriptDefinition = {
   id: 'script-exorcism-door',

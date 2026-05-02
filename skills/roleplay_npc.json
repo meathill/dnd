@@ -1,0 +1,57 @@
+{
+  "name": "roleplay_npc",
+  "version": 1,
+  "title": "读取关键 NPC 档案",
+  "description": "在扮演关键 NPC 前先读取模组中的预设档案。",
+  "group": "gameplay",
+  "executionMode": "native",
+  "whenToUse": [
+    "需要让关键 NPC 开口说话时。",
+    "需要引用关键 NPC 的立场、能力、秘密或战术时。"
+  ],
+  "forbidden": [
+    "不查档案就自由发挥关键 NPC。",
+    "给 NPC 添加模组中不存在的重要设定。"
+  ],
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "nameOrId": {
+        "type": "string",
+        "description": "NPC 的 id 或姓名。"
+      }
+    },
+    "required": [
+      "nameOrId"
+    ],
+    "description": "关键 NPC 查询参数。",
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "const": "roleplay_npc",
+        "description": "结果类型。"
+      },
+      "npc": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "description": "结构化对象，由宿主根据上下文继续消费。",
+        "additionalProperties": true
+      },
+      "error": {
+        "type": "string",
+        "description": "未命中时的错误信息。"
+      }
+    },
+    "required": [
+      "kind"
+    ],
+    "description": "关键 NPC 档案查询结果。",
+    "additionalProperties": false
+  }
+}

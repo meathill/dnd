@@ -1,0 +1,115 @@
+{
+  "name": "save_local_character",
+  "version": 1,
+  "title": "保存人物卡到本地文件",
+  "description": "把结构化人物卡写入工作区 `data/characters`。",
+  "group": "record",
+  "executionMode": "native",
+  "whenToUse": [
+    "角色创建完成后需要落盘时。",
+    "AI 生成或更新人物卡后需要写入工作区文件时。"
+  ],
+  "forbidden": [
+    "只在上下文里临时持有角色，不做持久化。"
+  ],
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "character": {
+        "type": "object",
+        "description": "结构化对象，由宿主根据上下文继续消费。",
+        "additionalProperties": true
+      },
+      "source": {
+        "type": "string",
+        "enum": [
+          "ai",
+          "manual",
+          "demo"
+        ],
+        "description": "产物来源，可留空。"
+      }
+    },
+    "required": [
+      "character"
+    ],
+    "description": "人物卡落盘参数。",
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "filePath": {
+        "type": "string",
+        "description": "写入的绝对文件路径。"
+      },
+      "artifact": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "description": "schema 版本。"
+          },
+          "kind": {
+            "type": "string",
+            "const": "character",
+            "description": "产物类型。"
+          },
+          "id": {
+            "type": "string",
+            "description": "角色 id。"
+          },
+          "moduleId": {
+            "type": "string",
+            "description": "所属模组 id。"
+          },
+          "name": {
+            "type": "string",
+            "description": "角色名称。"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "ai",
+              "manual",
+              "demo"
+            ],
+            "description": "产物来源。"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "创建时间。"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "更新时间。"
+          },
+          "data": {
+            "type": "object",
+            "description": "结构化对象，由宿主根据上下文继续消费。",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "kind",
+          "id",
+          "moduleId",
+          "name",
+          "source",
+          "createdAt",
+          "updatedAt",
+          "data"
+        ],
+        "description": "写入后的人物卡文件内容。",
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "filePath",
+      "artifact"
+    ],
+    "description": "人物卡落盘结果。",
+    "additionalProperties": false
+  }
+}

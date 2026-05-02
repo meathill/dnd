@@ -1,4 +1,4 @@
-import type { AttributeKey, AttributeRangeMap, ScriptRuleOverrides, SkillAllocationMode } from './types';
+import type { AttributeKey, AttributeRangeMap, ScriptRuleOverrides, SkillAllocationMode } from './types.ts';
 
 export const DEFAULT_ATTRIBUTE_POINT_BUDGET = 460;
 export const DEFAULT_TRAINED_SKILL_VALUE = 50;

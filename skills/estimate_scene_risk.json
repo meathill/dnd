@@ -1,0 +1,238 @@
+{
+  "name": "estimate_scene_risk",
+  "version": 1,
+  "title": "评估场景风险",
+  "description": "根据规则书引用、线索门槛与理智损失估算 COC 场景风险。",
+  "group": "rulebook",
+  "executionMode": "native",
+  "whenToUse": [
+    "制作模组时判断场景风险是否超标。",
+    "需要估算战斗风险、理智风险和卡关风险时。"
+  ],
+  "forbidden": [
+    "忽略关键线索门槛造成的卡关风险。"
+  ],
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "rulesetId": {
+        "type": "string",
+        "description": "规则系统 id，可留空。"
+      },
+      "party": {
+        "type": "object",
+        "properties": {
+          "investigatorCount": {
+            "type": "integer",
+            "description": "调查员人数。",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "experience": {
+            "type": "string",
+            "enum": [
+              "new",
+              "standard",
+              "veteran"
+            ],
+            "description": "玩家经验水平。"
+          }
+        },
+        "required": [],
+        "description": "玩家队伍配置。",
+        "additionalProperties": false
+      },
+      "entityRefs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "entityId": {
+              "type": "string",
+              "description": "规则书实体 id。"
+            },
+            "rulesetId": {
+              "type": "string",
+              "description": "规则系统 id，可留空。"
+            },
+            "count": {
+              "type": "integer",
+              "description": "数量。",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          "required": [
+            "entityId"
+          ],
+          "description": "参与风险评估的规则书引用。",
+          "additionalProperties": false
+        },
+        "description": "规则书引用列表。"
+      },
+      "cluePlan": {
+        "type": "object",
+        "properties": {
+          "essentialClues": {
+            "type": "integer",
+            "description": "关键线索数。",
+            "minimum": 0
+          },
+          "gatedClues": {
+            "type": "integer",
+            "description": "需要检定或门槛的关键线索数。",
+            "minimum": 0
+          },
+          "alternatePaths": {
+            "type": "integer",
+            "description": "替代获取路径数量。",
+            "minimum": 0
+          }
+        },
+        "required": [],
+        "description": "线索门槛计划。",
+        "additionalProperties": false
+      },
+      "sanityLosses": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "理智损失表达式，例如 1/1D6。"
+        },
+        "description": "额外理智损失列表。"
+      },
+      "environmentHazards": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "环境危险。"
+        },
+        "description": "环境危险列表。"
+      }
+    },
+    "required": [],
+    "description": "场景风险评估参数。",
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "rulesetId": {
+        "type": "string",
+        "description": "规则系统 id。"
+      },
+      "combatRisk": {
+        "type": "string",
+        "enum": [
+          "low",
+          "moderate",
+          "high",
+          "deadly"
+        ],
+        "description": "风险等级。"
+      },
+      "sanityRisk": {
+        "type": "string",
+        "enum": [
+          "low",
+          "moderate",
+          "high",
+          "deadly"
+        ],
+        "description": "风险等级。"
+      },
+      "clueRisk": {
+        "type": "string",
+        "enum": [
+          "low",
+          "moderate",
+          "high",
+          "deadly"
+        ],
+        "description": "风险等级。"
+      },
+      "overallRisk": {
+        "type": "string",
+        "enum": [
+          "low",
+          "moderate",
+          "high",
+          "deadly"
+        ],
+        "description": "风险等级。"
+      },
+      "referencedEntities": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "entityId": {
+              "type": "string",
+              "description": "规则书实体 id。"
+            },
+            "name": {
+              "type": "string",
+              "description": "实体名称。"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "rule",
+                "skill",
+                "occupation_template",
+                "npc_template",
+                "creature",
+                "hazard",
+                "sanity_loss",
+                "scene_risk_guideline"
+              ],
+              "description": "规则书实体类型。"
+            },
+            "count": {
+              "type": "integer",
+              "description": "数量。",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "entityId",
+            "name",
+            "type",
+            "count"
+          ],
+          "description": "参与评估的规则书实体。",
+          "additionalProperties": false
+        },
+        "description": "引用实体列表。"
+      },
+      "warnings": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "警告。"
+        },
+        "description": "风险警告列表。"
+      },
+      "suggestions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "建议。"
+        },
+        "description": "缓解建议列表。"
+      }
+    },
+    "required": [
+      "rulesetId",
+      "combatRisk",
+      "sanityRisk",
+      "clueRisk",
+      "overallRisk",
+      "referencedEntities",
+      "warnings",
+      "suggestions"
+    ],
+    "description": "场景风险评估结果。",
+    "additionalProperties": false
+  }
+}

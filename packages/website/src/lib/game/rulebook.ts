@@ -5,8 +5,8 @@ import type {
   RulebookEntityType,
   RulesetDefinition,
   ScriptDefinition,
-} from './types';
-import { DEFAULT_RULESET_ID } from './types';
+} from './types.ts';
+import { DEFAULT_RULESET_ID } from './types.ts';
 
 export const COC_LITE_RULESET_ID = DEFAULT_RULESET_ID;
 
@@ -297,7 +297,7 @@ export type EstimateCocSceneRiskInput = {
     investigatorCount?: number;
     experience?: 'new' | 'standard' | 'veteran';
   };
-  entityRefs?: Array<Pick<RulebookEntityRef, 'entityId' | 'rulesetId' | 'count'>>;
+  entityRefs?: Array<Pick<RulebookEntityRef, 'entityId' | 'count'> & { rulesetId?: string }>;
   cluePlan?: {
     essentialClues?: number;
     gatedClues?: number;

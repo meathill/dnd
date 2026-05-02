@@ -1,0 +1,133 @@
+{
+  "name": "save_local_report",
+  "version": 1,
+  "title": "保存战报到本地文件",
+  "description": "把战报写入工作区 `data/reports`，正文为 Markdown，元数据为 frontmatter。",
+  "group": "record",
+  "executionMode": "native",
+  "whenToUse": [
+    "每轮或每段游戏总结后需要沉淀战报时。",
+    "导出本地战报时。"
+  ],
+  "forbidden": [
+    "只在对话里总结而不落盘。"
+  ],
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "战报标题。"
+      },
+      "moduleId": {
+        "type": "string",
+        "description": "所属模组 id。"
+      },
+      "characterId": {
+        "type": "string",
+        "description": "关联角色 id，可留空。"
+      },
+      "content": {
+        "type": "string",
+        "description": "Markdown 正文。"
+      },
+      "summary": {
+        "type": "string",
+        "description": "摘要，可留空。"
+      },
+      "source": {
+        "type": "string",
+        "enum": [
+          "ai",
+          "manual",
+          "demo"
+        ],
+        "description": "产物来源，可留空。"
+      },
+      "reportId": {
+        "type": "string",
+        "description": "指定战报 id，可留空。"
+      }
+    },
+    "required": [
+      "title",
+      "moduleId",
+      "content"
+    ],
+    "description": "战报落盘参数。",
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "filePath": {
+        "type": "string",
+        "description": "写入的绝对文件路径。"
+      },
+      "metadata": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "report",
+            "description": "产物类型。"
+          },
+          "id": {
+            "type": "string",
+            "description": "战报 id。"
+          },
+          "title": {
+            "type": "string",
+            "description": "战报标题。"
+          },
+          "moduleId": {
+            "type": "string",
+            "description": "所属模组 id。"
+          },
+          "characterId": {
+            "type": "string",
+            "description": "关联角色 id，可留空。"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "ai",
+              "manual",
+              "demo"
+            ],
+            "description": "产物来源。"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "创建时间。"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "更新时间。"
+          },
+          "summary": {
+            "type": "string",
+            "description": "摘要，可留空。"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "moduleId",
+          "source",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "写入后的战报元数据。",
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "filePath",
+      "metadata"
+    ],
+    "description": "战报落盘结果。",
+    "additionalProperties": false
+  }
+}

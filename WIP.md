@@ -2,19 +2,22 @@
 
 ## 当前目标
 
-在 `packages/website` 内补齐一条无需登录、无需数据库的本地体验闭环：
+当前阶段主线明确如下：
 
-1. 基于 `coc-7e-lite` 制作模组
-2. 本地创建调查员人物卡
-3. 本地游玩并执行基础检定
-4. 本地导出战报
+1. 先做出给普通 AI Agent 使用的 SKILLS
+2. 把这些 SKILLS 放到 CC / Codex / OpenCode 一类 Agent 中，使用它们自带的 AI provider 实战验证
+3. 如果 SKILLS 能力满足预期，再考虑本地 runner 或基于某个 Agent SDK 打包
+4. 最后再考虑发布线上版本
 
 ## 当前判断
 
 - COC 比 DND 更适合新手入坑，当前优先支持 COC。
-- 规则书仍然是第 0 层能力，模组和跑团都应建立在规则书实体之上。
-- 明早需要可直接测试，因此当前优先级是本地闭环可用，不先卡在登录、数据库或管理权限。
-- 本地玩法第一版不接正式 `/api/chat`，改用前端本地 runner + 现有规则执行器。
+- 规则书仍然是第 0 层能力，skills 和模组都应建立在规则书实体之上。
+- 当前阶段的“本地环境”指工作区文件，不是浏览器 `localStorage`，也不是数据库。
+- 前端页面可以保留为试验产物，但不再作为当前主线继续扩展。
+- 当前 runner 只作为最小验证工具，不应反过来主导 SKILLS 设计。
+- 近期验证路径应优先面向外部通用 Agent，而不是先围绕某个 SDK 封装运行时。
+- 现有 `packages/website/src/lib/ai/dm-tools.ts` 有可复用定义，但目前仍与 `@openai/agents` 耦合，需要抽成普通 AI Agent 也能消费的 contract。
 
 ## 已完成
 
@@ -43,34 +46,43 @@
 
 ## 当前进行中
 
-### Phase 5: 本地闭环页
-- [ ] 新增本地体验入口，首页可直接进入
-- [ ] 复用 `ScriptEditorForm` 作为本地模组编辑器
-- [ ] 复用 `CharacterCreator` 作为本地建卡器
-- [ ] 新增本地 runner，串起输入分析、检定执行和叙事 fallback
-- [ ] 复用 `CharacterCardPanel` / `SceneMapPanel` 展示侧栏状态
-- [ ] 支持本地导出 `Markdown` / `JSON` 战报
-- [ ] 使用 `localStorage` 保存本地草稿、人物卡和战报会话
+### Phase 5: Skills Contract
+- [x] 抽离规则书能力组的通用 skill schema
+- [ ] 抽离模组制作能力组的通用 skill schema
+- [x] 抽离 `roll_dice` / `create_temp_npc` / `roleplay_npc` 的通用 contract
+- [x] 明确每个 skill 的入参、出参、触发条件、禁止行为
+- [ ] 补充适合 CC / Codex / OpenCode 直接消费的 skills 使用说明与示例
 
-### Phase 6: 验证与收尾
-- [ ] 补针对性单测 / smoke test
+### Phase 6: 本地文件存储
+- [x] 设计 `data/modules` / `data/characters` / `data/reports` 目录结构
+- [x] 定义文件命名与元数据字段
+- [x] 提供读写本地文件的最小工具层
+- [x] 让生成的模组、人物卡、战报落盘到工作区
+
+### Phase 7: 外部 Agent 验证
+- [ ] 准备面向通用 Agent 的 skills 目录与接入说明
+- [ ] 用至少一种外部 Agent 验证规则书查询、检定、记录落盘闭环
+- [ ] 记录哪些能力满足预期，哪些能力还需要补充或收敛
+
+### Phase 8: 最小验证入口
+- [x] 提供最小 runner / 脚本入口验证 skills
+- [x] 补针对性测试
 - [ ] 跑格式化
-- [ ] 跑类型检查
-- [ ] 跑构建
-- [ ] 跑本地闭环相关测试
+- [ ] 跑构建与相关测试
 
 ---
 
 ## 暂缓事项
 
 - [ ] 纯浏览器 Agent Loop 落地
-- [ ] 登录态下的正式游戏链路优化
+- [ ] 继续扩张本地试玩页 UI
 - [ ] DND / 其他规则系统接入
 - [ ] 围绕某个 SDK 进行深度绑定式重构
 
 ## 遗留 / Backlog
 
 - [ ] 数据库 migration 增加 `ruleset_id`
+- [ ] 统一 website 侧与本地文件侧的数据模型桥接
 - [ ] 全局地图功能补全
 - [ ] 编辑器表单与 DM 隐藏信息
 - [ ] Gemini 或其他模型接入策略评估
