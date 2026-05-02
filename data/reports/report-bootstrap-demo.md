@@ -6,12 +6,12 @@ moduleId: script-exorcism-door
 characterId: character-lin-wu
 source: demo
 createdAt: 2026-05-02T03:48:36.254Z
-updatedAt: 2026-05-02T08:30:20.921Z
+updatedAt: 2026-05-02T09:47:49.935Z
 summary: 完成 skills contract、本地 prompt 与样例产物落盘。
 ---
 
 # 启动验证
 
 - 已写入 DM system prompt。
-- 已导出第一批本地 skills contract。
+- 已导出可被 skills CLI 消费的 SKILL.md 技能包。
 - 已保存样例模组与人物卡。

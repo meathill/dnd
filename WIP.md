@@ -61,7 +61,7 @@
 
 ### Phase 7: 外部 Agent 验证
 - [x] 准备面向通用 Agent 的 skills 目录与接入说明
-- [x] 提供把 skills 安装到目标项目目录的脚本入口
+- [x] 兼容 `skills` CLI，可通过 `npx skills add <repo>` 安装
 - [ ] 用至少一种外部 Agent 验证规则书查询、检定、记录落盘闭环
 - [ ] 记录哪些能力满足预期，哪些能力还需要补充或收敛
 

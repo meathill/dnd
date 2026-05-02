@@ -18,7 +18,8 @@ describe('local agent runner', () => {
 
     expect(result.skillFilePaths.length).toBeGreaterThanOrEqual(10);
     expect(promptContent).toContain('肉团长');
-    expect(skillContent).toContain('"name"');
+    expect(skillContent).toContain('name:');
+    expect(skillContent).toContain('## Contract');
     expect(moduleContent).toContain('"kind": "module"');
     expect(characterContent).toContain('"kind": "character"');
     expect(reportContent).toContain('kind: report');

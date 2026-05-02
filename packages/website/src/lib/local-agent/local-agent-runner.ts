@@ -1,10 +1,12 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { SAMPLE_SCRIPT } from '../game/sample-script.ts';
 import { ensureLocalWorkspace } from './file-repository.ts';
 import { LOCAL_DM_SYSTEM_PROMPT } from './prompt.ts';
 import { buildSampleCharacter } from './sample-artifacts.ts';
-import { executeLocalAgentSkill, localAgentSkillContracts } from './skills.ts';
+import { serializeLocalAgentSkill } from './skill-contract.ts';
+import { executeLocalAgentSkill, localAgentSkills } from './skills.ts';
+import { buildSkillMarkdown } from './skill-markdown.ts';
 
 export type LocalAgentBootstrapResult = {
   promptFilePath: string;
@@ -17,10 +19,13 @@ export type LocalAgentBootstrapResult = {
 async function writeSkillContracts(rootDir: string): Promise<string[]> {
   const layout = await ensureLocalWorkspace(rootDir);
   const filePaths = await Promise.all(
-    localAgentSkillContracts.map(async (contract) => {
-      const filePath = join(layout.skillsDir, `${contract.name}.json`);
-      await writeFile(filePath, `${JSON.stringify(contract, null, 2)}\n`, 'utf8');
-      return filePath;
+    localAgentSkills.map(async (skill) => {
+      const contract = serializeLocalAgentSkill(skill);
+      const skillDir = join(layout.skillsDir, contract.name);
+      const skillFilePath = join(skillDir, 'SKILL.md');
+      await mkdir(skillDir, { recursive: true });
+      await writeFile(skillFilePath, buildSkillMarkdown(contract), 'utf8');
+      return skillFilePath;
     }),
   );
   return filePaths.sort();
@@ -62,7 +67,7 @@ export async function bootstrapLocalAgentWorkspace(rootDir: string): Promise<Loc
         '# 启动验证',
         '',
         '- 已写入 DM system prompt。',
-        '- 已导出第一批本地 skills contract。',
+        '- 已导出可被 skills CLI 消费的 SKILL.md 技能包。',
         '- 已保存样例模组与人物卡。',
       ].join('\n'),
       source: 'demo',

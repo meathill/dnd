@@ -59,6 +59,7 @@ export type LocalWorkspaceLayout = {
   reportsDir: string;
   skillsDir: string;
   promptsDir: string;
+  docsDir: string;
 };
 
 function nowIso(): string {
@@ -157,6 +158,7 @@ export function resolveLocalWorkspace(rootDir: string): LocalWorkspaceLayout {
     reportsDir: join(dataDir, 'reports'),
     skillsDir: join(absoluteRoot, 'skills'),
     promptsDir: join(absoluteRoot, 'prompts'),
+    docsDir: join(absoluteRoot, 'docs'),
   };
 }
 
@@ -169,6 +171,7 @@ export async function ensureLocalWorkspace(rootDir: string): Promise<LocalWorksp
     mkdir(layout.reportsDir, { recursive: true }),
     mkdir(layout.skillsDir, { recursive: true }),
     mkdir(layout.promptsDir, { recursive: true }),
+    mkdir(layout.docsDir, { recursive: true }),
   ]);
   return layout;
 }

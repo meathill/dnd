@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_SCRIPT } from '../game/sample-script';
 import type { CharacterRecord } from '../game/types';
-import { executeLocalAgentSkill, localAgentSkillContracts } from './skills';
+import { executeLocalAgentSkill, localAgentSkills } from './skills';
 
 function buildCharacter(): CharacterRecord {
   return {
@@ -42,13 +42,13 @@ function buildCharacter(): CharacterRecord {
 }
 
 describe('local agent skills', () => {
-  it('会导出第一批通用 skill contracts', () => {
-    expect(localAgentSkillContracts.length).toBeGreaterThanOrEqual(10);
-    expect(localAgentSkillContracts.some((skill) => skill.name === 'roll_dice')).toBe(true);
-    expect(localAgentSkillContracts.some((skill) => skill.name === 'save_local_report')).toBe(true);
-    expect(localAgentSkillContracts.some((skill) => skill.name === 'patch_npc')).toBe(true);
-    expect(localAgentSkillContracts.some((skill) => skill.name === 'patch_scene')).toBe(true);
-    expect(localAgentSkillContracts.every((skill) => skill.version === 1)).toBe(true);
+  it('会导出第一批通用 skills 定义', () => {
+    expect(localAgentSkills.length).toBeGreaterThanOrEqual(10);
+    expect(localAgentSkills.some((skill) => skill.name === 'roll_dice')).toBe(true);
+    expect(localAgentSkills.some((skill) => skill.name === 'save_local_report')).toBe(true);
+    expect(localAgentSkills.some((skill) => skill.name === 'patch_npc')).toBe(true);
+    expect(localAgentSkills.some((skill) => skill.name === 'patch_scene')).toBe(true);
+    expect(localAgentSkills.every((skill) => skill.version === 1)).toBe(true);
   });
 
   it('可以执行规则书搜索与风险评估', async () => {

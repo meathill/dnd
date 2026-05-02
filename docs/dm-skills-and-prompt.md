@@ -273,7 +273,7 @@
 - `data/modules`：模组 JSON
 - `data/characters`：人物卡 JSON
 - `data/reports`：战报 Markdown
-- `skills/`：可供普通 AI Agent 消费的 skill contract
+- `skills/`：可供普通 AI Agent 安装的 `SKILL.md` 技能包
 - `prompts/`：固化后的 system prompt
 
 ### 第一批能力
@@ -349,7 +349,7 @@
 
 未来 client 设计必须遵守：
 
-- 先消费稳定的 skill contract
+- 先消费稳定的 `SKILL.md` 技能包
 - 不依赖模型在自然语言里“顺便说明工具结果”
 - UI 组件围绕结构化结果设计，而不是围绕某次 prompt 偶然输出设计
 
@@ -360,7 +360,7 @@
 1. DM prompt 文本拆层并固化
 2. 最小技能集验证通过
 3. 测试 case 可重复执行
-4. 输出 contract 初步稳定
+4. 技能包边界初步稳定
 
 当前优先验证路径补充如下：
 

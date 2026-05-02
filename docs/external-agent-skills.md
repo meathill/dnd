@@ -20,29 +20,29 @@
 
 ## 建议接入方式
 
-### 0. 安装到目标项目
+### 0. 通过 `skills` CLI 安装
 
-如果你想把当前这套 `skills` 安装到另一个项目目录中开始测试，可以直接执行：
+当前主线是兼容 `skills` CLI。
 
-```bash
-pnpm --filter ./packages/website run install:external-agent-skills -- /path/to/target-project --overwrite
-```
-
-执行后，目标目录里会得到：
-
-- `skills/`
-- `prompts/`
-- `data/`
-- `docs/external-agent-skills.md`
-- `external-agent-skills/README.md`
-
-如果你只是想在当前仓库里快速生成一个测试沙盒，也可以省略目标路径：
+当仓库推到远端后，可以直接这样安装：
 
 ```bash
-pnpm --filter ./packages/website run install:external-agent-skills -- --overwrite
+npx skills add meathill/dnd
 ```
 
-默认会安装到仓库根下的 `external-agent-sandbox/`。
+如果只想看仓库中可安装的 skills：
+
+```bash
+npx skills add meathill/dnd -l
+```
+
+如果只装某几个技能：
+
+```bash
+npx skills add meathill/dnd --skill roll_dice patch_npc save_local_report
+```
+
+安装后，`skills` CLI 会把技能包安装到目标项目的 `.agents/skills/<name>/`。
 
 ### 1. 给 Agent 提供 system prompt
 
@@ -50,7 +50,7 @@ pnpm --filter ./packages/website run install:external-agent-skills -- --overwrit
 
 ### 2. 给 Agent 注册 skills
 
-读取 `skills/*.json`，按宿主 Agent 的工具协议映射为可调用工具。
+读取 `skills/<name>/SKILL.md`，按宿主 Agent 的技能协议安装和触发。
 
 当前第一批能力分为四组：
 
@@ -61,12 +61,9 @@ pnpm --filter ./packages/website run install:external-agent-skills -- --overwrit
 
 ### 3. 对接执行层
 
-外部 Agent 有两种接法：
+外部 Agent 目前优先走 `SKILL.md` 安装路径。
 
-- 只消费 contract：把 `skills/*.json` 当成工具声明，执行逻辑由宿主自己实现
-- 直接复用本项目执行层：调用 `packages/website/src/lib/local-agent/skills.ts` 中的 `executeLocalAgentSkill`
-
-当前项目内部已经实现了第二种方式，可作为参考实现。
+项目内部仍保留 TypeScript 执行层，供本地测试与未来 runner 参考，但它不再是当前对外主接口。
 
 ## 外部 Agent 使用模板
 
@@ -96,7 +93,7 @@ pnpm --filter ./packages/website run install:external-agent-skills -- --overwrit
 ### A. Skills 注册
 
 - [ ] Agent 能读取 `prompts/dm-system-prompt.md`
-- [ ] Agent 能注册 `skills/*.json`
+- [ ] Agent 能安装或读取 `skills/<name>/SKILL.md`
 - [ ] Agent 能识别 4 组能力：规则书 / 模组制作 / 游戏 / 记录
 
 ### B. 规则书闭环

@@ -1,8 +1,6 @@
 import {
   isExecutableLocalAgentSkill,
-  serializeLocalAgentSkill,
   type LocalAgentRuntimeContext,
-  type LocalAgentSkillContract,
   type LocalAgentSkillDefinition,
 } from './skill-contract.ts';
 import { gameplaySkills } from './gameplay-skills.ts';
@@ -21,10 +19,6 @@ export const localAgentSkills: LocalAgentSkillDefinition<unknown, unknown>[] = [
   ...gameplaySkills,
   ...recordSkills,
 ] as LocalAgentSkillDefinition<unknown, unknown>[];
-
-export const localAgentSkillContracts: LocalAgentSkillContract[] = localAgentSkills.map((skill) =>
-  serializeLocalAgentSkill(skill),
-);
 
 export async function executeLocalAgentSkill(
   name: string,
