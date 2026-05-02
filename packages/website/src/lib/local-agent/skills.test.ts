@@ -17,7 +17,7 @@ function buildCharacter(): CharacterRecord {
     avatar: '',
     luck: 60,
     attributes: {
-      strength: 45,
+      strength: 35,
       dexterity: 60,
       constitution: 50,
       size: 55,
@@ -27,10 +27,14 @@ function buildCharacter(): CharacterRecord {
       education: 70,
     },
     skills: {
-      spotHidden: 65,
-      listen: 55,
-      persuade: 50,
-      firearms: 40,
+      spotHidden: 70,
+      listen: 60,
+      persuade: 60,
+      firearms: 50,
+      brawl: 50,
+      occult: 50,
+      psychology: 40,
+      stealth: 40,
     },
     inventory: ['手电筒', '录音机', '盐'],
     buffs: ['直觉敏锐'],
@@ -45,6 +49,9 @@ describe('local agent skills', () => {
   it('会导出第一批通用 skills 定义', () => {
     expect(localAgentSkills.length).toBeGreaterThanOrEqual(10);
     expect(localAgentSkills.some((skill) => skill.name === 'roll_dice')).toBe(true);
+    expect(localAgentSkills.some((skill) => skill.name === 'create_character')).toBe(true);
+    expect(localAgentSkills.some((skill) => skill.name === 'patch_character')).toBe(true);
+    expect(localAgentSkills.some((skill) => skill.name === 'validate_character')).toBe(true);
     expect(localAgentSkills.some((skill) => skill.name === 'save_local_report')).toBe(true);
     expect(localAgentSkills.some((skill) => skill.name === 'patch_npc')).toBe(true);
     expect(localAgentSkills.some((skill) => skill.name === 'patch_scene')).toBe(true);
@@ -158,5 +165,77 @@ describe('local agent skills', () => {
     expect(patchScene.mode).toBe('update');
     expect(patchScene.patch.hooks).toEqual(['破碎盐圈', '孩童哭声', '烧焦祷文']);
     expect(patchScene.summary).toContain('建议更新场景');
+  });
+
+  it('可以基于剧本创建有效人物卡', async () => {
+    const result = (await executeLocalAgentSkill(
+      'create_character',
+      {
+        name: '林雾',
+        occupation: '记者',
+        preferredSkillIds: ['spotHidden', 'listen', 'persuade'],
+      },
+      { rootDir: '/tmp/opencode', script: SAMPLE_SCRIPT, randomFn: () => 0.2 },
+    )) as {
+      character: CharacterRecord;
+      isValid: boolean;
+      fieldErrors: Record<string, unknown>;
+      summary: string;
+    };
+
+    const selectedSkillCount = Object.values(result.character.skills).filter((value) => value > 20).length;
+    expect(result.character.scriptId).toBe(SAMPLE_SCRIPT.id);
+    expect(result.character.name).toBe('林雾');
+    expect(result.character.occupation).toBe('记者');
+    expect(result.character.inventory).toEqual(['录音机', '手电筒', '盐']);
+    expect(selectedSkillCount).toBe(8);
+    expect(result.isValid).toBe(true);
+    expect(result.fieldErrors).toEqual({});
+    expect(result.summary).toContain('人物卡已生成');
+  });
+
+  it('可以 patch 并校验人物卡', async () => {
+    const baseCharacter = buildCharacter();
+    const patchResult = (await executeLocalAgentSkill(
+      'patch_character',
+      {
+        character: baseCharacter,
+        patch: {
+          note: '改为优先保护目击者。',
+          skills: { spotHidden: 70 },
+          inventory: ['手电筒', '录音机'],
+        },
+      },
+      { rootDir: '/tmp/opencode', script: SAMPLE_SCRIPT },
+    )) as {
+      character: CharacterRecord;
+      changedFields: string[];
+      isValid: boolean;
+    };
+
+    const validateResult = (await executeLocalAgentSkill(
+      'validate_character',
+      {
+        character: {
+          ...patchResult.character,
+          inventory: ['不存在的圣遗物'],
+        },
+      },
+      { rootDir: '/tmp/opencode', script: SAMPLE_SCRIPT },
+    )) as {
+      isValid: boolean;
+      fieldErrors: { inventory?: string };
+      summary: string;
+    };
+
+    expect(patchResult.character.note).toBe('改为优先保护目击者。');
+    expect(patchResult.character.skills.spotHidden).toBe(70);
+    expect(patchResult.changedFields).toContain('note');
+    expect(patchResult.changedFields).toContain('skills.spotHidden');
+    expect(patchResult.isValid).toBe(true);
+
+    expect(validateResult.isValid).toBe(false);
+    expect(validateResult.fieldErrors.inventory).toBe('人物卡装备不在剧本允许范围内');
+    expect(validateResult.summary).toContain('装备');
   });
 });

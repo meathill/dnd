@@ -12,7 +12,7 @@
 
 ## 工作区约定
 
-- `skills/`: 每个 skill 一个 JSON contract 文件
+- `skills/`: 每个 skill 一个 `skills/<name>/SKILL.md` 技能包
 - `prompts/dm-system-prompt.md`: 当前默认 system prompt
 - `data/modules`: 模组文件
 - `data/characters`: 人物卡文件
@@ -52,11 +52,12 @@ npx skills add meathill/dnd --skill roll_dice patch_npc save_local_report
 
 读取 `skills/<name>/SKILL.md`，按宿主 Agent 的技能协议安装和触发。
 
-当前第一批能力分为四组：
+当前第一批能力分为五组：
 
 - 规则书：`select_ruleset`、`search_rulebook`、`get_rule_entry`、`get_standard_npc`、`get_creature_profile`、`estimate_scene_risk`、`validate_module_playability`
 - 模组制作：`patch_basic`、`patch_background`、`patch_npc`、`remove_npc`、`patch_scene`、`remove_scene`、`patch_options`
 - 游戏：`roll_dice`、`create_temp_npc`、`roleplay_npc`
+- 人物卡：`create_character`、`patch_character`、`validate_character`
 - 记录：`save_local_module`、`save_local_character`、`save_local_report`、`list_local_artifacts`
 
 ### 3. 对接执行层
@@ -78,9 +79,10 @@ npx skills add meathill/dnd --skill roll_dice patch_npc save_local_report
 3. 没有规则系统时，先调用 select_ruleset。
 4. 需要标准规则、标准 NPC、怪物或风险评估时，优先调用规则书相关 skills。
 5. 需要补完模组结构时，调用 patch_basic / patch_background / patch_npc / patch_scene / patch_options 等 skills。
-6. 需要判定时必须调用 roll_dice。
-7. 需要保存模组、人物卡、战报时，必须调用 save_local_module / save_local_character / save_local_report。
-8. 不直接泄露隐藏信息，不越权替玩家决定动作。
+6. 需要车卡或修卡时，优先调用 create_character / patch_character / validate_character。
+7. 需要判定时必须调用 roll_dice。
+8. 需要保存模组、人物卡、战报时，必须调用 save_local_module / save_local_character / save_local_report。
+9. 不直接泄露隐藏信息，不越权替玩家决定动作。
 
 本次验证目标：
 - 验证你是否会正确选择 skills
@@ -94,7 +96,7 @@ npx skills add meathill/dnd --skill roll_dice patch_npc save_local_report
 
 - [ ] Agent 能读取 `prompts/dm-system-prompt.md`
 - [ ] Agent 能安装或读取 `skills/<name>/SKILL.md`
-- [ ] Agent 能识别 4 组能力：规则书 / 模组制作 / 游戏 / 记录
+- [ ] Agent 能识别 5 组能力：规则书 / 模组制作 / 游戏 / 人物卡 / 记录
 
 ### B. 规则书闭环
 
@@ -117,14 +119,21 @@ npx skills add meathill/dnd --skill roll_dice patch_npc save_local_report
 - [ ] 临时 NPC 出现时能调用 `create_temp_npc`
 - [ ] 关键 NPC 发言前能调用 `roleplay_npc`
 
-### E. 记录闭环
+### E. 人物卡闭环
+
+- [ ] 能调用 `create_character`
+- [ ] 能调用 `patch_character`
+- [ ] 能调用 `validate_character`
+- [ ] 生成的人物卡能通过一次保存前校验
+
+### F. 记录闭环
 
 - [ ] 能调用 `save_local_module`
 - [ ] 能调用 `save_local_character`
 - [ ] 能调用 `save_local_report`
 - [ ] 目标目录下真的生成了对应文件
 
-### F. 质量判断
+### G. 质量判断
 
 - [ ] tool 选择是否合理
 - [ ] 参数是否稳定、简洁、不过度冗余
@@ -136,8 +145,9 @@ npx skills add meathill/dnd --skill roll_dice patch_npc save_local_report
 
 1. 先做规则书查询
 2. 再做模组 patch
-3. 再做一次短对话检定
-4. 最后验证落盘
+3. 再做一次车卡/修卡
+4. 再做一次短对话检定
+5. 最后验证落盘
 
 ## 建议优先验证的 Case
 
@@ -161,7 +171,12 @@ npx skills add meathill/dnd --skill roll_dice patch_npc save_local_report
 - 用户："我检查门口血迹"
 - 预期：Agent 调用 `roll_dice`
 
-### Case 5: 记录落盘
+### Case 5: 人物卡生成
+
+- 用户："按这个模组给我车一个记者角色，偏调查和社交" 
+- 预期：Agent 调用 `create_character`，必要时再调用 `validate_character`
+
+### Case 6: 记录落盘
 
 - 用户："把这个模组和我的人物卡保存下来"
 - 预期：Agent 调用 `save_local_module` 与 `save_local_character`

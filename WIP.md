@@ -62,6 +62,7 @@
 ### Phase 7: 外部 Agent 验证
 - [x] 准备面向通用 Agent 的 skills 目录与接入说明
 - [x] 兼容 `skills` CLI，可通过 `npx skills add <repo>` 安装
+- [x] 补齐人物卡 create / patch / validate skills
 - [ ] 用至少一种外部 Agent 验证规则书查询、检定、记录落盘闭环
 - [ ] 记录哪些能力满足预期，哪些能力还需要补充或收敛
 
@@ -70,6 +71,13 @@
 - [x] 补针对性测试
 - [ ] 跑格式化
 - [ ] 跑构建与相关测试
+
+## 当前新增能力
+
+- `create_character`：按当前剧本快速车卡，并返回 `isValid` / `fieldErrors`
+- `patch_character`：在已有角色卡上做局部修改，保留原 `id` 与 `createdAt`
+- `validate_character`：显式检查角色卡是否满足剧本限制
+- 对外文档已同步加入人物卡闭环验证要求
 
 ---
 

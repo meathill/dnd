@@ -1,4 +1,4 @@
-import type { AttributeKey, CharacterFieldErrors, ScriptDefinition } from './types';
+import type { AttributeKey, CharacterFieldErrors, ScriptDefinition } from './types.ts';
 import {
   resolveAttributePointBudget,
   resolveAttributeRanges,
@@ -9,7 +9,7 @@ import {
   resolveSkillMaxValue,
   resolveSkillPointBudget,
   resolveUntrainedSkillValue,
-} from './rules';
+} from './rules.ts';
 
 type RecordValue = Record<string, unknown>;
 

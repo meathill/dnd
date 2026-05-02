@@ -3,11 +3,13 @@ import {
   type LocalAgentRuntimeContext,
   type LocalAgentSkillDefinition,
 } from './skill-contract.ts';
+import { characterSkills } from './character-skills.ts';
 import { gameplaySkills } from './gameplay-skills.ts';
 import { moduleSkills } from './module-skills.ts';
 import { recordSkills } from './record-skills.ts';
 import { rulebookSkills } from './rulebook-skills.ts';
 
+export * from './character-skills.ts';
 export * from './gameplay-skills.ts';
 export * from './module-skills.ts';
 export * from './record-skills.ts';
@@ -17,6 +19,7 @@ export const localAgentSkills: LocalAgentSkillDefinition<unknown, unknown>[] = [
   ...rulebookSkills,
   ...moduleSkills,
   ...gameplaySkills,
+  ...characterSkills,
   ...recordSkills,
 ] as LocalAgentSkillDefinition<unknown, unknown>[];
 

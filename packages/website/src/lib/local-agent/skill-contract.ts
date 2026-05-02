@@ -1,6 +1,6 @@
 import type { CharacterRecord, ScriptDefinition } from '../game/types.ts';
 
-export type LocalAgentSkillGroup = 'rulebook' | 'module' | 'gameplay' | 'record';
+export type LocalAgentSkillGroup = 'rulebook' | 'module' | 'gameplay' | 'character' | 'record';
 
 export type LocalAgentExecutionMode = 'native' | 'model';
 
