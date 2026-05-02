@@ -47,10 +47,15 @@ export function HomeContent() {
     router.push(`/scripts/${scriptId}`);
   }
 
+  function handleOpenLocalPlay() {
+    router.push('/local-play');
+  }
+
   return (
     <HomeStage
       scripts={scriptsLoaded ? scripts : [SAMPLE_SCRIPT]}
       onSelectScript={handleSelectScript}
+      onOpenLocalPlay={handleOpenLocalPlay}
       statusMessage={homeMessage}
     />
   );

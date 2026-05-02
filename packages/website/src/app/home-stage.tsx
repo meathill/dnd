@@ -6,10 +6,11 @@ const sectionTitleClassName = 'text-xs uppercase tracking-[0.18em] text-[var(--i
 export type HomeStageProps = {
   scripts: ScriptDefinition[];
   onSelectScript: (scriptId: string) => void;
+  onOpenLocalPlay?: () => void;
   statusMessage?: string;
 };
 
-export default function HomeStage({ scripts, onSelectScript, statusMessage }: HomeStageProps) {
+export default function HomeStage({ scripts, onSelectScript, onOpenLocalPlay, statusMessage }: HomeStageProps) {
   return (
     <section className="panel-card flex flex-col gap-4 p-3 sm:p-4 lg:h-full">
       <div>
@@ -17,6 +18,22 @@ export default function HomeStage({ scripts, onSelectScript, statusMessage }: Ho
         <h2 className="text-xl font-semibold text-[var(--ink-strong)]">剧本列表</h2>
         <p className="text-sm text-[var(--ink-muted)]">选择一个剧本查看详情与建卡入口。</p>
         {statusMessage ? <p className="mt-2 text-xs text-[var(--accent-ember)]">{statusMessage}</p> : null}
+      </div>
+
+      <div className="rounded-xl border border-[rgba(27,20,12,0.08)] bg-[rgba(255,255,255,0.7)] p-4 text-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-base font-semibold text-[var(--ink-strong)]">本地完整体验</p>
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">
+              无需登录或数据库，直接测试「创建模组 + 游玩 + 导出战报」闭环。
+            </p>
+          </div>
+          {onOpenLocalPlay ? (
+            <Button onClick={onOpenLocalPlay} size="sm">
+              进入本地闭环
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">

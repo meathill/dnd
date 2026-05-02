@@ -50,4 +50,14 @@ describe('首页面板', () => {
     await user.click(screen.getByRole('button', { name: '查看剧本' }));
     expect(handleSelectScript).toHaveBeenCalledWith('script-1');
   });
+
+  it('点击本地闭环入口会触发回调', async () => {
+    const user = userEvent.setup();
+    const handleOpenLocalPlay = vi.fn();
+
+    render(<HomeStage scripts={[sampleScript]} onSelectScript={vi.fn()} onOpenLocalPlay={handleOpenLocalPlay} />);
+
+    await user.click(screen.getByRole('button', { name: '进入本地闭环' }));
+    expect(handleOpenLocalPlay).toHaveBeenCalledTimes(1);
+  });
 });
