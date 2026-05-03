@@ -57,6 +57,7 @@ export async function POST(request: Request) {
   });
 
   const game = await createGame({
+    id: gameId,
     userId: session.userId,
     moduleId: moduleRecord.id,
     characterId: characterRecord.id,

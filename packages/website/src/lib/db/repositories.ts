@@ -190,6 +190,7 @@ export async function ensureWallet(userId: string): Promise<WalletRecord> {
 }
 
 export async function createGame(input: {
+  id?: string;
   userId: string;
   moduleId: string;
   characterId: string;
@@ -197,7 +198,7 @@ export async function createGame(input: {
   workspacePath: string;
 }): Promise<GameRecord> {
   const { sqlite } = await getDatabase();
-  const id = randomUUID();
+  const id = input.id ?? randomUUID();
   const timestamp = buildTimestamp();
   sqlite.run(
     `INSERT INTO games (

@@ -56,6 +56,7 @@ describe('repositories', () => {
     expect(wallet.balance).toBe(100);
 
     const game = await createGame({
+      id: 'game-1',
       userId: 'user-1',
       moduleId: 'script-exorcism-door',
       characterId: 'character-lin-wu',
@@ -80,7 +81,9 @@ describe('repositories', () => {
     const messages = await listMessagesByGameId(game.id);
     const ledger = await listBillingLedger('user-1');
 
+    expect(game.id).toBe('game-1');
     expect(storedGame?.opencodeSessionId).toBe('session-1');
+    expect(storedGame?.workspacePath).toBe('/tmp/workspace/user-1/game-1');
     expect(messages).toHaveLength(1);
     expect(chargedWallet.balance).toBe(95);
     expect(ledger[0]?.balanceAfter).toBe(95);
