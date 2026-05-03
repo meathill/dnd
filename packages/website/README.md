@@ -1,47 +1,45 @@
-# OpenNext Starter
+# 肉团长 Website
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+新版网站负责：
 
-## Getting Started
+1. 登录与会话
+2. 从数据库读取模组列表与模组摘要
+3. 创建游戏并绑定 `opencode session`
+4. 转发游戏消息并按回合扣费
 
-Read the documentation at https://opennext.js.org/cloudflare.
-
-## Develop
-
-Run the Next.js development server:
-
-```bash
-npm run dev
-# or similar package manager command
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-## Preview
-
-Preview the application locally on the Cloudflare runtime:
+## 环境变量
 
 ```bash
-npm run preview
-# or similar package manager command
+BETTER_AUTH_SECRET=change-me
+OPENCODE_BASE_URL=http://127.0.0.1:4096
+OPENCODE_SERVER_USERNAME=opencode
+OPENCODE_SERVER_PASSWORD=secret
+OPENCODE_WORKSPACE_ROOT=/path/to/workspace
+DATABASE_URL=/absolute/path/to/website.sqlite
 ```
 
-## Deploy
+不设置 `DATABASE_URL` 时，默认使用 `packages/website/.local/website.sqlite`。
 
-Deploy the application to Cloudflare:
+## 开发
 
 ```bash
-npm run deploy
-# or similar package manager command
+pnpm dev
 ```
 
-## Learn More
+## 类型检查
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm typecheck
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 测试
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm test
+```
+
+## 构建
+
+```bash
+pnpm build
+```
