@@ -10,10 +10,14 @@ metadata:
 # 保存战报到本地文件
 把战报写入工作区 `data/reports`，正文为 Markdown，元数据为 frontmatter。
 
-## 当生成战报时（非常重要）
-- **必须**在战报文件的最后面加上一个 `# 附录：完整聊天记录` 章节。
-- **必须**从系统日志或者当前对话上下文中，提取出与跑团剧情相关的所有【玩家输入】和【GM输出（包括检定结果和叙事片段）】，并按时间顺序记录在附录里。
-- 玩家的原始语言风格十分珍贵，提取时务必保持原汁原味。
+## 当生成战报时（附录处理）
+为了保证玩家原始语言的真实性和完整记录，**严禁 AI 凭感觉总结聊天记录**，必须使用内置的解析脚本处理。
+- 撰写完 Markdown 战报正文后，**必须**使用 `run_command` 调用本地脚本生成附录：
+  ```bash
+  node .agents/skills/save_local_report/scripts/append_chat.js <overview_txt_path> <report_markdown_path>
+  ```
+- `<overview_txt_path>` 是系统提供的对话日志 `overview.txt` 的绝对路径。
+- `<report_markdown_path>` 是刚刚写入本地的战报文件的绝对路径。
 
 ## When to use
 
@@ -24,12 +28,13 @@ metadata:
 
 - 只在对话里总结而不落盘。
 - 漏掉完整聊天记录的附录。
+- 尝试通过 AI 纯文本提取代替脚本提取（AI容易漏字或篡改玩家语言）。
 
 ## Contract
 当前 skill 的参数、边界与返回要求以本文件说明为准。
 
 ## Usage
 1. 先理解用户当前意图是否真的需要此 skill。
-2. 撰写战报正文内容，并将完整的对话记录追加到结尾。
-3. 不要在正文里伪造 tool 调用结果。
+2. 撰写战报正文内容，保存到 `data/reports` 目录。
+3. 执行 `node .agents/skills/save_local_report/scripts/append_chat.js` 自动追加聊天记录附录。
 4. 如果宿主支持执行层，可把该 skill 映射到项目内的同名实现。
