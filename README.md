@@ -12,6 +12,7 @@
 ---
 
 - packages/website 网站和线上游戏
+- packages/play 独立游戏运行时（play.muirpg.com）
 - packages/core 共享库
 - packages/mobile 移动应用
 

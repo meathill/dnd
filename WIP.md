@@ -72,6 +72,14 @@
 - [ ] 跑格式化
 - [ ] 跑构建与相关测试
 
+### Phase 9: Website / Play 架构收敛
+- [x] website 增加 play 域名与资产域名配置边界
+- [x] website 增加 `api/llmproxy` 最小代理骨架与内部 token 鉴权
+- [x] 新增 `packages/play` 独立运行时服务
+- [x] play 支持 `stub` / `website` / `opencode` 三种 runtime 模式
+- [x] play 可通过内部 token 拉取 website 游戏上下文
+- [x] 为 website / play 补独立 API 测试与构建验证
+
 ## 当前新增能力
 
 - `create_character`：按当前剧本快速车卡，并返回 `isValid` / `fieldErrors`

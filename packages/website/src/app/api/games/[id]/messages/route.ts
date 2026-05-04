@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NextResponse } from 'next/server';
-import { getRequestSession } from '@/lib/auth/session';
 import {
   buildAssistantMeta,
   chargeWallet,
@@ -9,6 +8,7 @@ import {
   getGameByIdForUser,
   listMessagesByGameId,
 } from '@/lib/db/repositories';
+import { getRequestIdentity } from '@/lib/internal/request-auth';
 import { sendGameplayMessage } from '@/lib/opencode/gameplay';
 
 const TURN_COST = 5;
@@ -26,13 +26,13 @@ async function readSystemPrompt(): Promise<string> {
   return readFile(filePath, 'utf8');
 }
 
-export async function GET(_: Request, { params }: GameMessagesRouteProps) {
-  const session = await getRequestSession();
-  if (!session) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 });
+export async function GET(request: Request, { params }: GameMessagesRouteProps) {
+  const identity = await getRequestIdentity(request);
+  if (identity instanceof NextResponse) {
+    return identity;
   }
   const { id } = await params;
-  const game = await getGameByIdForUser(id, session.userId);
+  const game = await getGameByIdForUser(id, identity.userId);
   if (!game) {
     return NextResponse.json({ error: '游戏不存在' }, { status: 404 });
   }
@@ -41,9 +41,9 @@ export async function GET(_: Request, { params }: GameMessagesRouteProps) {
 }
 
 export async function POST(request: Request, { params }: GameMessagesRouteProps) {
-  const session = await getRequestSession();
-  if (!session) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 });
+  const identity = await getRequestIdentity(request);
+  if (identity instanceof NextResponse) {
+    return identity;
   }
 
   let body: SendMessageRequest;
@@ -58,12 +58,12 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
     return NextResponse.json({ error: '消息不能为空' }, { status: 400 });
   }
 
-  if (session.balance < TURN_COST) {
+  if (typeof identity.balance === 'number' && identity.balance < TURN_COST) {
     return NextResponse.json({ error: '余额不足' }, { status: 402 });
   }
 
   const { id } = await params;
-  const game = await getGameByIdForUser(id, session.userId);
+  const game = await getGameByIdForUser(id, identity.userId);
   if (!game) {
     return NextResponse.json({ error: '游戏不存在' }, { status: 404 });
   }
@@ -113,7 +113,7 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
 
   try {
     const wallet = await chargeWallet({
-      userId: session.userId,
+      userId: identity.userId,
       gameId: game.id,
       amount: TURN_COST,
       reason: `游戏回合扣费：${game.id}`,

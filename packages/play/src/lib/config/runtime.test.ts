@@ -1,0 +1,25 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { buildWebsiteApiUrl, getPlayRuntimeConfig } from './runtime';
+
+afterEach(() => {
+  delete process.env.PLAY_BASE_URL;
+  delete process.env.WEBSITE_BASE_URL;
+  delete process.env.PLAY_RUNTIME;
+  delete process.env.INTERNAL_SERVICE_TOKEN;
+});
+
+describe('play runtime config', () => {
+  it('uses defaults when env is absent', () => {
+    const config = getPlayRuntimeConfig();
+
+    expect(config.playBaseUrl).toBe('http://127.0.0.1:3091');
+    expect(config.websiteBaseUrl).toBe('http://127.0.0.1:3090');
+    expect(config.runtimeMode).toBe('stub');
+  });
+
+  it('builds website api url from configured origin', () => {
+    process.env.WEBSITE_BASE_URL = 'https://muirpg.com';
+
+    expect(buildWebsiteApiUrl('/api/games/game-1')).toBe('https://muirpg.com/api/games/game-1');
+  });
+});

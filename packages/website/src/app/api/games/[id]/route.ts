@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import { buildPlayGameUrl } from '@/lib/config/runtime';
-import { getRequestSession } from '@/lib/auth/session';
 import { getCharacterById, getGameByIdForUser, getModuleById, listMessagesByGameId } from '@/lib/db/repositories';
+import { getRequestIdentity } from '@/lib/internal/request-auth';
 
 type GameRouteProps = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_: Request, { params }: GameRouteProps) {
-  const session = await getRequestSession();
-  if (!session) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 });
+export async function GET(request: Request, { params }: GameRouteProps) {
+  const identity = await getRequestIdentity(request);
+  if (identity instanceof NextResponse) {
+    return identity;
   }
   const { id } = await params;
-  const game = await getGameByIdForUser(id, session.userId);
+  const game = await getGameByIdForUser(id, identity.userId);
   if (!game) {
     return NextResponse.json({ error: '游戏不存在' }, { status: 404 });
   }
