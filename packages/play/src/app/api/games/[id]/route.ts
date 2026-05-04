@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { getPlayGameContext } from '@/lib/play/runtime';
 import { getPlaySession } from '@/lib/play/session';
@@ -13,7 +14,8 @@ export async function GET(_: Request, { params }: GameRouteProps) {
   }
   try {
     const { id } = await params;
-    const gameContext = await getPlayGameContext(id, session);
+    const headerStore = await headers();
+    const gameContext = await getPlayGameContext(id, session, headerStore.get('cookie'));
     return NextResponse.json(gameContext);
   } catch (error) {
     const message = error instanceof Error ? error.message : '读取游戏失败';

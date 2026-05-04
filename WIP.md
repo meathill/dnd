@@ -79,6 +79,9 @@
 - [x] play 支持 `stub` / `website` / `opencode` 三种 runtime 模式
 - [x] play 可通过内部 token 拉取 website 游戏上下文
 - [x] 为 website / play 补独立 API 测试与构建验证
+- [x] play `stub` runtime 通过 website internal turn 接口统一落库与扣费
+- [x] website 将“保存 user/assistant 消息 + 扣费 + 账本”收敛为原子回合写入
+- [x] play 接入真实 `opencode` runtime，并通过 website `llmproxy` 发起模型请求
 
 ## 当前新增能力
 

@@ -14,6 +14,7 @@ import {
   listBillingLedger,
   listMessagesByGameId,
   listModules,
+  recordGameTurn,
 } from './repositories';
 
 let databaseDir = '';
@@ -87,5 +88,76 @@ describe('repositories', () => {
     expect(messages).toHaveLength(1);
     expect(chargedWallet.balance).toBe(95);
     expect(ledger[0]?.balanceAfter).toBe(95);
+  });
+
+  it('records a turn atomically with wallet charge', async () => {
+    await seedUser('user-1');
+    await ensureWallet('user-1');
+
+    const game = await createGame({
+      id: 'game-1',
+      userId: 'user-1',
+      moduleId: 'script-exorcism-door',
+      characterId: 'character-lin-wu',
+      opencodeSessionId: 'session-1',
+      workspacePath: '/tmp/workspace/user-1/game-1',
+    });
+
+    const turn = await recordGameTurn({
+      userId: 'user-1',
+      gameId: game.id,
+      userContent: '我推门进入老宅。',
+      assistantContent: '门后传来潮湿木板的呻吟声。',
+      userMeta: { runtime: 'play' },
+      assistantMeta: { runtime: 'stub' },
+      chargeAmount: 5,
+      reason: '游戏回合扣费',
+    });
+
+    const messages = await listMessagesByGameId(game.id);
+    const ledger = await listBillingLedger('user-1');
+
+    expect(turn.wallet.balance).toBe(95);
+    expect(messages).toHaveLength(2);
+    expect(messages[0]?.content).toBe('我推门进入老宅。');
+    expect(messages[1]?.content).toBe('门后传来潮湿木板的呻吟声。');
+    expect(ledger[0]?.balanceAfter).toBe(95);
+  });
+
+  it('rolls back messages when wallet balance is insufficient during turn recording', async () => {
+    await seedUser('user-1');
+    const { sqlite } = await getDatabase();
+    sqlite.run('INSERT INTO wallets (user_id, balance, created_at, updated_at) VALUES (?, ?, ?, ?)', [
+      'user-1',
+      4,
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+    ]);
+
+    const game = await createGame({
+      id: 'game-1',
+      userId: 'user-1',
+      moduleId: 'script-exorcism-door',
+      characterId: 'character-lin-wu',
+      opencodeSessionId: 'session-1',
+      workspacePath: '/tmp/workspace/user-1/game-1',
+    });
+
+    await expect(
+      recordGameTurn({
+        userId: 'user-1',
+        gameId: game.id,
+        userContent: '我推门进入老宅。',
+        assistantContent: '门后传来潮湿木板的呻吟声。',
+        chargeAmount: 5,
+        reason: '游戏回合扣费',
+      }),
+    ).rejects.toThrow('余额不足');
+
+    const messages = await listMessagesByGameId(game.id);
+    const ledger = await listBillingLedger('user-1');
+
+    expect(messages).toHaveLength(0);
+    expect(ledger).toHaveLength(0);
   });
 });

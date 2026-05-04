@@ -5,6 +5,12 @@ const { mockGetPlaySession, mockGetPlayGameContext } = vi.hoisted(() => ({
   mockGetPlayGameContext: vi.fn(),
 }));
 
+vi.mock('next/headers', () => ({
+  headers: vi.fn().mockResolvedValue({
+    get: vi.fn().mockReturnValue('cookie=value'),
+  }),
+}));
+
 vi.mock('@/lib/play/session', () => ({
   getPlaySession: mockGetPlaySession,
 }));
@@ -40,7 +46,11 @@ describe('play api/games/[id]', () => {
 
     expect(response.status).toBe(200);
     expect(payload.game.id).toBe('game-1');
-    expect(mockGetPlayGameContext).toHaveBeenCalledWith('game-1', expect.objectContaining({ userId: 'user-1' }));
+    expect(mockGetPlayGameContext).toHaveBeenCalledWith(
+      'game-1',
+      expect.objectContaining({ userId: 'user-1' }),
+      'cookie=value',
+    );
   });
 
   it('returns 401 when session is missing', async () => {

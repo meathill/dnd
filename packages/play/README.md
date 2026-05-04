@@ -6,7 +6,7 @@
 
 1. `stub`：不依赖 opencode，适合独立测试 API
 2. `website`：将聊天请求转发给 website
-3. `opencode`：预留给后续直接接 opencode runtime
+3. `opencode`：由 play 直接通过 website `llmproxy` 请求模型，再统一回写 website
 
 ## 环境变量
 
@@ -14,6 +14,7 @@
 PLAY_BASE_URL=https://play.muirpg.com
 WEBSITE_BASE_URL=https://muirpg.com
 INTERNAL_SERVICE_TOKEN=replace-me
+PLAY_LLM_MODEL=gpt-4.1-mini
 PLAY_RUNTIME=stub
 ```
 

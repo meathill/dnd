@@ -2,21 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockReadFile,
-  mockGetRequestSession,
+  mockGetRequestIdentity,
   mockBuildAssistantMeta,
-  mockChargeWallet,
-  mockCreateGameMessage,
   mockGetGameByIdForUser,
   mockListMessagesByGameId,
+  mockRecordGameTurn,
   mockSendGameplayMessage,
 } = vi.hoisted(() => ({
   mockReadFile: vi.fn(),
-  mockGetRequestSession: vi.fn(),
+  mockGetRequestIdentity: vi.fn(),
   mockBuildAssistantMeta: vi.fn(),
-  mockChargeWallet: vi.fn(),
-  mockCreateGameMessage: vi.fn(),
   mockGetGameByIdForUser: vi.fn(),
   mockListMessagesByGameId: vi.fn(),
+  mockRecordGameTurn: vi.fn(),
   mockSendGameplayMessage: vi.fn(),
 }));
 
@@ -28,16 +26,15 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   };
 });
 
-vi.mock('@/lib/auth/session', () => ({
-  getRequestSession: mockGetRequestSession,
+vi.mock('@/lib/internal/request-auth', () => ({
+  getRequestIdentity: mockGetRequestIdentity,
 }));
 
 vi.mock('@/lib/db/repositories', () => ({
   buildAssistantMeta: mockBuildAssistantMeta,
-  chargeWallet: mockChargeWallet,
-  createGameMessage: mockCreateGameMessage,
   getGameByIdForUser: mockGetGameByIdForUser,
   listMessagesByGameId: mockListMessagesByGameId,
+  recordGameTurn: mockRecordGameTurn,
 }));
 
 vi.mock('@/lib/opencode/gameplay', () => ({
@@ -77,7 +74,11 @@ describe('games/[id]/messages route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockReadFile.mockResolvedValue('system prompt');
-    mockGetRequestSession.mockResolvedValue(defaultSession);
+    mockGetRequestIdentity.mockResolvedValue({
+      kind: 'user',
+      userId: defaultSession.userId,
+      balance: defaultSession.balance,
+    });
     mockGetGameByIdForUser.mockResolvedValue(game);
     mockBuildAssistantMeta.mockReturnValue({ sessionId: 'session-1', partCount: 1 });
     mockListMessagesByGameId.mockResolvedValue([]);
@@ -102,14 +103,22 @@ describe('games/[id]/messages route', () => {
       content: 'assistant reply',
       parts: [{ type: 'text', text: 'assistant reply' }],
     });
-    mockCreateGameMessage
-      .mockResolvedValueOnce({ id: 'user-message-1', role: 'user', content: 'hello', gameId: 'game-1', meta: {}, createdAt: 'now' })
-      .mockResolvedValueOnce({ id: 'assistant-message-1', role: 'assistant', content: 'assistant reply', gameId: 'game-1', meta: {}, createdAt: 'now' });
-    mockChargeWallet.mockResolvedValue({
-      userId: 'user-1',
-      balance: 95,
-      createdAt: 'now',
-      updatedAt: 'now',
+    mockRecordGameTurn.mockResolvedValue({
+      userMessage: { id: 'user-message-1', role: 'user', content: 'hello', gameId: 'game-1', meta: {}, createdAt: 'now' },
+      assistantMessage: {
+        id: 'assistant-message-1',
+        role: 'assistant',
+        content: 'assistant reply',
+        gameId: 'game-1',
+        meta: {},
+        createdAt: 'now',
+      },
+      wallet: {
+        userId: 'user-1',
+        balance: 95,
+        createdAt: 'now',
+        updatedAt: 'now',
+      },
     });
 
     const response = await POST(createPostRequest({ content: 'hello' }), {
@@ -125,18 +134,21 @@ describe('games/[id]/messages route', () => {
     expect(payload.balance).toBe(95);
     expect(payload.userMessage.id).toBe('user-message-1');
     expect(payload.assistantMessage.id).toBe('assistant-message-1');
-    expect(mockChargeWallet).toHaveBeenCalledWith(
+    expect(mockRecordGameTurn).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
         gameId: 'game-1',
-        amount: 5,
+        userContent: 'hello',
+        assistantContent: 'assistant reply',
+        chargeAmount: 5,
       }),
     );
   });
 
   it('returns 402 when balance is insufficient before calling opencode', async () => {
-    mockGetRequestSession.mockResolvedValue({
-      ...defaultSession,
+    mockGetRequestIdentity.mockResolvedValue({
+      kind: 'user',
+      userId: defaultSession.userId,
       balance: 4,
     });
 
@@ -160,8 +172,7 @@ describe('games/[id]/messages route', () => {
 
     expect(response.status).toBe(502);
     expect(payload.error).toBe('游戏服务暂不可用，请稍后重试');
-    expect(mockCreateGameMessage).not.toHaveBeenCalled();
-    expect(mockChargeWallet).not.toHaveBeenCalled();
+    expect(mockRecordGameTurn).not.toHaveBeenCalled();
   });
 
   it('returns 404 when the game is missing', async () => {
@@ -174,5 +185,23 @@ describe('games/[id]/messages route', () => {
 
     expect(response.status).toBe(404);
     expect(payload.error).toBe('游戏不存在');
+  });
+
+  it('returns 402 when turn persistence rejects for insufficient balance', async () => {
+    mockSendGameplayMessage.mockResolvedValue({
+      sessionId: 'session-1',
+      assistantMessage: { role: 'assistant' },
+      content: 'assistant reply',
+      parts: [{ type: 'text', text: 'assistant reply' }],
+    });
+    mockRecordGameTurn.mockRejectedValue(new Error('余额不足'));
+
+    const response = await POST(createPostRequest({ content: 'hello' }), {
+      params: Promise.resolve({ id: 'game-1' }),
+    });
+    const payload = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(402);
+    expect(payload.error).toBe('余额不足');
   });
 });

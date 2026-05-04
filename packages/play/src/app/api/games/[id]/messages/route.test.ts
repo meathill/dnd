@@ -5,6 +5,12 @@ const { mockGetPlaySession, mockSendPlayMessage } = vi.hoisted(() => ({
   mockSendPlayMessage: vi.fn(),
 }));
 
+vi.mock('next/headers', () => ({
+  headers: vi.fn().mockResolvedValue({
+    get: vi.fn().mockReturnValue('cookie=value'),
+  }),
+}));
+
 vi.mock('@/lib/play/session', () => ({
   getPlaySession: mockGetPlaySession,
 }));
@@ -53,7 +59,12 @@ describe('play api/games/[id]/messages', () => {
     expect(payload.balance).toBe(95);
     expect(payload.userMessage.id).toBe('user-message-1');
     expect(payload.assistantMessage.id).toBe('assistant-message-1');
-    expect(mockSendPlayMessage).toHaveBeenCalledWith('game-1', 'hello', expect.objectContaining({ userId: 'user-1' }));
+    expect(mockSendPlayMessage).toHaveBeenCalledWith(
+      'game-1',
+      'hello',
+      expect.objectContaining({ userId: 'user-1' }),
+      'cookie=value',
+    );
   });
 
   it('returns 400 for empty message', async () => {

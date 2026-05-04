@@ -4,6 +4,7 @@ export type PlayRuntimeConfig = {
   playBaseUrl: string;
   websiteBaseUrl: string;
   internalServiceToken: string | null;
+  llmModel: string;
   runtimeMode: PlayRuntimeMode;
 };
 
@@ -17,6 +18,7 @@ export function getPlayRuntimeConfig(): PlayRuntimeConfig {
     playBaseUrl: normalizeOrigin(process.env.PLAY_BASE_URL?.trim() || 'http://127.0.0.1:3091'),
     websiteBaseUrl: normalizeOrigin(process.env.WEBSITE_BASE_URL?.trim() || 'http://127.0.0.1:3090'),
     internalServiceToken: process.env.INTERNAL_SERVICE_TOKEN?.trim() || null,
+    llmModel: process.env.PLAY_LLM_MODEL?.trim() || 'gpt-4.1-mini',
     runtimeMode,
   };
 }

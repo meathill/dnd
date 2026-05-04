@@ -3,10 +3,9 @@ import { join } from 'node:path';
 import { NextResponse } from 'next/server';
 import {
   buildAssistantMeta,
-  chargeWallet,
-  createGameMessage,
   getGameByIdForUser,
   listMessagesByGameId,
+  recordGameTurn,
 } from '@/lib/db/repositories';
 import { getRequestIdentity } from '@/lib/internal/request-auth';
 import { sendGameplayMessage } from '@/lib/opencode/gameplay';
@@ -88,43 +87,30 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
     return NextResponse.json({ error: '游戏服务暂不可用，请稍后重试' }, { status: 502 });
   }
 
-  let userMessage;
-  let assistantMessage;
   try {
-    userMessage = await createGameMessage({
+    const turn = await recordGameTurn({
+      userId: identity.userId,
       gameId: game.id,
-      role: 'user',
-      content,
-    });
-
-    assistantMessage = await createGameMessage({
-      gameId: game.id,
-      role: 'assistant',
-      content: reply.content,
-      meta: buildAssistantMeta(reply.assistantMessage, {
+      userContent: content,
+      assistantContent: reply.content,
+      assistantMeta: buildAssistantMeta(reply.assistantMessage, {
         sessionId: reply.sessionId,
         partCount: reply.parts.length,
       }),
-    });
-  } catch (error) {
-    console.error('[api/games/messages] 保存消息失败', error);
-    return NextResponse.json({ error: '保存消息失败' }, { status: 500 });
-  }
-
-  try {
-    const wallet = await chargeWallet({
-      userId: identity.userId,
-      gameId: game.id,
-      amount: TURN_COST,
+      chargeAmount: TURN_COST,
       reason: `游戏回合扣费：${game.id}`,
     });
 
-    return NextResponse.json({ userMessage, assistantMessage, balance: wallet.balance });
+    return NextResponse.json({
+      userMessage: turn.userMessage,
+      assistantMessage: turn.assistantMessage,
+      balance: turn.wallet.balance,
+    });
   } catch (error) {
-    console.error('[api/games/messages] 扣费失败', error);
+    console.error('[api/games/messages] 保存回合失败', error);
     if (error instanceof Error && error.message === '余额不足') {
       return NextResponse.json({ error: '余额不足' }, { status: 402 });
     }
-    return NextResponse.json({ error: '扣费失败' }, { status: 500 });
+    return NextResponse.json({ error: '保存回合失败' }, { status: 500 });
   }
 }

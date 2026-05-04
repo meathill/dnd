@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { sendPlayMessage } from '@/lib/play/runtime';
 import { getPlaySession } from '@/lib/play/session';
@@ -30,7 +31,8 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
 
   try {
     const { id } = await params;
-    const reply = await sendPlayMessage(id, content, session);
+    const headerStore = await headers();
+    const reply = await sendPlayMessage(id, content, session, headerStore.get('cookie'));
     return NextResponse.json(reply);
   } catch (error) {
     const message = error instanceof Error ? error.message : '发送失败';

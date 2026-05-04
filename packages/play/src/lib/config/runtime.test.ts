@@ -5,6 +5,7 @@ afterEach(() => {
   delete process.env.PLAY_BASE_URL;
   delete process.env.WEBSITE_BASE_URL;
   delete process.env.PLAY_RUNTIME;
+  delete process.env.PLAY_LLM_MODEL;
   delete process.env.INTERNAL_SERVICE_TOKEN;
 });
 
@@ -14,6 +15,7 @@ describe('play runtime config', () => {
 
     expect(config.playBaseUrl).toBe('http://127.0.0.1:3091');
     expect(config.websiteBaseUrl).toBe('http://127.0.0.1:3090');
+    expect(config.llmModel).toBe('gpt-4.1-mini');
     expect(config.runtimeMode).toBe('stub');
   });
 
@@ -21,5 +23,11 @@ describe('play runtime config', () => {
     process.env.WEBSITE_BASE_URL = 'https://muirpg.com';
 
     expect(buildWebsiteApiUrl('/api/games/game-1')).toBe('https://muirpg.com/api/games/game-1');
+  });
+
+  it('uses configured play llm model', () => {
+    process.env.PLAY_LLM_MODEL = 'gpt-4o-mini';
+
+    expect(getPlayRuntimeConfig().llmModel).toBe('gpt-4o-mini');
   });
 });
