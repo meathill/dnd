@@ -78,10 +78,14 @@ export async function sendGameplayMessage(input: {
   if (!payload) {
     throw new Error('opencode 未返回消息');
   }
+  const content = extractText(payload.parts);
+  if (!content) {
+    throw new Error('opencode 未返回文本消息');
+  }
   return {
     sessionId: input.game.opencodeSessionId,
     assistantMessage: payload.info,
-    content: extractText(payload.parts),
+    content,
     parts: payload.parts,
   };
 }

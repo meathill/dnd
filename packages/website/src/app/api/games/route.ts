@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NextResponse } from 'next/server';
+import { buildPlayGameUrl } from '@/lib/config/runtime';
 import { getRequestSession } from '@/lib/auth/session';
 import { createGame, getCharacterById, getModuleById } from '@/lib/db/repositories';
 import { createGameplaySession } from '@/lib/opencode/gameplay';
@@ -36,34 +37,64 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '缺少模组或人物卡' }, { status: 400 });
   }
 
-  const [moduleRecord, characterRecord, systemPrompt] = await Promise.all([
-    getModuleById(moduleId),
-    getCharacterById(characterId),
-    readSystemPrompt(),
-  ]);
+  let moduleRecord;
+  let characterRecord;
+  let systemPrompt;
+  try {
+    [moduleRecord, characterRecord, systemPrompt] = await Promise.all([
+      getModuleById(moduleId),
+      getCharacterById(characterId),
+      readSystemPrompt(),
+    ]);
+  } catch (error) {
+    console.error('[api/games] 加载游戏资源失败', error);
+    return NextResponse.json({ error: '创建游戏失败' }, { status: 500 });
+  }
 
   if (!moduleRecord || !characterRecord) {
     return NextResponse.json({ error: '模组或人物卡不存在' }, { status: 404 });
   }
 
+  if (characterRecord.moduleId !== moduleRecord.id) {
+    return NextResponse.json({ error: '人物卡不属于该模组' }, { status: 400 });
+  }
+
   const gameId = randomUUID();
-  const workspacePath = await ensureWorkspace(session.userId, gameId);
-  const opencodeSession = await createGameplaySession({
-    title: `${moduleRecord.title} · ${characterRecord.name}`,
-    workspacePath,
-    moduleRecord,
-    characterRecord,
-    systemPrompt,
-  });
+  let workspacePath;
+  try {
+    workspacePath = await ensureWorkspace(session.userId, gameId);
+  } catch (error) {
+    console.error('[api/games] 创建工作区失败', error);
+    return NextResponse.json({ error: '创建游戏失败' }, { status: 500 });
+  }
 
-  const game = await createGame({
-    id: gameId,
-    userId: session.userId,
-    moduleId: moduleRecord.id,
-    characterId: characterRecord.id,
-    opencodeSessionId: opencodeSession.id,
-    workspacePath,
-  });
+  let opencodeSession;
+  try {
+    opencodeSession = await createGameplaySession({
+      title: `${moduleRecord.title} · ${characterRecord.name}`,
+      workspacePath,
+      moduleRecord,
+      characterRecord,
+      systemPrompt,
+    });
+  } catch (error) {
+    console.error('[api/games] 创建 opencode session 失败', error);
+    return NextResponse.json({ error: '游戏服务暂不可用，请稍后重试' }, { status: 502 });
+  }
 
-  return NextResponse.json({ game }, { status: 201 });
+  try {
+    const game = await createGame({
+      id: gameId,
+      userId: session.userId,
+      moduleId: moduleRecord.id,
+      characterId: characterRecord.id,
+      opencodeSessionId: opencodeSession.id,
+      workspacePath,
+    });
+
+    return NextResponse.json({ game, playUrl: buildPlayGameUrl(game.id) }, { status: 201 });
+  } catch (error) {
+    console.error('[api/games] 写入游戏记录失败', error);
+    return NextResponse.json({ error: '创建游戏失败' }, { status: 500 });
+  }
 }

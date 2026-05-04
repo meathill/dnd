@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { buildPlayGameUrl } from '@/lib/config/runtime';
 import { getRequestSession } from '@/lib/auth/session';
 import { getCharacterById, getGameByIdForUser, getModuleById, listMessagesByGameId } from '@/lib/db/repositories';
 
@@ -21,5 +22,5 @@ export async function GET(_: Request, { params }: GameRouteProps) {
     getCharacterById(game.characterId),
     listMessagesByGameId(game.id),
   ]);
-  return NextResponse.json({ game, module: moduleRecord, character: characterRecord, messages });
+  return NextResponse.json({ game, playUrl: buildPlayGameUrl(game.id), module: moduleRecord, character: characterRecord, messages });
 }

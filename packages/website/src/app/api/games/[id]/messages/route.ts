@@ -68,35 +68,63 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
     return NextResponse.json({ error: '游戏不存在' }, { status: 404 });
   }
 
-  const systemPrompt = await readSystemPrompt();
-  const userMessage = await createGameMessage({
-    gameId: game.id,
-    role: 'user',
-    content,
-  });
+  let systemPrompt;
+  try {
+    systemPrompt = await readSystemPrompt();
+  } catch (error) {
+    console.error('[api/games/messages] 读取系统提示词失败', error);
+    return NextResponse.json({ error: '发送失败' }, { status: 500 });
+  }
 
-  const reply = await sendGameplayMessage({
-    game,
-    content,
-    systemPrompt,
-  });
+  let reply;
+  try {
+    reply = await sendGameplayMessage({
+      game,
+      content,
+      systemPrompt,
+    });
+  } catch (error) {
+    console.error('[api/games/messages] opencode 返回失败', error);
+    return NextResponse.json({ error: '游戏服务暂不可用，请稍后重试' }, { status: 502 });
+  }
 
-  const assistantMessage = await createGameMessage({
-    gameId: game.id,
-    role: 'assistant',
-    content: reply.content,
-    meta: buildAssistantMeta(reply.assistantMessage, {
-      sessionId: reply.sessionId,
-      partCount: reply.parts.length,
-    }),
-  });
+  let userMessage;
+  let assistantMessage;
+  try {
+    userMessage = await createGameMessage({
+      gameId: game.id,
+      role: 'user',
+      content,
+    });
 
-  const wallet = await chargeWallet({
-    userId: session.userId,
-    gameId: game.id,
-    amount: TURN_COST,
-    reason: `游戏回合扣费：${game.id}`,
-  });
+    assistantMessage = await createGameMessage({
+      gameId: game.id,
+      role: 'assistant',
+      content: reply.content,
+      meta: buildAssistantMeta(reply.assistantMessage, {
+        sessionId: reply.sessionId,
+        partCount: reply.parts.length,
+      }),
+    });
+  } catch (error) {
+    console.error('[api/games/messages] 保存消息失败', error);
+    return NextResponse.json({ error: '保存消息失败' }, { status: 500 });
+  }
 
-  return NextResponse.json({ userMessage, assistantMessage, balance: wallet.balance });
+  try {
+    const wallet = await chargeWallet({
+      userId: session.userId,
+      gameId: game.id,
+      amount: TURN_COST,
+      reason: `游戏回合扣费：${game.id}`,
+    });
+
+    return NextResponse.json({ userMessage, assistantMessage, balance: wallet.balance });
+  } catch (error) {
+    console.error('[api/games/messages] 扣费失败', error);
+    if (error instanceof Error && error.message === '余额不足') {
+      return NextResponse.json({ error: '余额不足' }, { status: 402 });
+    }
+    return NextResponse.json({ error: '扣费失败' }, { status: 500 });
+  }
 }
