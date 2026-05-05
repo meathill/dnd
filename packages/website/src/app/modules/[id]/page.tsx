@@ -36,7 +36,10 @@ export default async function ModuleDetailPage({ params }: ModulePageProps) {
           <h2 className="text-lg font-medium text-zinc-950">开场氛围</h2>
           <div className="space-y-3">
             {openingMessages.map((message, index) => (
-              <div className="rounded-xl bg-zinc-100 p-4 text-sm leading-7 text-zinc-700" key={`${index}-${String(message.role)}`}>
+              <div
+                className="rounded-xl bg-zinc-100 p-4 text-sm leading-7 text-zinc-700"
+                key={`${index}-${String(message.role)}`}
+              >
                 {String(message.content ?? '')}
               </div>
             ))}

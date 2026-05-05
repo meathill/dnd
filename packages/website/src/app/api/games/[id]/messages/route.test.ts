@@ -105,7 +105,14 @@ describe('games/[id]/messages route', () => {
       parts: [{ type: 'text', text: 'assistant reply' }],
     });
     mockRecordGameTurn.mockResolvedValue({
-      userMessage: { id: 'user-message-1', role: 'user', content: 'hello', gameId: 'game-1', meta: {}, createdAt: 'now' },
+      userMessage: {
+        id: 'user-message-1',
+        role: 'user',
+        content: 'hello',
+        gameId: 'game-1',
+        meta: {},
+        createdAt: 'now',
+      },
       assistantMessage: {
         id: 'assistant-message-1',
         role: 'assistant',

@@ -18,6 +18,38 @@ PLAY_LLM_MODEL=gpt-4.1-mini
 PLAY_RUNTIME=stub
 ```
 
+## Runtime 说明
+
+### `PLAY_RUNTIME=stub`
+
+- 不请求真实模型
+- 仍然会通过 website internal turn 接口落库、扣费、写账本
+- 适合验证 play API、鉴权、持久化与前端 UI
+
+### `PLAY_RUNTIME=website`
+
+- 直接转发给 website 现有 `/api/games/[id]/messages`
+- 主要用于兼容 website 旧消息链路
+
+### `PLAY_RUNTIME=opencode`
+
+- play 直接调用 website `/api/llmproxy/v1/chat/completions`
+- 拿到回复后通过 internal turn 接口统一写回 website
+- 需要 `INTERNAL_SERVICE_TOKEN` 与 website 保持一致
+- website 侧还需要配置 `LLM_PROXY_*`
+
+## 推荐组合
+
+本地完整联调推荐：
+
+- website: `GAME_CREATION_MODE=play`
+- play: `PLAY_RUNTIME=opencode`
+
+如果只是验证 play 自身页面和消息链路，不想引入真实模型，可改成：
+
+- website: `GAME_CREATION_MODE=play`
+- play: `PLAY_RUNTIME=stub`
+
 ## 开发
 
 ```bash

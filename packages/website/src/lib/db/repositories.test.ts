@@ -1,6 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getDatabase } from './db';
 import {
@@ -22,10 +22,13 @@ let databaseDir = '';
 async function seedUser(userId: string): Promise<void> {
   const { sqlite } = await getDatabase();
   const timestamp = Date.now();
-  sqlite.run(
-    'INSERT INTO "user" (id, email, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
-    [userId, `${userId}@example.com`, 0, timestamp, timestamp],
-  );
+  sqlite.run('INSERT INTO "user" (id, email, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)', [
+    userId,
+    `${userId}@example.com`,
+    0,
+    timestamp,
+    timestamp,
+  ]);
 }
 
 beforeEach(async () => {

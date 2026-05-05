@@ -1,14 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NextResponse } from 'next/server';
-import {
-  buildAssistantMeta,
-  getGameByIdForUser,
-  listMessagesByGameId,
-  recordGameTurn,
-} from '@/lib/db/repositories';
+import { buildAssistantMeta, getGameByIdForUser, listMessagesByGameId, recordGameTurn } from '@/lib/db/repositories';
 import { isPlayManagedGame } from '@/lib/game/runtime';
 import { getRequestIdentity } from '@/lib/internal/request-auth';
+import type { OpencodeReply } from '@/lib/opencode/gameplay';
 import { sendGameplayMessage } from '@/lib/opencode/gameplay';
 
 const TURN_COST = 5;
@@ -71,7 +67,7 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
     return NextResponse.json({ error: '当前游戏由 play 运行时托管，请前往游戏域继续' }, { status: 409 });
   }
 
-  let systemPrompt;
+  let systemPrompt: string;
   try {
     systemPrompt = await readSystemPrompt();
   } catch (error) {
@@ -79,7 +75,7 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
     return NextResponse.json({ error: '发送失败' }, { status: 500 });
   }
 
-  let reply;
+  let reply: OpencodeReply;
   try {
     reply = await sendGameplayMessage({
       game,

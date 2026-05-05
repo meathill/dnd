@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { GameEntryCard } from '@/components/game-entry-card';
-import { buildGameHref, buildWebsiteGameUrl } from '@/lib/config/runtime';
 import { getRequestSession } from '@/lib/auth/session';
+import { buildGameHref, buildWebsiteGameUrl } from '@/lib/config/runtime';
 import { getCharacterById, getGameByIdForUser, getModuleById } from '@/lib/db/repositories';
 
 type GamePageProps = {
@@ -24,7 +24,10 @@ export default async function GamePage({ params }: GamePageProps) {
     redirect(gameHref);
   }
 
-  const [moduleRecord, characterRecord] = await Promise.all([getModuleById(game.moduleId), getCharacterById(game.characterId)]);
+  const [moduleRecord, characterRecord] = await Promise.all([
+    getModuleById(game.moduleId),
+    getCharacterById(game.characterId),
+  ]);
   if (!moduleRecord || !characterRecord) {
     notFound();
   }

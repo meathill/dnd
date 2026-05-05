@@ -65,7 +65,11 @@ export async function fetchWebsiteGameContext(gameId: string, cookieHeader?: str
   return (await response.json()) as GameContext;
 }
 
-export async function sendWebsiteGameMessage(gameId: string, content: string, cookieHeader?: string | null): Promise<PlayReply> {
+export async function sendWebsiteGameMessage(
+  gameId: string,
+  content: string,
+  cookieHeader?: string | null,
+): Promise<PlayReply> {
   const response = await fetch(buildWebsiteApiUrl(`/api/games/${gameId}/messages`), {
     method: 'POST',
     headers: buildHeaders({

@@ -3,6 +3,7 @@ import { Card } from '@/components/card';
 import { ChatPanel } from '@/components/chat-panel';
 import { getPlayGameContext } from '@/lib/play/runtime';
 import { getPlaySession } from '@/lib/play/session';
+import type { GameContext } from '@/lib/play/types';
 
 type PlayGamePageProps = {
   params: Promise<{ id: string }>;
@@ -15,7 +16,7 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
   }
 
   const { id } = await params;
-  let gameContext;
+  let gameContext: GameContext;
   try {
     gameContext = await getPlayGameContext(id, session);
   } catch (error) {
@@ -46,7 +47,11 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
         </div>
       </Card>
       <Card>
-        <ChatPanel gameId={gameContext.game.id} initialBalance={session.balance} initialMessages={gameContext.messages} />
+        <ChatPanel
+          gameId={gameContext.game.id}
+          initialBalance={session.balance}
+          initialMessages={gameContext.messages}
+        />
       </Card>
     </div>
   );

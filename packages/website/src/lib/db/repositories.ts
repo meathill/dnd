@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import type { Message } from '@opencode-ai/sdk';
-import { buildTimestamp, getDatabase } from './db';
 import type {
   BillingLedgerRecord,
   CharacterRecord,
@@ -9,6 +8,7 @@ import type {
   ModuleRecord,
   WalletRecord,
 } from '../game/types';
+import { buildTimestamp, getDatabase } from './db';
 
 type DatabaseConnection = Awaited<ReturnType<typeof getDatabase>>['sqlite'];
 
@@ -207,7 +207,11 @@ function applyWalletCharge(
     throw new Error('余额不足');
   }
   const timestamp = buildTimestamp();
-  sqlite.run('UPDATE wallets SET balance = ?, updated_at = ? WHERE user_id = ?', [nextBalance, timestamp, input.userId]);
+  sqlite.run('UPDATE wallets SET balance = ?, updated_at = ? WHERE user_id = ?', [
+    nextBalance,
+    timestamp,
+    input.userId,
+  ]);
   sqlite.run(
     'INSERT INTO billing_ledger (id, user_id, game_id, type, amount, balance_after, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [randomUUID(), input.userId, input.gameId, 'debit', -input.amount, nextBalance, input.reason, timestamp],
@@ -316,7 +320,11 @@ export async function listMessagesByGameId(gameId: string): Promise<GameMessageR
     .map(mapGameMessage);
 }
 
-export async function findGameMessageByMeta(gameId: string, key: string, value: string): Promise<GameMessageRecord | null> {
+export async function findGameMessageByMeta(
+  gameId: string,
+  key: string,
+  value: string,
+): Promise<GameMessageRecord | null> {
   const { sqlite } = await getDatabase();
   const row = sqlite.get<GameMessageRow>(
     `SELECT * FROM game_messages
@@ -418,7 +426,10 @@ export async function listBillingLedger(userId: string): Promise<BillingLedgerRe
     .map(mapBillingLedger);
 }
 
-export function buildAssistantMeta(message: Message | null, extra: Record<string, unknown> = {}): Record<string, unknown> {
+export function buildAssistantMeta(
+  message: Message | null,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
   if (!message || message.role !== 'assistant') {
     return extra;
   }

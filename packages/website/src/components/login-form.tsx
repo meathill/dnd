@@ -14,6 +14,9 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isPending, setIsPending] = useState(false);
+  const displayNameInputId = 'display-name';
+  const emailInputId = 'email';
+  const passwordInputId = 'password';
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,14 +45,18 @@ export function LoginForm() {
     <form className="space-y-4" onSubmit={handleSubmit}>
       <div className="flex gap-2 rounded-lg bg-zinc-100 p-1 text-sm">
         <button
-          className={mode === 'login' ? 'rounded-md bg-white px-3 py-2 font-medium text-zinc-950' : 'px-3 py-2 text-zinc-500'}
+          className={
+            mode === 'login' ? 'rounded-md bg-white px-3 py-2 font-medium text-zinc-950' : 'px-3 py-2 text-zinc-500'
+          }
           onClick={() => setMode('login')}
           type="button"
         >
           登录
         </button>
         <button
-          className={mode === 'signup' ? 'rounded-md bg-white px-3 py-2 font-medium text-zinc-950' : 'px-3 py-2 text-zinc-500'}
+          className={
+            mode === 'signup' ? 'rounded-md bg-white px-3 py-2 font-medium text-zinc-950' : 'px-3 py-2 text-zinc-500'
+          }
           onClick={() => setMode('signup')}
           type="button"
         >
@@ -57,18 +64,35 @@ export function LoginForm() {
         </button>
       </div>
       {mode === 'signup' ? (
-        <label className="block space-y-2">
+        <label className="block space-y-2" htmlFor={displayNameInputId}>
           <span className="text-sm text-zinc-600">昵称</span>
-          <Input onChange={(event) => setDisplayName(event.target.value)} required value={displayName} />
+          <Input
+            id={displayNameInputId}
+            onChange={(event) => setDisplayName(event.target.value)}
+            required
+            value={displayName}
+          />
         </label>
       ) : null}
-      <label className="block space-y-2">
+      <label className="block space-y-2" htmlFor={emailInputId}>
         <span className="text-sm text-zinc-600">邮箱</span>
-        <Input onChange={(event) => setEmail(event.target.value)} required type="email" value={email} />
+        <Input
+          id={emailInputId}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+          type="email"
+          value={email}
+        />
       </label>
-      <label className="block space-y-2">
+      <label className="block space-y-2" htmlFor={passwordInputId}>
         <span className="text-sm text-zinc-600">密码</span>
-        <Input onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
+        <Input
+          id={passwordInputId}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+          type="password"
+          value={password}
+        />
       </label>
       {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
       <Button className="w-full" disabled={isPending} type="submit">

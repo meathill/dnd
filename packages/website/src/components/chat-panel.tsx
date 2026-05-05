@@ -38,11 +38,12 @@ export function ChatPanel({ gameId, initialMessages, initialBalance }: ChatPanel
         body: JSON.stringify({ content: input.trim() }),
       });
       const payload = (await response.json()) as Partial<SendMessageResponse> & { error?: string };
-      if (!response.ok || !payload.userMessage || !payload.assistantMessage || typeof payload.balance !== 'number') {
+      const { userMessage, assistantMessage, balance } = payload;
+      if (!response.ok || !userMessage || !assistantMessage || typeof balance !== 'number') {
         throw new Error(payload.error || '发送失败');
       }
-      setMessages((current) => [...current, payload.userMessage!, payload.assistantMessage!]);
-      setBalance(payload.balance);
+      setMessages((current) => [...current, userMessage, assistantMessage]);
+      setBalance(balance);
       setInput('');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '发送失败');
@@ -60,10 +61,16 @@ export function ChatPanel({ gameId, initialMessages, initialBalance }: ChatPanel
       <div className="space-y-4">
         {messages.map((message) => (
           <div
-            className={message.role === 'assistant' ? 'rounded-2xl bg-zinc-950 p-4 text-white' : 'rounded-2xl bg-zinc-100 p-4 text-zinc-950'}
+            className={
+              message.role === 'assistant'
+                ? 'rounded-2xl bg-zinc-950 p-4 text-white'
+                : 'rounded-2xl bg-zinc-100 p-4 text-zinc-950'
+            }
             key={message.id}
           >
-            <p className="mb-2 text-xs uppercase tracking-[0.18em] opacity-70">{message.role === 'assistant' ? '肉团长' : '玩家'}</p>
+            <p className="mb-2 text-xs uppercase tracking-[0.18em] opacity-70">
+              {message.role === 'assistant' ? '肉团长' : '玩家'}
+            </p>
             <p className="whitespace-pre-wrap text-sm leading-7">{message.content}</p>
           </div>
         ))}

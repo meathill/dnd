@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
-import { getAuth } from './auth';
 import { ensureWallet } from '../db/repositories';
 import type { SessionInfo } from '../game/types';
+import { getAuth } from './auth';
 
 export async function getRequestSession(): Promise<SessionInfo | null> {
   const auth = await getAuth();

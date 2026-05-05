@@ -154,3 +154,24 @@ client 在能力未稳定前，不应承担产品定义责任。
 2. DM system prompt 基本稳定
 3. 一组典型跑团 case 可以稳定通过
 4. 输出协议足以支撑前端消费
+
+## Website / Play 架构收敛
+
+### 决策
+
+- `packages/website` 作为控制面，负责登录、模组、账单、建局和 `api/llmproxy`
+- `packages/play` 作为独立运行时，负责真实游戏聊天与回合推进
+- 本地和线上都保留 `workspace/{user_id}/{game_id}` 作为服务端目录约定，但公开链接只暴露 `game_id`
+
+### 关键实现约束
+
+- `website` 与 `play` 之间优先通过内部 token 通信，而不是直接共享服务端状态
+- `play` 的 `stub` 和 `opencode` runtime 最终都必须通过 website internal turn 接口统一落库和扣费
+- `website` 侧将“写 user/assistant 消息 + 扣费 + 账本”收敛成原子回合写入，避免产生半条消息或脏账本
+
+### 建局模式
+
+- `GAME_CREATION_MODE=opencode`：保留旧模式，建局时创建 opencode session
+- `GAME_CREATION_MODE=play`：建局时不依赖 opencode bootstrap，直接交给 `play` 域运行
+
+新增 `GAME_CREATION_MODE=play` 的原因不是为了兼容两套长期并存的产品形态，而是为了让“完整建局 -> 进入 play -> 发消息 -> 持久化/扣费”主链路可以在没有 opencode bootstrap 的情况下独立验证，并与未来以 `play` 为主运行时的正式架构保持一致

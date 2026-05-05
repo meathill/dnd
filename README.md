@@ -11,32 +11,80 @@
 项目结构
 ---
 
-- packages/website 网站和线上游戏
+- packages/website 主站控制面（登录、模组、计费、建局、llmproxy）
 - packages/play 独立游戏运行时（play.muirpg.com）
 - packages/core 共享库
 - packages/mobile 移动应用
 
 
+当前运行架构
+---
+
+- `muirpg.com` 承载 `packages/website`，负责登录、模组、账单、建局和 `api/llmproxy`
+- `play.muirpg.com` 承载 `packages/play`，负责真实游戏运行时与聊天交互
+- `i.muirpg.com` 预留给图片、音频、视频等生成资产
+- 服务端工作区目录保持为 `workspace/{user_id}/{game_id}`，但公开链接只暴露 `game_id`
+
+
+本地联调
+---
+
+当前推荐的本地完整链路如下：
+
+- website 使用 `GAME_CREATION_MODE=play`
+- play 使用 `PLAY_RUNTIME=opencode` 或 `PLAY_RUNTIME=stub`
+- 两边使用同一个 `INTERNAL_SERVICE_TOKEN`
+
+最小必需环境变量：
+
+website:
+`BETTER_AUTH_SECRET`
+`APP_BASE_URL`
+`PLAY_BASE_URL`
+`DATABASE_URL`
+`INTERNAL_SERVICE_TOKEN`
+`GAME_CREATION_MODE=play`
+
+如果要测试 `PLAY_RUNTIME=opencode`，website 还需要：
+
+`LLM_PROXY_UPSTREAM_BASE_URL`
+`LLM_PROXY_UPSTREAM_API_KEY`
+`LLM_PROXY_ALLOWED_MODELS`
+
+play:
+`PLAY_BASE_URL`
+`WEBSITE_BASE_URL`
+`INTERNAL_SERVICE_TOKEN`
+`PLAY_RUNTIME`
+`PLAY_LLM_MODEL`
+
+更细的说明见：
+
+- `packages/website/README.md`
+- `packages/play/README.md`
+
+
 技术栈
 ---
 
-- Next.js + OpenNext
+- Next.js
 - Coss UI https://coss.com/ui/docs
 - TailwindCSS v4
 - TypeScript
-- Cloudflare Workers + Cloudflare 全家桶
+- Node.js 24
 - better-auth
+- SQLite（当前通过 `node:sqlite`）
 
 
-数据库迁移
+当前部署形态
 ---
 
-数据库使用 Cloudflare D1，统一通过 migrations 管理。
+- `packages/website` 当前建议部署到普通 Node.js 服务
+- `packages/play` 当前建议部署到普通 Node.js 服务
+- `packages/website` 当前数据库是 SQLite 文件，不是 D1
+- `packages/website/open-next.config.ts` 仅保留为后续 Cloudflare 方向的实验入口，不代表当前已切到 Workers 部署
 
-- 本地应用迁移：`wrangler d1 migrations apply dnd --local`
-- 线上应用迁移：`wrangler d1 migrations apply dnd`
-
-如果之前手动执行过 SQL，请先清理本地数据库或新建本地数据库，再执行迁移。
+完整部署说明见 `DEPLOYMENT.md`。
 
 登录与会话
 ---

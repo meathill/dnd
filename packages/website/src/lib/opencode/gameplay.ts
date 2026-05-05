@@ -18,7 +18,11 @@ function extractText(parts: Part[]): string {
     .trim();
 }
 
-function buildBootstrapPrompt(moduleRecord: ModuleRecord, characterRecord: CharacterRecord, workspacePath: string): string {
+function buildBootstrapPrompt(
+  moduleRecord: ModuleRecord,
+  characterRecord: CharacterRecord,
+  workspacePath: string,
+): string {
   return [
     '你现在负责主持本局跑团。',
     `当前工作目录：${workspacePath}`,

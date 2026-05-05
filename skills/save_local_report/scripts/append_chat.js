@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 function appendChatToReport(overviewPath, reportPath) {
   if (!fs.existsSync(overviewPath)) {
@@ -12,7 +12,10 @@ function appendChatToReport(overviewPath, reportPath) {
     process.exit(1);
   }
 
-  const lines = fs.readFileSync(overviewPath, 'utf8').split('\n').filter(l => l.trim().length > 0);
+  const lines = fs
+    .readFileSync(overviewPath, 'utf8')
+    .split('\n')
+    .filter((line) => line.trim().length > 0);
 
   let chatLog = '\n## 附录：完整聊天记录\n\n*以下是本次跑团过程中玩家与GM的原始记录：*\n\n';
 
@@ -29,7 +32,7 @@ function appendChatToReport(overviewPath, reportPath) {
       } else if (entry.source === 'MODEL' && entry.type === 'PLANNER_RESPONSE' && entry.content) {
         chatLog += `**【GM】**：\n${entry.content.trim()}\n\n---\n\n`;
       }
-    } catch (e) {
+    } catch (_error) {
       // Ignore parse errors
     }
   }
@@ -39,8 +42,8 @@ function appendChatToReport(overviewPath, reportPath) {
   // remove the previous appendix if exists
   const appendixIndex = reportContent.indexOf('## 附录：完整聊天记录');
   const oldAppendixIndex = reportContent.indexOf('## 附录：玩家行动记录');
-  
-  const targetIndex = appendixIndex !== -1 ? appendixIndex : (oldAppendixIndex !== -1 ? oldAppendixIndex : -1);
+
+  const targetIndex = appendixIndex !== -1 ? appendixIndex : oldAppendixIndex !== -1 ? oldAppendixIndex : -1;
 
   if (targetIndex !== -1) {
     reportContent = reportContent.substring(0, targetIndex);
@@ -55,13 +58,13 @@ function appendChatToReport(overviewPath, reportPath) {
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (args.length < 2) {
-    console.error("Usage: node append_chat.js <overview_txt_path> <report_markdown_path>");
+    console.error('Usage: node append_chat.js <overview_txt_path> <report_markdown_path>');
     process.exit(1);
   }
-  
+
   const overviewPath = path.resolve(process.cwd(), args[0]);
   const reportPath = path.resolve(process.cwd(), args[1]);
-  
+
   appendChatToReport(overviewPath, reportPath);
 }
 

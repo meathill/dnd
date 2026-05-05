@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getPlayRuntimeConfig } from '../config/runtime';
+import type { GameContext, PlayReply, SessionInfo } from './types';
+import type { ChatCompletionMessage } from './website-client';
 import {
   fetchWebsiteGameContext,
   fetchWebsiteGameContextAsInternal,
@@ -9,8 +11,6 @@ import {
   sendWebsiteGameMessage,
   sendWebsiteGameMessageAsInternal,
 } from './website-client';
-import type { ChatCompletionMessage } from './website-client';
-import type { GameContext, PlayReply, SessionInfo } from './types';
 
 const TURN_COST = 5;
 
@@ -61,7 +61,10 @@ function buildStubAssistantReply(context: GameContext, content: string): string 
   ].join('\n\n');
 }
 
-function buildStubReply(context: GameContext, content: string): {
+function buildStubReply(
+  context: GameContext,
+  content: string,
+): {
   assistantContent: string;
 } {
   const assistantContent = buildStubAssistantReply(context, content);
@@ -127,7 +130,11 @@ async function sendOpencodeRuntimeMessage(input: {
   });
 }
 
-export async function getPlayGameContext(gameId: string, session: SessionInfo, cookieHeader?: string | null): Promise<GameContext> {
+export async function getPlayGameContext(
+  gameId: string,
+  session: SessionInfo,
+  cookieHeader?: string | null,
+): Promise<GameContext> {
   if (cookieHeader) {
     return fetchWebsiteGameContext(gameId, cookieHeader);
   }
@@ -138,7 +145,12 @@ export async function getPlayGameContext(gameId: string, session: SessionInfo, c
   });
 }
 
-export async function sendPlayMessage(gameId: string, content: string, session: SessionInfo, cookieHeader?: string | null): Promise<PlayReply> {
+export async function sendPlayMessage(
+  gameId: string,
+  content: string,
+  session: SessionInfo,
+  cookieHeader?: string | null,
+): Promise<PlayReply> {
   const { runtimeMode } = getPlayRuntimeConfig();
   if (runtimeMode === 'website') {
     if (cookieHeader) {

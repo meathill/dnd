@@ -220,9 +220,9 @@ describe('play runtime', () => {
   it('rejects opencode runtime before calling model when balance is insufficient', async () => {
     process.env.PLAY_RUNTIME = 'opencode';
 
-    await expect(
-      sendPlayMessage('game-1', 'hello', { ...session, balance: 4 }, 'cookie=value'),
-    ).rejects.toThrow('余额不足');
+    await expect(sendPlayMessage('game-1', 'hello', { ...session, balance: 4 }, 'cookie=value')).rejects.toThrow(
+      '余额不足',
+    );
 
     expect(mockSendWebsiteChatCompletion).not.toHaveBeenCalled();
   });

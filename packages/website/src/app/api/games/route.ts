@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NextResponse } from 'next/server';
-import { buildPlayGameUrl, getRuntimeConfig } from '@/lib/config/runtime';
 import { getRequestSession } from '@/lib/auth/session';
+import { buildPlayGameUrl, getRuntimeConfig } from '@/lib/config/runtime';
 import { createGame, getCharacterById, getModuleById } from '@/lib/db/repositories';
 import { PLAY_MANAGED_SESSION_ID } from '@/lib/game/runtime';
+import type { CharacterRecord, ModuleRecord } from '@/lib/game/types';
 import { createGameplaySession } from '@/lib/opencode/gameplay';
 import { ensureWorkspace } from '@/lib/opencode/workspace';
 
@@ -42,9 +43,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '缺少模组或人物卡' }, { status: 400 });
   }
 
-  let moduleRecord;
-  let characterRecord;
-  let systemPrompt;
+  let moduleRecord: ModuleRecord | null;
+  let characterRecord: CharacterRecord | null;
+  let systemPrompt: string | null;
   try {
     [moduleRecord, characterRecord, systemPrompt] = await Promise.all([
       getModuleById(moduleId),
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
   }
 
   const gameId = randomUUID();
-  let workspacePath;
+  let workspacePath: string;
   try {
     workspacePath = await ensureWorkspace(session.userId, gameId);
   } catch (error) {

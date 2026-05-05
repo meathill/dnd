@@ -11,18 +11,18 @@
  * @param {"normal"|"advantage"|"disadvantage"} mode
  * @returns {{ tens: number, units: number, result: number, raw: object }}
  */
-function rollD100(mode = "normal") {
+function rollD100(mode = 'normal') {
   const d10 = () => Math.floor(Math.random() * 10); // 0-9
 
   const units = d10();
 
-  if (mode === "normal") {
+  if (mode === 'normal') {
     const tens = d10();
     const result = tens === 0 && units === 0 ? 100 : tens * 10 + units;
     return { tens, units, result, raw: { tens, units } };
   }
 
-  if (mode === "advantage") {
+  if (mode === 'advantage') {
     // 奖励骰：两个十位取较小值
     const t1 = d10();
     const t2 = d10();
@@ -31,7 +31,7 @@ function rollD100(mode = "normal") {
     return { tens, units, result, raw: { tens_rolls: [t1, t2], tens_chosen: tens, units } };
   }
 
-  if (mode === "disadvantage") {
+  if (mode === 'disadvantage') {
     // 惩罚骰：两个十位取较大值
     const t1 = d10();
     const t2 = d10();
@@ -69,11 +69,11 @@ function rollDamage(notation) {
  * @returns {"extreme_success"|"hard_success"|"regular_success"|"failure"|"fumble"}
  */
 function resolveCheck(result, skillValue) {
-  if ((skillValue < 50 && result >= 96) || result === 100) return "fumble";
-  if (result <= Math.floor(skillValue / 5)) return "extreme_success";
-  if (result <= Math.floor(skillValue / 2)) return "hard_success";
-  if (result <= skillValue) return "regular_success";
-  return "failure";
+  if ((skillValue < 50 && result >= 96) || result === 100) return 'fumble';
+  if (result <= Math.floor(skillValue / 5)) return 'extreme_success';
+  if (result <= Math.floor(skillValue / 2)) return 'hard_success';
+  if (result <= skillValue) return 'regular_success';
+  return 'failure';
 }
 
 module.exports = { rollD100, rollDamage, resolveCheck };
@@ -82,22 +82,22 @@ module.exports = { rollD100, rollDamage, resolveCheck };
 if (require.main === module) {
   const args = process.argv.slice(2);
   const type = args[0];
-  if (type === "d100") {
-    const mode = args[1] || "normal";
+  if (type === 'd100') {
+    const mode = args[1] || 'normal';
     const skillValue = parseInt(args[2], 10);
     const result = rollD100(mode);
     let resolution = null;
-    if (!isNaN(skillValue)) {
-       resolution = resolveCheck(result.result, skillValue);
+    if (!Number.isNaN(skillValue)) {
+      resolution = resolveCheck(result.result, skillValue);
     }
     console.log(JSON.stringify({ ...result, resolution }, null, 2));
-  } else if (type === "damage") {
+  } else if (type === 'damage') {
     const notation = args[1];
     const result = rollDamage(notation);
     console.log(JSON.stringify(result, null, 2));
   } else {
-    console.error("Usage: node roll.js d100 <normal|advantage|disadvantage> [skillValue]");
-    console.error("       node roll.js damage <notation>");
+    console.error('Usage: node roll.js d100 <normal|advantage|disadvantage> [skillValue]');
+    console.error('       node roll.js damage <notation>');
     process.exit(1);
   }
 }

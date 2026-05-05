@@ -20,7 +20,12 @@ function safeEquals(left: string, right: string): boolean {
 }
 
 export function getInternalServiceTokens(): string[] {
-  return [...new Set([...parseTokens(process.env.INTERNAL_SERVICE_TOKEN), ...parseTokens(process.env.INTERNAL_SERVICE_TOKENS)])];
+  return [
+    ...new Set([
+      ...parseTokens(process.env.INTERNAL_SERVICE_TOKEN),
+      ...parseTokens(process.env.INTERNAL_SERVICE_TOKENS),
+    ]),
+  ];
 }
 
 export function getBearerToken(authorizationHeader: string | null): string | null {

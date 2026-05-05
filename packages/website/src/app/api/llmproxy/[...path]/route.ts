@@ -127,7 +127,9 @@ async function proxyRequest(request: Request, { params }: LlmProxyRouteProps) {
         return NextResponse.json({ error: 'LLM 请求体必须是 JSON' }, { status: 400 });
       }
       const model =
-        typeof payload === 'object' && payload && 'model' in payload && typeof payload.model === 'string' ? payload.model.trim() : '';
+        typeof payload === 'object' && payload && 'model' in payload && typeof payload.model === 'string'
+          ? payload.model.trim()
+          : '';
       if (!model) {
         return NextResponse.json({ error: '缺少模型标识' }, { status: 400 });
       }

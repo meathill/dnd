@@ -6,7 +6,8 @@
     "useIgnoreFile": true
   },
   "files": {
-    "ignoreUnknown": false
+    "ignoreUnknown": false,
+    "includes": ["**", "!packages/website/cloudflare-env.d.ts"]
   },
   "formatter": {
     "includes": ["src/**/*", "tests/**/*", "packages/**/*"],

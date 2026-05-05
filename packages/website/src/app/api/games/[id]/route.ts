@@ -22,5 +22,11 @@ export async function GET(request: Request, { params }: GameRouteProps) {
     getCharacterById(game.characterId),
     listMessagesByGameId(game.id),
   ]);
-  return NextResponse.json({ game, playUrl: buildPlayGameUrl(game.id), module: moduleRecord, character: characterRecord, messages });
+  return NextResponse.json({
+    game,
+    playUrl: buildPlayGameUrl(game.id),
+    module: moduleRecord,
+    character: characterRecord,
+    messages,
+  });
 }
