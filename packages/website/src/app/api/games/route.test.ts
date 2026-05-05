@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PLAY_MANAGED_SESSION_ID } from '@/lib/game/runtime';
 
 const {
   mockReadFile,
@@ -82,6 +83,7 @@ describe('POST /api/games', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.PLAY_BASE_URL;
+    delete process.env.GAME_CREATION_MODE;
     mockReadFile.mockResolvedValue('system prompt');
     mockGetRequestSession.mockResolvedValue(defaultSession);
     mockGetModuleById.mockResolvedValue(moduleRecord);
@@ -129,6 +131,46 @@ describe('POST /api/games', () => {
 
     expect(response.status).toBe(201);
     expect(payload.playUrl).toBe('https://play.muirpg.com/game-1');
+  });
+
+  it('creates play-managed game without bootstrapping opencode session', async () => {
+    process.env.GAME_CREATION_MODE = 'play';
+    process.env.PLAY_BASE_URL = 'https://play.muirpg.com';
+    mockCreateGame.mockResolvedValue({
+      id: 'game-1',
+      userId: 'user-1',
+      moduleId: 'module-1',
+      characterId: 'character-1',
+      opencodeSessionId: PLAY_MANAGED_SESSION_ID,
+      workspacePath: '/workspace/user-1/game-1',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const response = await POST(createRequest({ moduleId: 'module-1', characterId: 'character-1' }));
+    const payload = (await response.json()) as { playUrl: string };
+
+    expect(response.status).toBe(201);
+    expect(payload.playUrl).toBe('https://play.muirpg.com/game-1');
+    expect(mockReadFile).not.toHaveBeenCalled();
+    expect(mockCreateGameplaySession).not.toHaveBeenCalled();
+    expect(mockCreateGame).toHaveBeenCalledWith(
+      expect.objectContaining({
+        opencodeSessionId: PLAY_MANAGED_SESSION_ID,
+      }),
+    );
+  });
+
+  it('rejects play-managed game creation when play url is unset', async () => {
+    process.env.GAME_CREATION_MODE = 'play';
+
+    const response = await POST(createRequest({ moduleId: 'module-1', characterId: 'character-1' }));
+    const payload = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(503);
+    expect(payload.error).toBe('play 服务入口未配置');
+    expect(mockEnsureWorkspace).not.toHaveBeenCalled();
   });
 
   it('rejects character from another module', async () => {

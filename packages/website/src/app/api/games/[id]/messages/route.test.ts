@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PLAY_MANAGED_SESSION_ID } from '@/lib/game/runtime';
 
 const {
   mockReadFile,
@@ -185,6 +186,23 @@ describe('games/[id]/messages route', () => {
 
     expect(response.status).toBe(404);
     expect(payload.error).toBe('游戏不存在');
+  });
+
+  it('returns 409 when the game is managed by play runtime', async () => {
+    mockGetGameByIdForUser.mockResolvedValue({
+      ...game,
+      opencodeSessionId: PLAY_MANAGED_SESSION_ID,
+    });
+
+    const response = await POST(createPostRequest({ content: 'hello' }), {
+      params: Promise.resolve({ id: 'game-1' }),
+    });
+    const payload = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(409);
+    expect(payload.error).toBe('当前游戏由 play 运行时托管，请前往游戏域继续');
+    expect(mockSendGameplayMessage).not.toHaveBeenCalled();
+    expect(mockRecordGameTurn).not.toHaveBeenCalled();
   });
 
   it('returns 402 when turn persistence rejects for insufficient balance', async () => {

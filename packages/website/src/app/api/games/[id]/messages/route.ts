@@ -7,6 +7,7 @@ import {
   listMessagesByGameId,
   recordGameTurn,
 } from '@/lib/db/repositories';
+import { isPlayManagedGame } from '@/lib/game/runtime';
 import { getRequestIdentity } from '@/lib/internal/request-auth';
 import { sendGameplayMessage } from '@/lib/opencode/gameplay';
 
@@ -65,6 +66,9 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
   const game = await getGameByIdForUser(id, identity.userId);
   if (!game) {
     return NextResponse.json({ error: '游戏不存在' }, { status: 404 });
+  }
+  if (isPlayManagedGame(game)) {
+    return NextResponse.json({ error: '当前游戏由 play 运行时托管，请前往游戏域继续' }, { status: 409 });
   }
 
   let systemPrompt;

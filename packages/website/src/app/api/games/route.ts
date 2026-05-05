@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NextResponse } from 'next/server';
-import { buildPlayGameUrl } from '@/lib/config/runtime';
+import { buildPlayGameUrl, getRuntimeConfig } from '@/lib/config/runtime';
 import { getRequestSession } from '@/lib/auth/session';
 import { createGame, getCharacterById, getModuleById } from '@/lib/db/repositories';
+import { PLAY_MANAGED_SESSION_ID } from '@/lib/game/runtime';
 import { createGameplaySession } from '@/lib/opencode/gameplay';
 import { ensureWorkspace } from '@/lib/opencode/workspace';
 
@@ -22,6 +23,10 @@ export async function POST(request: Request) {
   const session = await getRequestSession();
   if (!session) {
     return NextResponse.json({ error: '未登录' }, { status: 401 });
+  }
+  const runtime = getRuntimeConfig();
+  if (runtime.gameCreationMode === 'play' && !runtime.playBaseUrl) {
+    return NextResponse.json({ error: 'play 服务入口未配置' }, { status: 503 });
   }
 
   let body: CreateGameRequest;
@@ -44,7 +49,7 @@ export async function POST(request: Request) {
     [moduleRecord, characterRecord, systemPrompt] = await Promise.all([
       getModuleById(moduleId),
       getCharacterById(characterId),
-      readSystemPrompt(),
+      runtime.gameCreationMode === 'opencode' ? readSystemPrompt() : Promise.resolve(null),
     ]);
   } catch (error) {
     console.error('[api/games] 加载游戏资源失败', error);
@@ -68,18 +73,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '创建游戏失败' }, { status: 500 });
   }
 
-  let opencodeSession;
-  try {
-    opencodeSession = await createGameplaySession({
-      title: `${moduleRecord.title} · ${characterRecord.name}`,
-      workspacePath,
-      moduleRecord,
-      characterRecord,
-      systemPrompt,
-    });
-  } catch (error) {
-    console.error('[api/games] 创建 opencode session 失败', error);
-    return NextResponse.json({ error: '游戏服务暂不可用，请稍后重试' }, { status: 502 });
+  let opencodeSessionId = PLAY_MANAGED_SESSION_ID;
+  if (runtime.gameCreationMode === 'opencode') {
+    try {
+      const opencodeSession = await createGameplaySession({
+        title: `${moduleRecord.title} · ${characterRecord.name}`,
+        workspacePath,
+        moduleRecord,
+        characterRecord,
+        systemPrompt: systemPrompt ?? '',
+      });
+      opencodeSessionId = opencodeSession.id;
+    } catch (error) {
+      console.error('[api/games] 创建 opencode session 失败', error);
+      return NextResponse.json({ error: '游戏服务暂不可用，请稍后重试' }, { status: 502 });
+    }
   }
 
   try {
@@ -88,7 +96,7 @@ export async function POST(request: Request) {
       userId: session.userId,
       moduleId: moduleRecord.id,
       characterId: characterRecord.id,
-      opencodeSessionId: opencodeSession.id,
+      opencodeSessionId,
       workspacePath,
     });
 

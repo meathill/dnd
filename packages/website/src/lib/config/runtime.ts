@@ -1,3 +1,5 @@
+export type GameCreationMode = 'opencode' | 'play';
+
 const DEFAULT_APP_BASE_URL = 'http://127.0.0.1:3090';
 
 export type RuntimeConfig = {
@@ -5,6 +7,7 @@ export type RuntimeConfig = {
   playBaseUrl: string | null;
   assetBaseUrl: string | null;
   llmProxyUrl: string;
+  gameCreationMode: GameCreationMode;
   authCookieDomain: string | null;
   trustedOrigins: string[];
 };
@@ -45,6 +48,11 @@ function collectTrustedOrigins(origins: ReadonlyArray<string | null>): string[] 
   return [...new Set(origins.filter((value): value is string => Boolean(value)))];
 }
 
+function resolveGameCreationMode(): GameCreationMode {
+  const mode = process.env.GAME_CREATION_MODE?.trim();
+  return mode === 'play' ? 'play' : 'opencode';
+}
+
 export function getRuntimeConfig(): RuntimeConfig {
   const appBaseUrl = resolveAppBaseUrl();
   const playBaseUrl = resolveOptionalUrl(process.env.PLAY_BASE_URL);
@@ -54,6 +62,7 @@ export function getRuntimeConfig(): RuntimeConfig {
     playBaseUrl,
     assetBaseUrl,
     llmProxyUrl: new URL('/api/llmproxy', `${appBaseUrl}/`).toString(),
+    gameCreationMode: resolveGameCreationMode(),
     authCookieDomain: process.env.AUTH_COOKIE_DOMAIN?.trim() || null,
     trustedOrigins: collectTrustedOrigins([
       normalizeOrigin(appBaseUrl),

@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildAssetUrl, buildGameHref, buildPlayGameUrl, buildWebsiteGameUrl } from './runtime';
+import { buildAssetUrl, buildGameHref, buildPlayGameUrl, buildWebsiteGameUrl, getRuntimeConfig } from './runtime';
 
 afterEach(() => {
   delete process.env.PLAY_BASE_URL;
   delete process.env.ASSET_BASE_URL;
+  delete process.env.GAME_CREATION_MODE;
 });
 
 describe('runtime url helpers', () => {
@@ -24,5 +25,15 @@ describe('runtime url helpers', () => {
     process.env.ASSET_BASE_URL = 'https://i.muirpg.com';
 
     expect(buildAssetUrl('images/cover.png')).toBe('https://i.muirpg.com/images/cover.png');
+  });
+
+  it('uses opencode game creation mode by default', () => {
+    expect(getRuntimeConfig().gameCreationMode).toBe('opencode');
+  });
+
+  it('supports play-managed game creation mode', () => {
+    process.env.GAME_CREATION_MODE = 'play';
+
+    expect(getRuntimeConfig().gameCreationMode).toBe('play');
   });
 });
