@@ -1,6 +1,6 @@
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE "user" (
+CREATE TABLE IF NOT EXISTS "user" (
   id TEXT PRIMARY KEY,
   name TEXT,
   email TEXT NOT NULL UNIQUE,
@@ -10,7 +10,7 @@ CREATE TABLE "user" (
   updatedAt INTEGER NOT NULL DEFAULT (cast((julianday('now') - 2440587.5) * 86400000 as integer))
 );
 
-CREATE TABLE session (
+CREATE TABLE IF NOT EXISTS session (
   id TEXT PRIMARY KEY,
   expiresAt INTEGER NOT NULL,
   token TEXT NOT NULL UNIQUE,
@@ -22,7 +22,7 @@ CREATE TABLE session (
   FOREIGN KEY (userId) REFERENCES "user"(id) ON DELETE CASCADE
 );
 
-CREATE TABLE account (
+CREATE TABLE IF NOT EXISTS account (
   id TEXT PRIMARY KEY,
   accountId TEXT NOT NULL,
   providerId TEXT NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE account (
   FOREIGN KEY (userId) REFERENCES "user"(id) ON DELETE CASCADE
 );
 
-CREATE TABLE verification (
+CREATE TABLE IF NOT EXISTS verification (
   id TEXT PRIMARY KEY,
   identifier TEXT NOT NULL,
   value TEXT NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE verification (
   updatedAt INTEGER NOT NULL DEFAULT (cast((julianday('now') - 2440587.5) * 86400000 as integer))
 );
 
-CREATE TABLE modules (
+CREATE TABLE IF NOT EXISTS modules (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   summary TEXT NOT NULL,
@@ -59,7 +59,7 @@ CREATE TABLE modules (
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
-CREATE TABLE characters (
+CREATE TABLE IF NOT EXISTS characters (
   id TEXT PRIMARY KEY,
   module_id TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -70,7 +70,7 @@ CREATE TABLE characters (
   FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
 );
 
-CREATE TABLE games (
+CREATE TABLE IF NOT EXISTS games (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   module_id TEXT NOT NULL,
@@ -85,7 +85,7 @@ CREATE TABLE games (
   FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE RESTRICT
 );
 
-CREATE TABLE game_messages (
+CREATE TABLE IF NOT EXISTS game_messages (
   id TEXT PRIMARY KEY,
   game_id TEXT NOT NULL,
   role TEXT NOT NULL,
@@ -95,7 +95,7 @@ CREATE TABLE game_messages (
   FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
 );
 
-CREATE TABLE wallets (
+CREATE TABLE IF NOT EXISTS wallets (
   user_id TEXT PRIMARY KEY,
   balance INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -103,7 +103,7 @@ CREATE TABLE wallets (
   FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
 );
 
-CREATE TABLE billing_ledger (
+CREATE TABLE IF NOT EXISTS billing_ledger (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   game_id TEXT,
@@ -116,16 +116,16 @@ CREATE TABLE billing_ledger (
   FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_session_user ON session(userId);
-CREATE INDEX idx_account_user ON account(userId);
-CREATE INDEX idx_verification_identifier ON verification(identifier);
-CREATE INDEX idx_characters_module ON characters(module_id);
-CREATE INDEX idx_games_user ON games(user_id);
-CREATE INDEX idx_games_module ON games(module_id);
-CREATE INDEX idx_game_messages_game_created ON game_messages(game_id, created_at);
-CREATE INDEX idx_billing_ledger_user_created ON billing_ledger(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_session_user ON session(userId);
+CREATE INDEX IF NOT EXISTS idx_account_user ON account(userId);
+CREATE INDEX IF NOT EXISTS idx_verification_identifier ON verification(identifier);
+CREATE INDEX IF NOT EXISTS idx_characters_module ON characters(module_id);
+CREATE INDEX IF NOT EXISTS idx_games_user ON games(user_id);
+CREATE INDEX IF NOT EXISTS idx_games_module ON games(module_id);
+CREATE INDEX IF NOT EXISTS idx_game_messages_game_created ON game_messages(game_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_billing_ledger_user_created ON billing_ledger(user_id, created_at);
 
-INSERT INTO modules (id, title, summary, setting, difficulty, data_json)
+INSERT OR IGNORE INTO modules (id, title, summary, setting, difficulty, data_json)
 VALUES (
   'script-exorcism-door',
   '破门驱邪',
@@ -203,7 +203,7 @@ VALUES (
   }')
 );
 
-INSERT INTO characters (id, module_id, name, summary, data_json)
+INSERT OR IGNORE INTO characters (id, module_id, name, summary, data_json)
 VALUES (
   'character-lin-wu',
   'script-exorcism-door',

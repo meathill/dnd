@@ -9,7 +9,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "cf-gentype": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migrate": "wrangler d1 migrations apply dnd --local",
+    "migrate:prod": "wrangler d1 migrations apply dnd --remote"
   },
   "dependencies": {
     "@opencode-ai/sdk": "^1.14.39",

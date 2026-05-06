@@ -1,6 +1,5 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { createNodeSqliteExecutor, type SqlExecutor, type SqlStatementResult } from './runtime-sqlite';
-import { INIT_SQL } from './schema-sql';
 
 const CLOUDFLARE_CONTEXT_SYMBOL = Symbol.for('__cloudflare-context__');
 
@@ -81,21 +80,9 @@ async function getD1Database(): Promise<D1Like> {
   return env.DB;
 }
 
-async function applyMigrations(executor: SqlExecutor): Promise<void> {
-  const existing = await executor.execute<{ name: string }>(
-    `SELECT name
-     FROM sqlite_master
-     WHERE type = 'table' AND name = 'modules'`,
-  );
-  if (existing.rows.length === 0) {
-    await executor.exec(INIT_SQL);
-  }
-}
-
 async function createDatabase(): Promise<DatabaseInstance> {
   if (shouldUseD1()) {
     const sqlite = new D1Executor(await getD1Database());
-    await applyMigrations(sqlite);
     return { sqlite, kind: 'd1' };
   }
   const filePath = resolveDatabasePath();
@@ -104,7 +91,6 @@ async function createDatabase(): Promise<DatabaseInstance> {
   const resolvedFilePath = await filePath;
   await mkdir(dirname(resolvedFilePath), { recursive: true });
   const sqlite = await createNodeSqliteExecutor(resolvedFilePath);
-  await applyMigrations(sqlite);
   return { sqlite, kind: 'sqlite' };
 }
 
