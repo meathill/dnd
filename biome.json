@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.14/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!packages/website/cloudflare-env.d.ts"]
+    "includes": ["**", "!packages/website/cloudflare-env.d.ts", "!packages/play/cloudflare-env.generated.d.ts"]
   },
   "formatter": {
     "includes": ["src/**/*", "tests/**/*", "packages/**/*"],

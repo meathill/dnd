@@ -9,17 +9,17 @@ describe('api/llmproxy proxy route', () => {
     vi.stubGlobal('fetch', mockFetch);
     process.env.INTERNAL_SERVICE_TOKEN = 'internal-token';
     process.env.LLM_PROXY_UPSTREAM_BASE_URL = 'https://upstream.example.com';
-    delete process.env.LLM_PROXY_ALLOWED_MODELS;
-    delete process.env.LLM_PROXY_UPSTREAM_API_KEY;
+    Reflect.deleteProperty(process.env, 'LLM_PROXY_ALLOWED_MODELS');
+    Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_API_KEY');
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    delete process.env.INTERNAL_SERVICE_TOKEN;
-    delete process.env.INTERNAL_SERVICE_TOKENS;
-    delete process.env.LLM_PROXY_UPSTREAM_BASE_URL;
-    delete process.env.LLM_PROXY_ALLOWED_MODELS;
-    delete process.env.LLM_PROXY_UPSTREAM_API_KEY;
+    Reflect.deleteProperty(process.env, 'INTERNAL_SERVICE_TOKEN');
+    Reflect.deleteProperty(process.env, 'INTERNAL_SERVICE_TOKENS');
+    Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_BASE_URL');
+    Reflect.deleteProperty(process.env, 'LLM_PROXY_ALLOWED_MODELS');
+    Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_API_KEY');
   });
 
   it('rejects requests without internal bearer token', async () => {
@@ -33,7 +33,7 @@ describe('api/llmproxy proxy route', () => {
   });
 
   it('rejects requests when upstream is not configured', async () => {
-    delete process.env.LLM_PROXY_UPSTREAM_BASE_URL;
+    Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_BASE_URL');
 
     const request = new Request('http://localhost/api/llmproxy/v1/models', {
       headers: { Authorization: 'Bearer internal-token' },

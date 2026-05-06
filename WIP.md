@@ -85,6 +85,14 @@
 - [x] website 支持 `GAME_CREATION_MODE=play`，可在无 opencode bootstrap 时完整建局并跳转 play
 - [x] 真实 smoke 跑通“注册登录 -> website 建局 -> play 发消息 -> website 落库扣费”主链路
 
+### Phase 10: OpenNext Cloudflare 迁移
+- [x] 审查 website 当前 `node:sqlite` / `better-auth` / OpenNext Cloudflare 适配缺口
+- [x] 将 website 数据库层迁到 Cloudflare D1 兼容实现
+- [x] 让 `better-auth` 在 Workers / D1 环境可运行
+- [x] 补齐 `wrangler` / OpenNext Cloudflare 配置
+- [x] 补充并更新 Cloudflare 部署与验证文档
+- [x] 回归验证 `lint` / `format:check` / `typecheck` / `test` / `build`
+
 ## 当前新增能力
 
 - `create_character`：按当前剧本快速车卡，并返回 `isValid` / `fieldErrors`

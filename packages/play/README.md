@@ -1,6 +1,6 @@
 # 肉团长 Play
 
-独立游戏运行时，目标域名为 `play.muirpg.com`。
+独立游戏运行时，目标域名为 `play.muirpg.meathill.com`。
 
 当前支持三种 runtime：
 
@@ -11,12 +11,20 @@
 ## 环境变量
 
 ```bash
-PLAY_BASE_URL=https://play.muirpg.com
-WEBSITE_BASE_URL=https://muirpg.com
+PLAY_BASE_URL=https://play.muirpg.meathill.com
+WEBSITE_BASE_URL=https://muirpg.meathill.com
 INTERNAL_SERVICE_TOKEN=replace-me
 PLAY_LLM_MODEL=gpt-4.1-mini
 PLAY_RUNTIME=stub
 ```
+
+## Cloudflare Workers
+
+- 已补齐 `open-next.config.ts` 与 `wrangler.jsonc`
+- 本地 `next dev` 已接入 `initOpenNextCloudflareForDev()`
+- 部署到 Workers 时，默认公开域名应配置为 `play.muirpg.meathill.com`
+- 修改 `wrangler.jsonc` 后，执行 `pnpm exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.generated.d.ts`
+- `cloudflare-env.d.ts` 只补充 `wrangler types` 不会自动生成的 secret / 可选环境变量声明，例如 `INTERNAL_SERVICE_TOKEN`
 
 ## Runtime 说明
 

@@ -1,7 +1,6 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { NextResponse } from 'next/server';
 import { buildAssistantMeta, getGameByIdForUser, listMessagesByGameId, recordGameTurn } from '@/lib/db/repositories';
+import { getDmSystemPrompt } from '@/lib/game/dm-system-prompt';
 import { isPlayManagedGame } from '@/lib/game/runtime';
 import { getRequestIdentity } from '@/lib/internal/request-auth';
 import type { OpencodeReply } from '@/lib/opencode/gameplay';
@@ -16,11 +15,6 @@ type GameMessagesRouteProps = {
 type SendMessageRequest = {
   content?: string;
 };
-
-async function readSystemPrompt(): Promise<string> {
-  const filePath = join(process.cwd(), '..', '..', 'prompts', 'dm-system-prompt.md');
-  return readFile(filePath, 'utf8');
-}
 
 export async function GET(request: Request, { params }: GameMessagesRouteProps) {
   const identity = await getRequestIdentity(request);
@@ -69,7 +63,7 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
 
   let systemPrompt: string;
   try {
-    systemPrompt = await readSystemPrompt();
+    systemPrompt = getDmSystemPrompt();
   } catch (error) {
     console.error('[api/games/messages] 读取系统提示词失败', error);
     return NextResponse.json({ error: '发送失败' }, { status: 500 });

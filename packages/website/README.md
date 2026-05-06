@@ -12,10 +12,10 @@
 
 ```bash
 BETTER_AUTH_SECRET=change-me
-APP_BASE_URL=https://muirpg.com
-PLAY_BASE_URL=https://play.muirpg.com
-ASSET_BASE_URL=https://i.muirpg.com
-AUTH_COOKIE_DOMAIN=.muirpg.com
+APP_BASE_URL=https://muirpg.meathill.com
+PLAY_BASE_URL=https://play.muirpg.meathill.com
+ASSET_BASE_URL=https://i.muirpg.meathill.com
+AUTH_COOKIE_DOMAIN=.muirpg.meathill.com
 GAME_CREATION_MODE=opencode
 INTERNAL_SERVICE_TOKEN=replace-me
 LLM_PROXY_UPSTREAM_BASE_URL=https://api.openai.com
@@ -33,7 +33,7 @@ DATABASE_URL=/absolute/path/to/website.sqlite
 - `APP_BASE_URL`：主站域名，用于 auth 与公共链接
 - `PLAY_BASE_URL`：游戏域名；设置后建局接口会返回 `https://play.../{gameId}`，主站的 `/games/{gameId}` 也会直接跳转过去
 - `ASSET_BASE_URL`：媒体资源域名，后续用于图片/音频/视频访问
-- `AUTH_COOKIE_DOMAIN`：跨子域共享登录 cookie 时使用，例如 `.muirpg.com`
+- `AUTH_COOKIE_DOMAIN`：跨子域共享登录 cookie 时使用，例如 `.muirpg.meathill.com`
 - `GAME_CREATION_MODE`：建局模式。默认 `opencode`；设为 `play` 时，website 只负责建局和 workspace，不再创建 opencode session，适合本地完整联调
 - `INTERNAL_SERVICE_TOKEN` / `INTERNAL_SERVICE_TOKENS`：play 等内部服务访问 website 代理接口时使用
 - `LLM_PROXY_UPSTREAM_BASE_URL`：`/api/llmproxy/*` 的实际模型上游地址，建议使用 OpenAI-compatible 接口
@@ -60,9 +60,9 @@ play 托管的游戏会写入一个内部保留的 `opencodeSessionId` 哨兵值
 
 ## 架构约定
 
-- `muirpg.com`：website 控制面，负责登录、模组、账单、建局，以及 `api/llmproxy`
-- `play.muirpg.com`：游戏运行时，最终入口为 `/{gameId}`
-- `i.muirpg.com`：图片、音频、视频等生成资产的公开访问域名
+- `muirpg.meathill.com`：website 控制面，负责登录、模组、账单、建局，以及 `api/llmproxy`
+- `play.muirpg.meathill.com`：游戏运行时，最终入口为 `/{gameId}`
+- `i.muirpg.meathill.com`：图片、音频、视频等生成资产的公开访问域名
 - `workspace/{user_id}/{game_id}`：服务端工作区目录约定，不作为公开路由暴露
 
 ## 本地完整联调
@@ -106,4 +106,10 @@ pnpm test
 
 ```bash
 pnpm build
+```
+
+如果修改了 `wrangler.jsonc`，记得同步更新 Cloudflare env 类型：
+
+```bash
+pnpm exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts
 ```

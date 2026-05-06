@@ -1,13 +1,13 @@
 # 部署指南
 
-本文档描述**当前仓库真实可部署**的方案，而不是历史目标架构。
+本文档描述当前仓库的默认部署方案。
 
 当前推荐部署方式：
 
-1. `packages/website` 部署到一台支持 Node.js 24 的服务上
-2. `packages/play` 部署到另一台或同一台支持 Node.js 24 的服务上
-3. `website` 使用本地 SQLite 文件
-4. `play` 通过 `website` 的内部接口与 `llmproxy` 完成会话、持久化与扣费
+1. `packages/website` 通过 OpenNext 部署到 Cloudflare Workers
+2. `packages/play` 通过 OpenNext 部署到 Cloudflare Workers
+3. `website` 在 Workers 上使用 Cloudflare D1
+4. 本地开发 / 测试继续使用 Node.js + SQLite 文件
 
 ## 当前状态
 
@@ -21,18 +21,15 @@
 
 ### 当前不建议宣称已支持的部署形态
 
-- Cloudflare Workers 生产部署
-- Cloudflare D1 生产部署
-
-原因：当前 `packages/website` 的数据库层基于 Node.js `node:sqlite`，不是 D1 adapter。
+- 完整的 Cloudflare 部署 smoke 还需要在线环境再做一轮
 
 ## 架构
 
 ### 域名职责
 
-- `muirpg.com` -> `packages/website`
-- `play.muirpg.com` -> `packages/play`
-- `i.muirpg.com` -> 未来媒体资产域名
+- `muirpg.meathill.com` -> `packages/website`
+- `play.muirpg.meathill.com` -> `packages/play`
+- `i.muirpg.meathill.com` -> 媒体资产域名
 
 ### 服务职责
 
@@ -103,9 +100,9 @@
 
 ### 基础要求
 
-- Node.js >= 24
+- Node.js >= 24（本地开发与构建）
 - pnpm >= 10
-- Linux VPS 或其他可运行 Node.js 服务的环境
+- Cloudflare Workers + D1 + R2
 
 ### 目录建议
 
@@ -123,8 +120,8 @@
 
 ```bash
 BETTER_AUTH_SECRET=change-me
-APP_BASE_URL=https://muirpg.com
-PLAY_BASE_URL=https://play.muirpg.com
+APP_BASE_URL=https://muirpg.meathill.com
+PLAY_BASE_URL=https://play.muirpg.meathill.com
 DATABASE_URL=/srv/muirpg/data/website.sqlite
 INTERNAL_SERVICE_TOKEN=replace-me
 GAME_CREATION_MODE=play
@@ -134,7 +131,7 @@ OPENCODE_WORKSPACE_ROOT=/srv/muirpg/workspace
 ### 如果要启用跨子域登录
 
 ```bash
-AUTH_COOKIE_DOMAIN=.muirpg.com
+AUTH_COOKIE_DOMAIN=.muirpg.meathill.com
 ```
 
 ### 如果要启用 `llmproxy`
@@ -153,107 +150,54 @@ OPENCODE_SERVER_USERNAME=opencode
 OPENCODE_SERVER_PASSWORD=secret
 ```
 
-### 启动命令
+### 构建命令
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm --dir packages/website build
-pnpm --dir packages/website exec next start -p 3090
 ```
 
-### 反向代理
+Cloudflare 部署时继续执行 `opennextjs-cloudflare build` / `wrangler deploy`。
 
-将公网 `443` 反代到 `127.0.0.1:3090`。
+如果修改了 `packages/website/wrangler.jsonc`，记得同步更新类型：
+
+```bash
+pnpm --dir packages/website exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts
+```
+
+Cloudflare 上建议通过 `wrangler secret put` 配置敏感变量，例如：
+
+- `BETTER_AUTH_SECRET`
+- `INTERNAL_SERVICE_TOKEN`
+- `LLM_PROXY_UPSTREAM_API_KEY`
+- `OPENCODE_SERVER_PASSWORD`
 
 ## Play 部署
 
 ### 必需环境变量
 
 ```bash
-PLAY_BASE_URL=https://play.muirpg.com
-WEBSITE_BASE_URL=https://muirpg.com
+PLAY_BASE_URL=https://play.muirpg.meathill.com
+WEBSITE_BASE_URL=https://muirpg.meathill.com
 INTERNAL_SERVICE_TOKEN=replace-me
 PLAY_RUNTIME=opencode
 PLAY_LLM_MODEL=gpt-4.1-mini
 ```
 
-### 启动命令
+### 构建命令
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm --dir packages/play build
-pnpm --dir packages/play exec next start -p 3091
 ```
 
-### 反向代理
+如果修改了 `packages/play/wrangler.jsonc`，记得同步更新类型：
 
-将公网 `443` 反代到 `127.0.0.1:3091`。
-
-## Nginx 示例
-
-```nginx
-server {
-  server_name muirpg.com;
-
-  location / {
-    proxy_pass http://127.0.0.1:3090;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  }
-}
-
-server {
-  server_name play.muirpg.com;
-
-  location / {
-    proxy_pass http://127.0.0.1:3091;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  }
-}
+```bash
+pnpm --dir packages/play exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.generated.d.ts
 ```
 
-## systemd 示例
-
-### website
-
-```ini
-[Unit]
-Description=MuirPG Website
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/srv/muirpg/repo
-EnvironmentFile=/srv/muirpg/repo/packages/website/.env.production
-ExecStart=/usr/bin/env pnpm --dir packages/website exec next start -p 3090
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### play
-
-```ini
-[Unit]
-Description=MuirPG Play
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/srv/muirpg/repo
-EnvironmentFile=/srv/muirpg/repo/packages/play/.env.production
-ExecStart=/usr/bin/env pnpm --dir packages/play exec next start -p 3091
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-```
+其中 `packages/play/cloudflare-env.d.ts` 只补充 `wrangler types` 不会自动产出的 secret 声明，例如 `INTERNAL_SERVICE_TOKEN`。
 
 ## 推荐部署顺序
 
@@ -295,7 +239,7 @@ WantedBy=multi-user.target
 
 - `APP_BASE_URL`
 - `PLAY_BASE_URL`
-- `AUTH_COOKIE_DOMAIN=.muirpg.com`
+- `AUTH_COOKIE_DOMAIN=.muirpg.meathill.com`
 - 反向代理是否正确透传 `Host` 和 `X-Forwarded-Proto`
 
 ### website 旧消息接口返回 `当前游戏由 play 运行时托管，请前往游戏域继续`

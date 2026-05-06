@@ -39,7 +39,7 @@ const gameContext = {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   },
-  playUrl: 'https://play.muirpg.com/game-1',
+  playUrl: 'https://play.muirpg.meathill.com/game-1',
   module: {
     id: 'module-1',
     title: '破门驱邪',
@@ -68,7 +68,7 @@ const session = {
 describe('play runtime', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.PLAY_RUNTIME;
+    Reflect.deleteProperty(process.env, 'PLAY_RUNTIME');
     mockFetchWebsiteGameContext.mockResolvedValue(gameContext);
     mockRecordWebsiteTurnAsInternal.mockResolvedValue({
       userMessage: {
@@ -103,7 +103,7 @@ describe('play runtime', () => {
   });
 
   afterEach(() => {
-    delete process.env.PLAY_RUNTIME;
+    Reflect.deleteProperty(process.env, 'PLAY_RUNTIME');
   });
 
   it('loads game context from website', async () => {

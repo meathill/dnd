@@ -141,4 +141,20 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
 
 - 当前没有正式 E2E 测试框架
 - 当前没有 CI 流水线定义
-- `website` 当前不是 D1 运行时测试，而是 Node.js `node:sqlite` 路线
+- 本地自动化测试当前仍以 Node.js + SQLite 文件为主；Cloudflare D1 / Workers 需补部署后 smoke
+
+## Cloudflare 验证
+
+如果刚改过 `wrangler.jsonc`，先同步更新类型再跑 `typecheck`：
+
+```bash
+pnpm --dir packages/website exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts
+pnpm --dir packages/play exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.generated.d.ts
+```
+
+部署到 Cloudflare Workers 后，至少补做一轮 smoke：
+
+- `muirpg.meathill.com` 能登录并建局
+- `play.muirpg.meathill.com/{gameId}` 能正常进入游戏
+- `i.muirpg.meathill.com` 能作为静态资产域被引用
+- `play -> website /api/internal/games/[id]/turn` 能正常落库到 D1 并扣费

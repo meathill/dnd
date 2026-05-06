@@ -1,6 +1,5 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { getPlayRuntimeConfig } from '../config/runtime';
+import { getDmSystemPrompt } from './dm-system-prompt';
 import type { GameContext, PlayReply, SessionInfo } from './types';
 import type { ChatCompletionMessage } from './website-client';
 import {
@@ -13,11 +12,6 @@ import {
 } from './website-client';
 
 const TURN_COST = 5;
-
-async function readSystemPrompt(): Promise<string> {
-  const filePath = join(process.cwd(), '..', '..', 'prompts', 'dm-system-prompt.md');
-  return readFile(filePath, 'utf8');
-}
 
 function buildModelSystemPrompt(context: GameContext, systemPrompt: string): string {
   return [
@@ -104,7 +98,7 @@ async function sendOpencodeRuntimeMessage(input: {
     throw new Error('余额不足');
   }
 
-  const systemPrompt = await readSystemPrompt();
+  const systemPrompt = getDmSystemPrompt();
   const { llmModel } = getPlayRuntimeConfig();
   const completion = await sendWebsiteChatCompletion({
     userId: input.session.userId,

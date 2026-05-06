@@ -1,10 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { NextResponse } from 'next/server';
 import { getRequestSession } from '@/lib/auth/session';
 import { buildPlayGameUrl, getRuntimeConfig } from '@/lib/config/runtime';
 import { createGame, getCharacterById, getModuleById } from '@/lib/db/repositories';
+import { getDmSystemPrompt } from '@/lib/game/dm-system-prompt';
 import { PLAY_MANAGED_SESSION_ID } from '@/lib/game/runtime';
 import type { CharacterRecord, ModuleRecord } from '@/lib/game/types';
 import { createGameplaySession } from '@/lib/opencode/gameplay';
@@ -14,11 +13,6 @@ type CreateGameRequest = {
   moduleId?: string;
   characterId?: string;
 };
-
-async function readSystemPrompt(): Promise<string> {
-  const filePath = join(process.cwd(), '..', '..', 'prompts', 'dm-system-prompt.md');
-  return readFile(filePath, 'utf8');
-}
 
 export async function POST(request: Request) {
   const session = await getRequestSession();
@@ -50,7 +44,7 @@ export async function POST(request: Request) {
     [moduleRecord, characterRecord, systemPrompt] = await Promise.all([
       getModuleById(moduleId),
       getCharacterById(characterId),
-      runtime.gameCreationMode === 'opencode' ? readSystemPrompt() : Promise.resolve(null),
+      runtime.gameCreationMode === 'opencode' ? Promise.resolve(getDmSystemPrompt()) : Promise.resolve(null),
     ]);
   } catch (error) {
     console.error('[api/games] 加载游戏资源失败', error);

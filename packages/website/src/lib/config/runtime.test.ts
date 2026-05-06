@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildAssetUrl, buildGameHref, buildPlayGameUrl, buildWebsiteGameUrl, getRuntimeConfig } from './runtime';
 
 afterEach(() => {
-  delete process.env.PLAY_BASE_URL;
-  delete process.env.ASSET_BASE_URL;
-  delete process.env.GAME_CREATION_MODE;
+  Reflect.deleteProperty(process.env, 'PLAY_BASE_URL');
+  Reflect.deleteProperty(process.env, 'ASSET_BASE_URL');
+  Reflect.deleteProperty(process.env, 'GAME_CREATION_MODE');
 });
 
 describe('runtime url helpers', () => {
@@ -15,16 +15,16 @@ describe('runtime url helpers', () => {
   });
 
   it('returns play domain game url when configured', () => {
-    process.env.PLAY_BASE_URL = 'https://play.muirpg.com';
+    process.env.PLAY_BASE_URL = 'https://play.muirpg.meathill.com';
 
-    expect(buildPlayGameUrl('game-1')).toBe('https://play.muirpg.com/game-1');
-    expect(buildGameHref('game-1')).toBe('https://play.muirpg.com/game-1');
+    expect(buildPlayGameUrl('game-1')).toBe('https://play.muirpg.meathill.com/game-1');
+    expect(buildGameHref('game-1')).toBe('https://play.muirpg.meathill.com/game-1');
   });
 
   it('returns asset url on asset domain when configured', () => {
-    process.env.ASSET_BASE_URL = 'https://i.muirpg.com';
+    process.env.ASSET_BASE_URL = 'https://i.muirpg.meathill.com';
 
-    expect(buildAssetUrl('images/cover.png')).toBe('https://i.muirpg.com/images/cover.png');
+    expect(buildAssetUrl('images/cover.png')).toBe('https://i.muirpg.meathill.com/images/cover.png');
   });
 
   it('uses opencode game creation mode by default', () => {

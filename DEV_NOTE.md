@@ -175,3 +175,10 @@ client 在能力未稳定前，不应承担产品定义责任。
 - `GAME_CREATION_MODE=play`：建局时不依赖 opencode bootstrap，直接交给 `play` 域运行
 
 新增 `GAME_CREATION_MODE=play` 的原因不是为了兼容两套长期并存的产品形态，而是为了让“完整建局 -> 进入 play -> 发消息 -> 持久化/扣费”主链路可以在没有 opencode bootstrap 的情况下独立验证，并与未来以 `play` 为主运行时的正式架构保持一致
+
+## OpenNext Cloudflare 收尾注意事项
+
+- `packages/website/wrangler.jsonc` 变更后，必须重新执行 `pnpm --dir packages/website exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts`
+- `packages/play/wrangler.jsonc` 变更后，必须重新执行 `pnpm --dir packages/play exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.generated.d.ts`
+- `packages/play/cloudflare-env.d.ts` 只负责补充 `wrangler types` 不会自动产出的 secret / 可选环境变量声明，例如 `INTERNAL_SERVICE_TOKEN` 与 `DM_SYSTEM_PROMPT`
+- `@vitejs/plugin-react` 目前固定在 `^5.1.2`；升级到 `6.x` 会在 Vitest 启动时报 `ERR_PACKAGE_PATH_NOT_EXPORTED`，触发点是插件内部对 `vite/internal` 的导入

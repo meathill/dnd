@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildWebsiteApiUrl, getPlayRuntimeConfig } from './runtime';
 
 afterEach(() => {
-  delete process.env.PLAY_BASE_URL;
-  delete process.env.WEBSITE_BASE_URL;
-  delete process.env.PLAY_RUNTIME;
-  delete process.env.PLAY_LLM_MODEL;
-  delete process.env.INTERNAL_SERVICE_TOKEN;
+  Reflect.deleteProperty(process.env, 'PLAY_BASE_URL');
+  Reflect.deleteProperty(process.env, 'WEBSITE_BASE_URL');
+  Reflect.deleteProperty(process.env, 'PLAY_RUNTIME');
+  Reflect.deleteProperty(process.env, 'PLAY_LLM_MODEL');
+  Reflect.deleteProperty(process.env, 'INTERNAL_SERVICE_TOKEN');
 });
 
 describe('play runtime config', () => {
@@ -20,9 +20,9 @@ describe('play runtime config', () => {
   });
 
   it('builds website api url from configured origin', () => {
-    process.env.WEBSITE_BASE_URL = 'https://muirpg.com';
+    process.env.WEBSITE_BASE_URL = 'https://muirpg.meathill.com';
 
-    expect(buildWebsiteApiUrl('/api/games/game-1')).toBe('https://muirpg.com/api/games/game-1');
+    expect(buildWebsiteApiUrl('/api/games/game-1')).toBe('https://muirpg.meathill.com/api/games/game-1');
   });
 
   it('uses configured play llm model', () => {

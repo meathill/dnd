@@ -12,7 +12,7 @@
 ---
 
 - packages/website 主站控制面（登录、模组、计费、建局、llmproxy）
-- packages/play 独立游戏运行时（play.muirpg.com）
+- packages/play 独立游戏运行时（play.muirpg.meathill.com）
 - packages/core 共享库
 - packages/mobile 移动应用
 
@@ -20,9 +20,9 @@
 当前运行架构
 ---
 
-- `muirpg.com` 承载 `packages/website`，负责登录、模组、账单、建局和 `api/llmproxy`
-- `play.muirpg.com` 承载 `packages/play`，负责真实游戏运行时与聊天交互
-- `i.muirpg.com` 预留给图片、音频、视频等生成资产
+- `muirpg.meathill.com` 承载 `packages/website`，负责登录、模组、账单、建局和 `api/llmproxy`
+- `play.muirpg.meathill.com` 承载 `packages/play`，负责真实游戏运行时与聊天交互
+- `i.muirpg.meathill.com` 预留给图片、音频、视频等生成资产
 - 服务端工作区目录保持为 `workspace/{user_id}/{game_id}`，但公开链接只暴露 `game_id`
 
 
@@ -73,16 +73,15 @@ play:
 - TypeScript
 - Node.js 24
 - better-auth
-- SQLite（当前通过 `node:sqlite`）
+- SQLite / Cloudflare D1
 
 
 当前部署形态
 ---
 
-- `packages/website` 当前建议部署到普通 Node.js 服务
-- `packages/play` 当前建议部署到普通 Node.js 服务
-- `packages/website` 当前数据库是 SQLite 文件，不是 D1
-- `packages/website/open-next.config.ts` 仅保留为后续 Cloudflare 方向的实验入口，不代表当前已切到 Workers 部署
+- `packages/website` 已补齐 OpenNext Cloudflare Workers 入口，并在 Workers 下使用 D1
+- `packages/play` 已补齐 OpenNext Cloudflare Workers 入口
+- 本地 Node.js 开发 / 测试仍支持 SQLite 文件
 
 完整部署说明见 `DEPLOYMENT.md`。
 
@@ -101,10 +100,10 @@ play:
 - 人物卡必须绑定 `scriptId`，不能跨剧本复用；角色的可选项需受剧本限制，自由字段主要是名字、背景、动机等文本描述。人物卡归属到用户（`user_id`）。
 - 人物卡支持头像（avatar），用于游戏内展示。
 - 人物卡记录幸运值（COC 3D6×5），随角色存档。
-- 头像存储在 R2（绑定名 ASSETS_BUCKET，桶名 assets），对外域名由 `NEXT_PUBLIC_ASSET_URL` 提供。
+- 头像存储在 R2（绑定名 `ASSETS_BUCKET`，桶名 `dnd`），对外域名由 `ASSET_BASE_URL` 提供。
 - 游戏由 `scriptId + characterId` 开始，确保人物卡与剧本一一匹配；人物卡不可被多次开局复用。
 - 首页展示剧本列表与游戏记录，点击剧本进入详情页建卡，完成后开始游戏；也可从首页继续游戏记录。
-- 路由约定：剧本详情 `/scripts/:id`，进入游戏 `/games/:id`。
+- 路由约定：模组详情 `/modules/:id`，进入游戏 `/games/:id`。
 - 个人设置存储在 `user_settings`（AI provider / model / dm_profile_id），并在 `get_session` 时返回。
 - DM 指南拆分为“初步验证”和“具体叙事”，以全局 `dm_profiles` 管理，默认使用 `is_default=1` 的风格，用户可选择不同 DM 风格。
 - root 用户由环境变量指定，可进入全局配置页面维护 DM 风格与规则。

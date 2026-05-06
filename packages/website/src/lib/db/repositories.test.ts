@@ -22,7 +22,7 @@ let databaseDir = '';
 async function seedUser(userId: string): Promise<void> {
   const { sqlite } = await getDatabase();
   const timestamp = Date.now();
-  sqlite.run('INSERT INTO "user" (id, email, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)', [
+  await sqlite.execute('INSERT INTO "user" (id, email, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)', [
     userId,
     `${userId}@example.com`,
     0,
@@ -37,7 +37,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  delete process.env.DATABASE_URL;
+  Reflect.deleteProperty(process.env, 'DATABASE_URL');
   await rm(databaseDir, { recursive: true, force: true });
 });
 
@@ -130,7 +130,7 @@ describe('repositories', () => {
   it('rolls back messages when wallet balance is insufficient during turn recording', async () => {
     await seedUser('user-1');
     const { sqlite } = await getDatabase();
-    sqlite.run('INSERT INTO wallets (user_id, balance, created_at, updated_at) VALUES (?, ?, ?, ?)', [
+    await sqlite.execute('INSERT INTO wallets (user_id, balance, created_at, updated_at) VALUES (?, ?, ?, ?)', [
       'user-1',
       4,
       '2026-01-01T00:00:00.000Z',

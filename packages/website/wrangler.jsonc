@@ -41,9 +41,10 @@
     "mode": "smart"
   },
   "vars": {
-    "NEXT_PUBLIC_ASSET_URL": "https://idnd.roudan.io",
-    "NEXT_PUBLIC_SITE_URL": "https://dndcoc.meathill.com",
-    "ALLOW_SIGN_UP": "no",
-    "ROOT_PASSWORD": "muimui RIP"
+    "APP_BASE_URL": "https://muirpg.meathill.com",
+    "PLAY_BASE_URL": "https://play.muirpg.meathill.com",
+    "ASSET_BASE_URL": "https://i.muirpg.meathill.com",
+    "AUTH_COOKIE_DOMAIN": ".muirpg.meathill.com",
+    "GAME_CREATION_MODE": "play"
   }
 }

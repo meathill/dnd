@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "muirpg-play",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "muirpg-play"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "muirpg-play-cache"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
+  "vars": {
+    "PLAY_BASE_URL": "https://play.muirpg.meathill.com",
+    "WEBSITE_BASE_URL": "https://muirpg.meathill.com",
+    "PLAY_RUNTIME": "opencode",
+    "PLAY_LLM_MODEL": "gpt-4.1-mini"
+  }
+}

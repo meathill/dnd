@@ -11,6 +11,7 @@ import type {
 import { buildTimestamp, getDatabase } from './db';
 
 type DatabaseConnection = Awaited<ReturnType<typeof getDatabase>>['sqlite'];
+type BatchStatement = { sql: string; parameters?: ReadonlyArray<unknown> };
 
 type ModuleRow = {
   id: string;
@@ -140,31 +141,46 @@ function mapGameMessage(row: GameMessageRow): GameMessageRecord {
   };
 }
 
-function getWalletRowByUserId(sqlite: DatabaseConnection, userId: string): WalletRow | null {
-  return sqlite.get<WalletRow>('SELECT * FROM wallets WHERE user_id = ?', [userId]);
+async function queryAll<T>(
+  sqlite: DatabaseConnection,
+  sql: string,
+  parameters: ReadonlyArray<unknown> = [],
+): Promise<T[]> {
+  return (await sqlite.execute<T>(sql, parameters)).rows;
 }
 
-function ensureWalletInDatabase(sqlite: DatabaseConnection, userId: string): WalletRecord {
-  const existing = getWalletRowByUserId(sqlite, userId);
-  if (existing) {
-    return mapWallet(existing);
-  }
-  const timestamp = buildTimestamp();
-  sqlite.run('INSERT INTO wallets (user_id, balance, created_at, updated_at) VALUES (?, ?, ?, ?)', [
-    userId,
-    100,
-    timestamp,
-    timestamp,
-  ]);
+async function queryFirst<T>(
+  sqlite: DatabaseConnection,
+  sql: string,
+  parameters: ReadonlyArray<unknown> = [],
+): Promise<T | null> {
+  const rows = await queryAll<T>(sqlite, sql, parameters);
+  return rows[0] ?? null;
+}
+
+async function getWalletRowByUserId(sqlite: DatabaseConnection, userId: string): Promise<WalletRow | null> {
+  return queryFirst<WalletRow>(sqlite, 'SELECT * FROM wallets WHERE user_id = ?', [userId]);
+}
+
+function buildEnsureWalletStatement(userId: string, timestamp: string): BatchStatement {
   return {
-    userId,
-    balance: 100,
-    createdAt: timestamp,
-    updatedAt: timestamp,
+    sql: 'INSERT OR IGNORE INTO wallets (user_id, balance, created_at, updated_at) VALUES (?, ?, ?, ?)',
+    parameters: [userId, 100, timestamp, timestamp],
   };
 }
 
-function createGameMessageInDatabase(
+async function ensureWalletInDatabase(sqlite: DatabaseConnection, userId: string): Promise<WalletRecord> {
+  const timestamp = buildTimestamp();
+  const statement = buildEnsureWalletStatement(userId, timestamp);
+  await sqlite.execute(statement.sql, statement.parameters);
+  const wallet = await getWalletRowByUserId(sqlite, userId);
+  if (!wallet) {
+    throw new Error('创建钱包失败');
+  }
+  return mapWallet(wallet);
+}
+
+async function createGameMessageInDatabase(
   sqlite: DatabaseConnection,
   input: {
     gameId: string;
@@ -172,10 +188,10 @@ function createGameMessageInDatabase(
     content: string;
     meta?: Record<string, unknown>;
   },
-): GameMessageRecord {
+): Promise<GameMessageRecord> {
   const id = randomUUID();
   const createdAt = buildTimestamp();
-  sqlite.run(
+  await sqlite.execute(
     'INSERT INTO game_messages (id, game_id, role, content, message_meta_json, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     [id, input.gameId, input.role, input.content, JSON.stringify(input.meta ?? {}), createdAt],
   );
@@ -189,76 +205,66 @@ function createGameMessageInDatabase(
   };
 }
 
-function applyWalletCharge(
-  sqlite: DatabaseConnection,
-  input: {
-    userId: string;
-    gameId: string;
-    amount: number;
-    reason: string;
-  },
-  wallet: WalletRecord,
-): WalletRecord {
-  if (input.amount === 0) {
-    return wallet;
-  }
-  const nextBalance = wallet.balance - input.amount;
-  if (nextBalance < 0) {
-    throw new Error('余额不足');
-  }
-  const timestamp = buildTimestamp();
-  sqlite.run('UPDATE wallets SET balance = ?, updated_at = ? WHERE user_id = ?', [
-    nextBalance,
-    timestamp,
-    input.userId,
-  ]);
-  sqlite.run(
-    'INSERT INTO billing_ledger (id, user_id, game_id, type, amount, balance_after, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [randomUUID(), input.userId, input.gameId, 'debit', -input.amount, nextBalance, input.reason, timestamp],
-  );
-  return {
-    userId: input.userId,
-    balance: nextBalance,
-    createdAt: wallet.createdAt,
-    updatedAt: timestamp,
-  };
-}
-
-function rollbackTransaction(sqlite: DatabaseConnection): void {
-  try {
-    sqlite.exec('ROLLBACK');
-  } catch {
-    // noop
-  }
+function buildWalletChargeBatch(input: {
+  userId: string;
+  gameId: string;
+  amount: number;
+  reason: string;
+  updatedAt: string;
+  ledgerId: string;
+}): BatchStatement[] {
+  return [
+    {
+      sql: 'UPDATE wallets SET balance = balance - ?, updated_at = ? WHERE user_id = ? AND balance >= ?',
+      parameters: [input.amount, input.updatedAt, input.userId, input.amount],
+    },
+    {
+      sql: `INSERT INTO billing_ledger (id, user_id, game_id, type, amount, balance_after, reason, created_at)
+            SELECT ?, ?, ?, 'debit', ?, balance, ?, ?
+            FROM wallets
+            WHERE user_id = ? AND changes() > 0`,
+      parameters: [
+        input.ledgerId,
+        input.userId,
+        input.gameId,
+        -input.amount,
+        input.reason,
+        input.updatedAt,
+        input.userId,
+      ],
+    },
+  ];
 }
 
 export async function listModules(): Promise<ModuleRecord[]> {
   const { sqlite } = await getDatabase();
-  return sqlite.all<ModuleRow>('SELECT * FROM modules ORDER BY created_at DESC').map(mapModule);
+  return (await queryAll<ModuleRow>(sqlite, 'SELECT * FROM modules ORDER BY created_at DESC')).map(mapModule);
 }
 
 export async function getModuleById(id: string): Promise<ModuleRecord | null> {
   const { sqlite } = await getDatabase();
-  const row = sqlite.get<ModuleRow>('SELECT * FROM modules WHERE id = ?', [id]);
+  const row = await queryFirst<ModuleRow>(sqlite, 'SELECT * FROM modules WHERE id = ?', [id]);
   return row ? mapModule(row) : null;
 }
 
 export async function listCharactersByModuleId(moduleId: string): Promise<CharacterRecord[]> {
   const { sqlite } = await getDatabase();
-  return sqlite
-    .all<CharacterRow>('SELECT * FROM characters WHERE module_id = ? ORDER BY created_at ASC', [moduleId])
-    .map(mapCharacter);
+  return (
+    await queryAll<CharacterRow>(sqlite, 'SELECT * FROM characters WHERE module_id = ? ORDER BY created_at ASC', [
+      moduleId,
+    ])
+  ).map(mapCharacter);
 }
 
 export async function getCharacterById(id: string): Promise<CharacterRecord | null> {
   const { sqlite } = await getDatabase();
-  const row = sqlite.get<CharacterRow>('SELECT * FROM characters WHERE id = ?', [id]);
+  const row = await queryFirst<CharacterRow>(sqlite, 'SELECT * FROM characters WHERE id = ?', [id]);
   return row ? mapCharacter(row) : null;
 }
 
 export async function getWalletByUserId(userId: string): Promise<WalletRecord | null> {
   const { sqlite } = await getDatabase();
-  const row = getWalletRowByUserId(sqlite, userId);
+  const row = await getWalletRowByUserId(sqlite, userId);
   return row ? mapWallet(row) : null;
 }
 
@@ -278,10 +284,10 @@ export async function createGame(input: {
   const { sqlite } = await getDatabase();
   const id = input.id ?? randomUUID();
   const timestamp = buildTimestamp();
-  sqlite.run(
+  await sqlite.execute(
     `INSERT INTO games (
       id, user_id, module_id, character_id, opencode_session_id, workspace_path, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.userId,
@@ -309,15 +315,17 @@ export async function createGame(input: {
 
 export async function getGameByIdForUser(gameId: string, userId: string): Promise<GameRecord | null> {
   const { sqlite } = await getDatabase();
-  const row = sqlite.get<GameRow>('SELECT * FROM games WHERE id = ? AND user_id = ?', [gameId, userId]);
+  const row = await queryFirst<GameRow>(sqlite, 'SELECT * FROM games WHERE id = ? AND user_id = ?', [gameId, userId]);
   return row ? mapGame(row) : null;
 }
 
 export async function listMessagesByGameId(gameId: string): Promise<GameMessageRecord[]> {
   const { sqlite } = await getDatabase();
-  return sqlite
-    .all<GameMessageRow>('SELECT * FROM game_messages WHERE game_id = ? ORDER BY created_at ASC', [gameId])
-    .map(mapGameMessage);
+  return (
+    await queryAll<GameMessageRow>(sqlite, 'SELECT * FROM game_messages WHERE game_id = ? ORDER BY created_at ASC', [
+      gameId,
+    ])
+  ).map(mapGameMessage);
 }
 
 export async function findGameMessageByMeta(
@@ -326,7 +334,8 @@ export async function findGameMessageByMeta(
   value: string,
 ): Promise<GameMessageRecord | null> {
   const { sqlite } = await getDatabase();
-  const row = sqlite.get<GameMessageRow>(
+  const row = await queryFirst<GameMessageRow>(
+    sqlite,
     `SELECT * FROM game_messages
      WHERE game_id = ? AND json_extract(message_meta_json, ?) = ?
      LIMIT 1`,
@@ -360,44 +369,105 @@ export async function recordGameTurn(input: {
   wallet: WalletRecord;
 }> {
   const { sqlite } = await getDatabase();
-  sqlite.exec('BEGIN IMMEDIATE');
-  try {
-    const wallet = ensureWalletInDatabase(sqlite, input.userId);
-    if (wallet.balance < input.chargeAmount) {
-      throw new Error('余额不足');
-    }
-    const userMessage = createGameMessageInDatabase(sqlite, {
-      gameId: input.gameId,
-      role: 'user',
-      content: input.userContent,
-      meta: input.userMeta,
-    });
-    const assistantMessage = createGameMessageInDatabase(sqlite, {
-      gameId: input.gameId,
-      role: 'assistant',
-      content: input.assistantContent,
-      meta: input.assistantMeta,
-    });
-    const chargedWallet = applyWalletCharge(
-      sqlite,
-      {
+  const timestamp = buildTimestamp();
+  const userMessage: GameMessageRecord = {
+    id: randomUUID(),
+    gameId: input.gameId,
+    role: 'user',
+    content: input.userContent,
+    meta: input.userMeta ?? {},
+    createdAt: timestamp,
+  };
+  const assistantMessage: GameMessageRecord = {
+    id: randomUUID(),
+    gameId: input.gameId,
+    role: 'assistant',
+    content: input.assistantContent,
+    meta: input.assistantMeta ?? {},
+    createdAt: timestamp,
+  };
+  const statements: BatchStatement[] = [buildEnsureWalletStatement(input.userId, timestamp)];
+
+  if (input.chargeAmount > 0) {
+    statements.push(
+      ...buildWalletChargeBatch({
         userId: input.userId,
         gameId: input.gameId,
         amount: input.chargeAmount,
         reason: input.reason,
+        updatedAt: timestamp,
+        ledgerId: randomUUID(),
+      }),
+      {
+        sql: `INSERT INTO game_messages (id, game_id, role, content, message_meta_json, created_at)
+              SELECT ?, ?, ?, ?, ?, ?
+              WHERE changes() > 0`,
+        parameters: [
+          userMessage.id,
+          userMessage.gameId,
+          userMessage.role,
+          userMessage.content,
+          JSON.stringify(userMessage.meta),
+          userMessage.createdAt,
+        ],
       },
-      wallet,
+      {
+        sql: `INSERT INTO game_messages (id, game_id, role, content, message_meta_json, created_at)
+              SELECT ?, ?, ?, ?, ?, ?
+              WHERE changes() > 0`,
+        parameters: [
+          assistantMessage.id,
+          assistantMessage.gameId,
+          assistantMessage.role,
+          assistantMessage.content,
+          JSON.stringify(assistantMessage.meta),
+          assistantMessage.createdAt,
+        ],
+      },
     );
-    sqlite.exec('COMMIT');
-    return {
-      userMessage,
-      assistantMessage,
-      wallet: chargedWallet,
-    };
-  } catch (error) {
-    rollbackTransaction(sqlite);
-    throw error;
+  } else {
+    statements.push(
+      {
+        sql: 'INSERT INTO game_messages (id, game_id, role, content, message_meta_json, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        parameters: [
+          userMessage.id,
+          userMessage.gameId,
+          userMessage.role,
+          userMessage.content,
+          JSON.stringify(userMessage.meta),
+          userMessage.createdAt,
+        ],
+      },
+      {
+        sql: 'INSERT INTO game_messages (id, game_id, role, content, message_meta_json, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        parameters: [
+          assistantMessage.id,
+          assistantMessage.gameId,
+          assistantMessage.role,
+          assistantMessage.content,
+          JSON.stringify(assistantMessage.meta),
+          assistantMessage.createdAt,
+        ],
+      },
+    );
   }
+
+  statements.push({ sql: 'SELECT * FROM wallets WHERE user_id = ?', parameters: [input.userId] });
+  const results = await sqlite.batch<WalletRow>(statements);
+  const chargeResult = input.chargeAmount > 0 ? results[1] : null;
+  if (input.chargeAmount > 0 && chargeResult && chargeResult.changes === 0) {
+    throw new Error('余额不足');
+  }
+  const walletResult = results[results.length - 1];
+  const walletRow = walletResult?.rows[0];
+  if (!walletRow) {
+    throw new Error('读取钱包失败');
+  }
+  return {
+    userMessage,
+    assistantMessage,
+    wallet: mapWallet(walletRow),
+  };
 }
 
 export async function chargeWallet(input: {
@@ -407,23 +477,42 @@ export async function chargeWallet(input: {
   reason: string;
 }): Promise<WalletRecord> {
   const { sqlite } = await getDatabase();
-  sqlite.exec('BEGIN IMMEDIATE');
-  try {
-    const wallet = ensureWalletInDatabase(sqlite, input.userId);
-    const chargedWallet = applyWalletCharge(sqlite, input, wallet);
-    sqlite.exec('COMMIT');
-    return chargedWallet;
-  } catch (error) {
-    rollbackTransaction(sqlite);
-    throw error;
+  if (input.amount === 0) {
+    return ensureWalletInDatabase(sqlite, input.userId);
   }
+  const timestamp = buildTimestamp();
+  const results = await sqlite.batch<WalletRow>([
+    buildEnsureWalletStatement(input.userId, timestamp),
+    ...buildWalletChargeBatch({
+      userId: input.userId,
+      gameId: input.gameId,
+      amount: input.amount,
+      reason: input.reason,
+      updatedAt: timestamp,
+      ledgerId: randomUUID(),
+    }),
+    { sql: 'SELECT * FROM wallets WHERE user_id = ?', parameters: [input.userId] },
+  ]);
+  if (results[1]?.changes === 0) {
+    throw new Error('余额不足');
+  }
+  const walletResult = results[results.length - 1];
+  const walletRow = walletResult?.rows[0];
+  if (!walletRow) {
+    throw new Error('读取钱包失败');
+  }
+  return mapWallet(walletRow);
 }
 
 export async function listBillingLedger(userId: string): Promise<BillingLedgerRecord[]> {
   const { sqlite } = await getDatabase();
-  return sqlite
-    .all<BillingLedgerRow>('SELECT * FROM billing_ledger WHERE user_id = ? ORDER BY created_at DESC', [userId])
-    .map(mapBillingLedger);
+  return (
+    await queryAll<BillingLedgerRow>(
+      sqlite,
+      'SELECT * FROM billing_ledger WHERE user_id = ? ORDER BY created_at DESC',
+      [userId],
+    )
+  ).map(mapBillingLedger);
 }
 
 export function buildAssistantMeta(

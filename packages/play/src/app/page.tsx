@@ -6,7 +6,7 @@ export default function HomePage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="text-sm uppercase tracking-[0.22em] text-zinc-500">Play Runtime</p>
-        <h1 className="text-4xl font-semibold text-zinc-50">play.muirpg.com</h1>
+        <h1 className="text-4xl font-semibold text-zinc-50">play.muirpg.meathill.com</h1>
         <p className="max-w-2xl text-zinc-400">
           这里是独立游戏运行时。正常入口应由 website 建局后跳转到 `/{'{gameId}'}`。
         </p>
