@@ -22,8 +22,8 @@ LLM_PROXY_UPSTREAM_BASE_URL=https://api.openai.com
 LLM_PROXY_UPSTREAM_API_KEY=replace-me
 LLM_PROXY_ALLOWED_MODELS=gpt-4.1-mini,gpt-4o-mini
 OPENCODE_BASE_URL=http://127.0.0.1:4096
-OPENCODE_SERVER_USERNAME=opencode
-OPENCODE_SERVER_PASSWORD=secret
+OPENCODE_ACCESS_CLIENT_ID=
+OPENCODE_ACCESS_CLIENT_SECRET=
 OPENCODE_WORKSPACE_ROOT=/path/to/workspace
 DATABASE_URL=/absolute/path/to/website.sqlite
 ```
@@ -40,6 +40,7 @@ DATABASE_URL=/absolute/path/to/website.sqlite
 - `LLM_PROXY_UPSTREAM_API_KEY`：写给上游模型服务的 API Key，不会把内部 token 透传过去
 - `LLM_PROXY_ALLOWED_MODELS`：可选模型白名单，逗号或空格分隔
 - `OPENCODE_BASE_URL`：website 服务端访问 opencode API 的地址，可填内网地址；仅 `GAME_CREATION_MODE=opencode` 时必需
+- `OPENCODE_ACCESS_CLIENT_ID` / `OPENCODE_ACCESS_CLIENT_SECRET`：当 opencode 部署在 Cloudflare Tunnel + Cloudflare Access Service Token 后面时使用；同时存在才会附加 `CF-Access-Client-Id` / `CF-Access-Client-Secret` 头。本地直连 `127.0.0.1:4096` 时无需配置
 
 ## 建局模式
 

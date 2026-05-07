@@ -182,3 +182,28 @@ client 在能力未稳定前，不应承担产品定义责任。
 - `packages/play/wrangler.jsonc` 变更后，必须重新执行 `pnpm --dir packages/play exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.generated.d.ts`
 - `packages/play/cloudflare-env.d.ts` 只负责补充 `wrangler types` 不会自动产出的 secret / 可选环境变量声明，例如 `INTERNAL_SERVICE_TOKEN` 与 `DM_SYSTEM_PROMPT`
 - `@vitejs/plugin-react` 目前固定在 `^5.1.2`；升级到 `6.x` 会在 Vitest 启动时报 `ERR_PACKAGE_PATH_NOT_EXPORTED`，触发点是插件内部对 `vite/internal` 的导入
+
+## opencode server 自托管与 Cloudflare Access
+
+### 决策
+
+- opencode server 跑在 GCP VM `34.177.119.169`，对外通过 Cloudflare Tunnel 暴露成 `https://opencode.muirpg.meathill.com`
+- 服务对服务认证（Cloudflare Workers Website → opencode）走 Cloudflare Access Service Token，不再用 Basic Auth
+- opencode 进程只监听 `127.0.0.1:4096`，VM 不开公网入站端口
+
+### 理由
+
+- Workers + Tunnel + Access 同属一个 Cloudflare 账号，身份体系不分裂
+- 边缘做 TLS 与 auth，VM 不需要 caddy/nginx/Let's Encrypt 续期
+- Service Token 在 Zero Trust Dashboard 一键签发/吊销，比维护 Basic Auth 用户名密码省心
+
+### 代码影响
+
+- [packages/website/src/lib/opencode/client.ts](packages/website/src/lib/opencode/client.ts) 不再读 `OPENCODE_SERVER_USERNAME` / `OPENCODE_SERVER_PASSWORD`，改读 `OPENCODE_ACCESS_CLIENT_ID` / `OPENCODE_ACCESS_CLIENT_SECRET`，发送 `CF-Access-Client-Id` / `CF-Access-Client-Secret`
+- 本地开发默认指向 `http://127.0.0.1:4096` 不发任何 auth header，与本机直连兼容
+
+### 排错入口
+
+- 全部 403 → CF Access policy 没绑到 Service Token
+- 全部 530/521 → cloudflared 没起来或 ingress 配错；`sudo systemctl status cloudflared`
+- 200 但 opencode 报错 → 检查 `~/.config/opencode/auth.json` LLM provider key

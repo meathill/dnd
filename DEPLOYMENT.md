@@ -145,10 +145,12 @@ LLM_PROXY_ALLOWED_MODELS=gpt-4.1-mini,gpt-4o-mini
 ### 仅在 `GAME_CREATION_MODE=opencode` 时需要
 
 ```bash
-OPENCODE_BASE_URL=http://127.0.0.1:4096
-OPENCODE_SERVER_USERNAME=opencode
-OPENCODE_SERVER_PASSWORD=secret
+OPENCODE_BASE_URL=https://opencode.muirpg.meathill.com
+OPENCODE_ACCESS_CLIENT_ID=replace-me
+OPENCODE_ACCESS_CLIENT_SECRET=replace-me
 ```
+
+opencode server 通过 Cloudflare Tunnel 暴露，认证由 Cloudflare Access Service Token 接管，详见下文「opencode server 自托管」章节。
 
 ### 构建命令
 
@@ -170,7 +172,8 @@ Cloudflare 上建议通过 `wrangler secret put` 配置敏感变量，例如：
 - `BETTER_AUTH_SECRET`
 - `INTERNAL_SERVICE_TOKEN`
 - `LLM_PROXY_UPSTREAM_API_KEY`
-- `OPENCODE_SERVER_PASSWORD`
+- `OPENCODE_ACCESS_CLIENT_ID`
+- `OPENCODE_ACCESS_CLIENT_SECRET`
 
 ## Play 部署
 
@@ -198,6 +201,50 @@ pnpm --dir packages/play exec wrangler types --env-interface CloudflareEnv ./clo
 ```
 
 其中 `packages/play/cloudflare-env.d.ts` 只补充 `wrangler types` 不会自动产出的 secret 声明，例如 `INTERNAL_SERVICE_TOKEN`。
+
+## opencode server 自托管
+
+仅在 `GAME_CREATION_MODE=opencode` 时需要。当前生产部署的目标机器是 GCP VM `34.177.119.169`，对外通过 Cloudflare Tunnel 暴露成 `https://opencode.muirpg.meathill.com`，认证由 Cloudflare Access Service Token 在边缘统一处理。
+
+### 拓扑
+
+```
+Cloudflare Workers (Website)
+  ─ headers: CF-Access-Client-Id, CF-Access-Client-Secret
+  → https://opencode.muirpg.meathill.com
+    → Cloudflare Access (Service Token policy)
+      → Cloudflare Tunnel
+        → cloudflared (GCP VM)
+          → opencode serve --hostname 127.0.0.1 --port 4096
+```
+
+VM 不开任何公网入站端口，opencode 只监听回环地址。
+
+### 服务器端组件
+
+- `opencode` CLI（npm `opencode-ai` 或官方 `curl ... | bash` 安装），由 systemd 守护
+- `cloudflared`，建独立 tunnel 后通过 `cloudflared service install` 守护
+- `/srv/muirpg/workspace/{user_id}/{game_id}` 作为 opencode 工作区根
+
+LLM provider key 写在 `~/.config/opencode/auth.json` 或 `/etc/opencode/opencode.env`（systemd `EnvironmentFile`），不入仓库不入 systemd unit 明文。
+
+### Cloudflare 端组件
+
+1. Zero Trust → Access → Applications → Add Self-hosted，domain 填 `opencode.muirpg.meathill.com`
+2. Policy: Action = Service Auth，Selector 指向下一步的 Service Token
+3. Zero Trust → Access → Service Auth → Service Tokens → Create，名字如 `website-worker`，记下 Client ID / Secret（Secret 仅展示一次）
+4. Workers 端写入 secret：`OPENCODE_BASE_URL`、`OPENCODE_ACCESS_CLIENT_ID`、`OPENCODE_ACCESS_CLIENT_SECRET`
+
+### 自检
+
+```bash
+# 不带 token，应被 CF Access 拦下
+curl -i https://opencode.muirpg.meathill.com/session
+
+# 带 token，应返回 200/JSON
+curl -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>" \
+  https://opencode.muirpg.meathill.com/session
+```
 
 ## 推荐部署顺序
 
