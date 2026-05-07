@@ -43,7 +43,7 @@ export async function getAuth() {
       ? drizzleAdapter(d1Db, {
           provider: 'sqlite',
           schema: authSchema,
-          transaction: true,
+          transaction: false,
         })
       : await createNodeSqliteDatabase(),
     baseURL: runtime.appBaseUrl,
