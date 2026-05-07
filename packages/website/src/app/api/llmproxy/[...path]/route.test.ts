@@ -3,6 +3,12 @@ import { GET, POST } from './route';
 
 const mockFetch = vi.fn();
 
+function publicRequest(input: string, init?: RequestInit): Request {
+  const req = new Request(input, init);
+  Object.defineProperty(req, 'cf', { value: { colo: 'TEST' }, configurable: true });
+  return req;
+}
+
 describe('api/llmproxy proxy route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -23,7 +29,7 @@ describe('api/llmproxy proxy route', () => {
   });
 
   it('rejects requests without internal bearer token', async () => {
-    const request = new Request('http://localhost/api/llmproxy/v1/models');
+    const request = publicRequest('http://localhost/api/llmproxy/v1/models');
     const response = await GET(request, { params: Promise.resolve({ path: ['v1', 'models'] }) });
     const payload = (await response.json()) as { error: string };
 
@@ -35,7 +41,7 @@ describe('api/llmproxy proxy route', () => {
   it('rejects requests when upstream is not configured', async () => {
     Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_BASE_URL');
 
-    const request = new Request('http://localhost/api/llmproxy/v1/models', {
+    const request = publicRequest('http://localhost/api/llmproxy/v1/models', {
       headers: { Authorization: 'Bearer internal-token' },
     });
     const response = await GET(request, { params: Promise.resolve({ path: ['v1', 'models'] }) });
@@ -46,7 +52,7 @@ describe('api/llmproxy proxy route', () => {
   });
 
   it('requires game context headers for proxied POST requests', async () => {
-    const request = new Request('http://localhost/api/llmproxy/v1/chat/completions', {
+    const request = publicRequest('http://localhost/api/llmproxy/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: 'Bearer internal-token',
@@ -65,7 +71,7 @@ describe('api/llmproxy proxy route', () => {
   it('rejects models outside the configured allowlist', async () => {
     process.env.LLM_PROXY_ALLOWED_MODELS = 'gpt-4.1-mini gpt-4o-mini';
 
-    const request = new Request('http://localhost/api/llmproxy/v1/chat/completions', {
+    const request = publicRequest('http://localhost/api/llmproxy/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: 'Bearer internal-token',
@@ -93,7 +99,7 @@ describe('api/llmproxy proxy route', () => {
       }),
     );
 
-    const request = new Request('http://localhost/api/llmproxy/v1/chat/completions?stream=false', {
+    const request = publicRequest('http://localhost/api/llmproxy/v1/chat/completions?stream=false', {
       method: 'POST',
       headers: {
         Authorization: 'Bearer internal-token',

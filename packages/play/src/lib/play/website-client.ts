@@ -1,3 +1,4 @@
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { buildWebsiteApiUrl, getPlayRuntimeConfig } from '../config/runtime';
 import type { GameContext, PlayReply, SessionInfo } from './types';
 
@@ -34,18 +35,41 @@ type ChatCompletionPayload = {
   };
 };
 
-function buildHeaders(headers?: HeadersInit): Headers {
-  const result = new Headers(headers);
-  const { internalServiceToken } = getPlayRuntimeConfig();
-  if (internalServiceToken) {
-    result.set('Authorization', `Bearer ${internalServiceToken}`);
+async function getWebsiteBinding(): Promise<Fetcher | null> {
+  try {
+    const { env } = await getCloudflareContext({ async: true });
+    return env.WEBSITE ?? null;
+  } catch {
+    return null;
   }
+}
+
+async function callWebsite(path: string, init?: RequestInit): Promise<Response> {
+  const url = buildWebsiteApiUrl(path);
+  const binding = await getWebsiteBinding();
+  if (binding) {
+    return binding.fetch(url, init);
+  }
+  const headers = new Headers(init?.headers);
+  const { internalServiceToken } = getPlayRuntimeConfig();
+  if (internalServiceToken && !headers.has('authorization')) {
+    headers.set('Authorization', `Bearer ${internalServiceToken}`);
+  }
+  return fetch(url, { ...init, headers });
+}
+
+function withCookieHeader(headers: HeadersInit | undefined, cookieHeader: string | null | undefined): HeadersInit {
+  if (!cookieHeader) {
+    return headers ?? {};
+  }
+  const result = new Headers(headers);
+  result.set('cookie', cookieHeader);
   return result;
 }
 
 export async function fetchWebsiteSession(cookieHeader?: string | null): Promise<SessionInfo | null> {
-  const response = await fetch(buildWebsiteApiUrl('/api/session'), {
-    headers: buildHeaders(cookieHeader ? { cookie: cookieHeader } : undefined),
+  const response = await callWebsite('/api/session', {
+    headers: withCookieHeader(undefined, cookieHeader),
   });
   if (!response.ok) {
     throw new Error('读取会话失败');
@@ -55,8 +79,8 @@ export async function fetchWebsiteSession(cookieHeader?: string | null): Promise
 }
 
 export async function fetchWebsiteGameContext(gameId: string, cookieHeader?: string | null): Promise<GameContext> {
-  const response = await fetch(buildWebsiteApiUrl(`/api/games/${gameId}`), {
-    headers: buildHeaders(cookieHeader ? { cookie: cookieHeader } : undefined),
+  const response = await callWebsite(`/api/games/${gameId}`, {
+    headers: withCookieHeader(undefined, cookieHeader),
   });
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -70,12 +94,9 @@ export async function sendWebsiteGameMessage(
   content: string,
   cookieHeader?: string | null,
 ): Promise<PlayReply> {
-  const response = await fetch(buildWebsiteApiUrl(`/api/games/${gameId}/messages`), {
+  const response = await callWebsite(`/api/games/${gameId}/messages`, {
     method: 'POST',
-    headers: buildHeaders({
-      'Content-Type': 'application/json',
-      ...(cookieHeader ? { cookie: cookieHeader } : {}),
-    }),
+    headers: withCookieHeader({ 'Content-Type': 'application/json' }, cookieHeader),
     body: JSON.stringify({ content }),
   });
   const payload = (await response.json()) as PlayReply & { error?: string };
@@ -90,11 +111,11 @@ export async function fetchWebsiteGameContextAsInternal(input: {
   userId: string;
   balance: number;
 }): Promise<GameContext> {
-  const response = await fetch(buildWebsiteApiUrl(`/api/games/${input.gameId}`), {
-    headers: buildHeaders({
+  const response = await callWebsite(`/api/games/${input.gameId}`, {
+    headers: {
       'x-muir-user-id': input.userId,
       'x-muir-balance': String(input.balance),
-    }),
+    },
   });
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -109,13 +130,13 @@ export async function sendWebsiteGameMessageAsInternal(input: {
   balance: number;
   content: string;
 }): Promise<PlayReply> {
-  const response = await fetch(buildWebsiteApiUrl(`/api/games/${input.gameId}/messages`), {
+  const response = await callWebsite(`/api/games/${input.gameId}/messages`, {
     method: 'POST',
-    headers: buildHeaders({
+    headers: {
       'Content-Type': 'application/json',
       'x-muir-user-id': input.userId,
       'x-muir-balance': String(input.balance),
-    }),
+    },
     body: JSON.stringify({ content: input.content }),
   });
   const payload = (await response.json()) as PlayReply & { error?: string };
@@ -136,14 +157,16 @@ export async function recordWebsiteTurnAsInternal(input: {
   chargeAmount?: number;
   chargeReason?: string;
 }): Promise<PlayReply> {
-  const response = await fetch(buildWebsiteApiUrl(`/api/internal/games/${input.gameId}/turn`), {
+  const response = await callWebsite(`/api/internal/games/${input.gameId}/turn`, {
     method: 'POST',
-    headers: buildHeaders({
-      'Content-Type': 'application/json',
-      'x-muir-user-id': input.userId,
-      'x-muir-balance': String(input.balance),
-      ...(input.cookieHeader ? { cookie: input.cookieHeader } : {}),
-    }),
+    headers: withCookieHeader(
+      {
+        'Content-Type': 'application/json',
+        'x-muir-user-id': input.userId,
+        'x-muir-balance': String(input.balance),
+      },
+      input.cookieHeader,
+    ),
     body: JSON.stringify({
       userContent: input.userContent,
       assistantContent: input.assistantContent,
@@ -183,18 +206,13 @@ export async function sendWebsiteChatCompletion(input: {
   model: string;
   messages: ChatCompletionMessage[];
 }): Promise<ChatCompletionResult> {
-  const { internalServiceToken } = getPlayRuntimeConfig();
-  if (!internalServiceToken) {
-    throw new Error('llmproxy 需要 INTERNAL_SERVICE_TOKEN');
-  }
-
-  const response = await fetch(buildWebsiteApiUrl('/api/llmproxy/v1/chat/completions'), {
+  const response = await callWebsite('/api/llmproxy/v1/chat/completions', {
     method: 'POST',
-    headers: buildHeaders({
+    headers: {
       'Content-Type': 'application/json',
       'x-muir-user-id': input.userId,
       'x-muir-game-id': input.gameId,
-    }),
+    },
     body: JSON.stringify({
       model: input.model,
       messages: input.messages,

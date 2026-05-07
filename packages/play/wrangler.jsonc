@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "muirpg-play",
+  "account_id": "fdc63eeea83ae8f5234357308b9a638b",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-12-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -12,12 +13,16 @@
     {
       "binding": "WORKER_SELF_REFERENCE",
       "service": "muirpg-play"
+    },
+    {
+      "binding": "WEBSITE",
+      "service": "dndcoc"
     }
   ],
   "r2_buckets": [
     {
       "binding": "NEXT_INC_CACHE_R2_BUCKET",
-      "bucket_name": "muirpg-play-cache"
+      "bucket_name": "site-cache"
     }
   ],
   "images": {
@@ -27,6 +32,6 @@
     "PLAY_BASE_URL": "https://play.muirpg.meathill.com",
     "WEBSITE_BASE_URL": "https://muirpg.meathill.com",
     "PLAY_RUNTIME": "opencode",
-    "PLAY_LLM_MODEL": "gpt-4.1-mini"
+    "PLAY_LLM_MODEL": "gpt-5.4-mini"
   }
 }

@@ -5,6 +5,7 @@ declare namespace Cloudflare {
   interface Env {
     INTERNAL_SERVICE_TOKEN?: string;
     DM_SYSTEM_PROMPT?: string;
+    WEBSITE?: Fetcher;
   }
 }
 

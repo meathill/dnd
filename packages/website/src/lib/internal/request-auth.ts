@@ -14,6 +14,10 @@ export type RequestIdentity =
       balance: number | null;
     };
 
+export function isInternalServiceBindingRequest(request: Request): boolean {
+  return (request as { cf?: unknown }).cf == null;
+}
+
 export async function getRequestIdentity(request: Request): Promise<RequestIdentity | NextResponse> {
   const session = await getRequestSession();
   if (session) {
@@ -24,9 +28,12 @@ export async function getRequestIdentity(request: Request): Promise<RequestIdent
     };
   }
 
-  const bearerToken = getBearerToken(request.headers.get('authorization'));
-  if (!bearerToken || !isInternalServiceTokenValid(bearerToken)) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 });
+  const fromBinding = isInternalServiceBindingRequest(request);
+  if (!fromBinding) {
+    const bearerToken = getBearerToken(request.headers.get('authorization'));
+    if (!bearerToken || !isInternalServiceTokenValid(bearerToken)) {
+      return NextResponse.json({ error: '未登录' }, { status: 401 });
+    }
   }
 
   const userId = request.headers.get('x-muir-user-id')?.trim();

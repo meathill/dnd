@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev --turbopack -p 3091",
     "build": "next build",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "test": "vitest run",
     "test:watch": "vitest",
+    "cf-gentype": "wrangler types --env-interface CloudflareEnv --strict-vars false ./cloudflare-env.generated.d.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

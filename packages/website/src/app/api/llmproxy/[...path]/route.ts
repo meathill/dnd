@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isInternalServiceBindingRequest } from '@/lib/internal/request-auth';
 import { getBearerToken, getInternalServiceTokens, isInternalServiceTokenValid } from '@/lib/internal/service-token';
 
 const HOP_BY_HOP_HEADERS = new Set([
@@ -82,6 +83,9 @@ function requireContextHeaders(request: Request): string | null {
 }
 
 function validateInternalServiceRequest(request: Request): NextResponse | null {
+  if (isInternalServiceBindingRequest(request)) {
+    return null;
+  }
   if (getInternalServiceTokens().length === 0) {
     return NextResponse.json({ error: '内部服务鉴权未配置' }, { status: 503 });
   }
