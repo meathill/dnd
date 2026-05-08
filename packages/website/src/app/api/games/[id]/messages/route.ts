@@ -1,12 +1,7 @@
 import { NextResponse } from 'next/server';
-import { buildAssistantMeta, getGameByIdForUser, listMessagesByGameId, recordGameTurn } from '@/lib/db/repositories';
-import { getDmSystemPrompt } from '@/lib/game/dm-system-prompt';
-import { isPlayManagedGame } from '@/lib/game/runtime';
+import { getGameByIdForUser, listMessagesByGameId } from '@/lib/db/repositories';
+import { sendGameMessage } from '@/lib/game/runtime';
 import { getRequestIdentity } from '@/lib/internal/request-auth';
-import type { OpencodeReply } from '@/lib/opencode/gameplay';
-import { sendGameplayMessage } from '@/lib/opencode/gameplay';
-
-const TURN_COST = 5;
 
 type GameMessagesRouteProps = {
   params: Promise<{ id: string }>;
@@ -16,8 +11,8 @@ type SendMessageRequest = {
   content?: string;
 };
 
-export async function GET(request: Request, { params }: GameMessagesRouteProps) {
-  const identity = await getRequestIdentity(request);
+export async function GET(_request: Request, { params }: GameMessagesRouteProps) {
+  const identity = await getRequestIdentity();
   if (identity instanceof NextResponse) {
     return identity;
   }
@@ -30,8 +25,21 @@ export async function GET(request: Request, { params }: GameMessagesRouteProps) 
   return NextResponse.json({ messages });
 }
 
+function resolveRuntimeErrorStatus(message: string): number {
+  if (message === '余额不足') {
+    return 402;
+  }
+  if (message === '游戏不存在') {
+    return 404;
+  }
+  if (message === 'LLM 上游未配置' || message === '模型未开放' || message === '缺少模型标识') {
+    return 503;
+  }
+  return 502;
+}
+
 export async function POST(request: Request, { params }: GameMessagesRouteProps) {
-  const identity = await getRequestIdentity(request);
+  const identity = await getRequestIdentity();
   if (identity instanceof NextResponse) {
     return identity;
   }
@@ -48,63 +56,11 @@ export async function POST(request: Request, { params }: GameMessagesRouteProps)
     return NextResponse.json({ error: '消息不能为空' }, { status: 400 });
   }
 
-  if (typeof identity.balance === 'number' && identity.balance < TURN_COST) {
-    return NextResponse.json({ error: '余额不足' }, { status: 402 });
-  }
-
-  const { id } = await params;
-  const game = await getGameByIdForUser(id, identity.userId);
-  if (!game) {
-    return NextResponse.json({ error: '游戏不存在' }, { status: 404 });
-  }
-  if (isPlayManagedGame(game)) {
-    return NextResponse.json({ error: '当前游戏由 play 运行时托管，请前往游戏域继续' }, { status: 409 });
-  }
-
-  let systemPrompt: string;
   try {
-    systemPrompt = getDmSystemPrompt();
+    const { id } = await params;
+    return NextResponse.json(await sendGameMessage(id, content, identity));
   } catch (error) {
-    console.error('[api/games/messages] 读取系统提示词失败', error);
-    return NextResponse.json({ error: '发送失败' }, { status: 500 });
-  }
-
-  let reply: OpencodeReply;
-  try {
-    reply = await sendGameplayMessage({
-      game,
-      content,
-      systemPrompt,
-    });
-  } catch (error) {
-    console.error('[api/games/messages] opencode 返回失败', error);
-    return NextResponse.json({ error: '游戏服务暂不可用，请稍后重试' }, { status: 502 });
-  }
-
-  try {
-    const turn = await recordGameTurn({
-      userId: identity.userId,
-      gameId: game.id,
-      userContent: content,
-      assistantContent: reply.content,
-      assistantMeta: buildAssistantMeta(reply.assistantMessage, {
-        sessionId: reply.sessionId,
-        partCount: reply.parts.length,
-      }),
-      chargeAmount: TURN_COST,
-      reason: `游戏回合扣费：${game.id}`,
-    });
-
-    return NextResponse.json({
-      userMessage: turn.userMessage,
-      assistantMessage: turn.assistantMessage,
-      balance: turn.wallet.balance,
-    });
-  } catch (error) {
-    console.error('[api/games/messages] 保存回合失败', error);
-    if (error instanceof Error && error.message === '余额不足') {
-      return NextResponse.json({ error: '余额不足' }, { status: 402 });
-    }
-    return NextResponse.json({ error: '保存回合失败' }, { status: 500 });
+    const message = error instanceof Error ? error.message : '发送失败';
+    return NextResponse.json({ error: message }, { status: resolveRuntimeErrorStatus(message) });
   }
 }

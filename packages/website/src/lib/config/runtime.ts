@@ -1,15 +1,17 @@
-export type GameCreationMode = 'opencode' | 'play';
+export type GameRuntimeMode = 'stub' | 'opencode';
 
 const DEFAULT_APP_BASE_URL = 'http://127.0.0.1:3090';
+const DEFAULT_GAME_LLM_MODEL = 'gpt-4.1-mini';
 
 export type RuntimeConfig = {
   appBaseUrl: string;
-  playBaseUrl: string | null;
   assetBaseUrl: string | null;
-  llmProxyUrl: string;
-  gameCreationMode: GameCreationMode;
   authCookieDomain: string | null;
   trustedOrigins: string[];
+  gameRuntimeMode: GameRuntimeMode;
+  gameLlmModel: string;
+  llmUpstreamBaseUrl: string | null;
+  llmAllowedModels: string[];
 };
 
 function trimTrailingSlash(value: string): string {
@@ -48,43 +50,37 @@ function collectTrustedOrigins(origins: ReadonlyArray<string | null>): string[] 
   return [...new Set(origins.filter((value): value is string => Boolean(value)))];
 }
 
-function resolveGameCreationMode(): GameCreationMode {
-  const mode = process.env.NEXT_PUBLIC_GAME_CREATION_MODE?.trim();
-  return mode === 'play' ? 'play' : 'opencode';
+function parseAllowedModels(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .split(/[\s,]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function resolveGameRuntimeMode(): GameRuntimeMode {
+  return process.env.GAME_RUNTIME?.trim() === 'opencode' ? 'opencode' : 'stub';
 }
 
 export function getRuntimeConfig(): RuntimeConfig {
   const appBaseUrl = resolveAppBaseUrl();
-  const playBaseUrl = resolveOptionalUrl(process.env.NEXT_PUBLIC_PLAY_BASE_URL);
   const assetBaseUrl = resolveOptionalUrl(process.env.NEXT_PUBLIC_ASSET_BASE_URL);
   return {
     appBaseUrl,
-    playBaseUrl,
     assetBaseUrl,
-    llmProxyUrl: new URL('/api/llmproxy', `${appBaseUrl}/`).toString(),
-    gameCreationMode: resolveGameCreationMode(),
     authCookieDomain: process.env.NEXT_PUBLIC_AUTH_COOKIE_DOMAIN?.trim() || null,
-    trustedOrigins: collectTrustedOrigins([
-      normalizeOrigin(appBaseUrl),
-      playBaseUrl ? normalizeOrigin(playBaseUrl) : null,
-    ]),
+    trustedOrigins: collectTrustedOrigins([normalizeOrigin(appBaseUrl)]),
+    gameRuntimeMode: resolveGameRuntimeMode(),
+    gameLlmModel: process.env.GAME_LLM_MODEL?.trim() || DEFAULT_GAME_LLM_MODEL,
+    llmUpstreamBaseUrl: resolveOptionalUrl(process.env.NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL),
+    llmAllowedModels: parseAllowedModels(process.env.NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS),
   };
 }
 
-export function buildPlayGameUrl(gameId: string): string {
-  const { playBaseUrl } = getRuntimeConfig();
-  if (!playBaseUrl) {
-    return `/games/${gameId}`;
-  }
-  return new URL(`/${gameId}`, `${playBaseUrl}/`).toString();
-}
-
-export function buildWebsiteGameUrl(gameId: string): string {
-  return `/games/${gameId}`;
-}
-
 export function buildGameHref(gameId: string): string {
-  return buildPlayGameUrl(gameId);
+  return `/games/${gameId}`;
 }
 
 export function buildAssetUrl(path: string): string {

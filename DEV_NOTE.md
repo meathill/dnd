@@ -159,51 +159,18 @@ client 在能力未稳定前，不应承担产品定义责任。
 
 ### 决策
 
-- `packages/website` 作为控制面，负责登录、模组、账单、建局和 `api/llmproxy`
-- `packages/play` 作为独立运行时，负责真实游戏聊天与回合推进
+- `packages/website` 统一承载控制面与游戏运行时
+- `packages/play` 已移除，不再维护独立部署与跨服务调用链路
 - 本地和线上都保留 `workspace/{user_id}/{game_id}` 作为服务端目录约定，但公开链接只暴露 `game_id`
 
 ### 关键实现约束
 
-- `website` 与 `play` 之间优先通过内部 token 通信，而不是直接共享服务端状态
-- `play` 的 `stub` 和 `opencode` runtime 最终都必须通过 website internal turn 接口统一落库和扣费
+- 游戏页直接挂在 `website /games/[id]`
+- `GAME_RUNTIME=stub|opencode` 作为唯一运行时开关
+- 模型请求和回合落库在同一个 app 内直接调用库函数，不再通过 HTTP 自调用
 - `website` 侧将“写 user/assistant 消息 + 扣费 + 账本”收敛成原子回合写入，避免产生半条消息或脏账本
-
-### 建局模式
-
-- `NEXT_PUBLIC_GAME_CREATION_MODE=opencode`：保留旧模式，建局时创建 opencode session
-- `NEXT_PUBLIC_GAME_CREATION_MODE=play`：建局时不依赖 opencode bootstrap，直接交给 `play` 域运行
-
-新增 `NEXT_PUBLIC_GAME_CREATION_MODE=play` 的原因不是为了兼容两套长期并存的产品形态，而是为了让“完整建局 -> 进入 play -> 发消息 -> 持久化/扣费”主链路可以在没有 opencode bootstrap 的情况下独立验证，并与未来以 `play` 为主运行时的正式架构保持一致
 
 ## OpenNext Cloudflare 收尾注意事项
 
 - `packages/website/wrangler.jsonc` 变更后，必须重新执行 `pnpm --dir packages/website exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts`
-- `packages/play/wrangler.jsonc` 变更后，必须重新执行 `pnpm --dir packages/play exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.generated.d.ts`
-- `packages/play/cloudflare-env.d.ts` 只负责补充 `wrangler types` 不会自动产出的 secret / 可选环境变量声明，例如 `INTERNAL_SERVICE_TOKEN` 与 `DM_SYSTEM_PROMPT`
 - `@vitejs/plugin-react` 目前固定在 `^5.1.2`；升级到 `6.x` 会在 Vitest 启动时报 `ERR_PACKAGE_PATH_NOT_EXPORTED`，触发点是插件内部对 `vite/internal` 的导入
-
-## opencode server 自托管与 Cloudflare Access
-
-### 决策
-
-- opencode server 跑在 GCP VM `34.177.119.169`，对外通过 Cloudflare Tunnel 暴露成 `https://opencode.muirpg.meathill.com`
-- 服务对服务认证（Cloudflare Workers Website → opencode）走 Cloudflare Access Service Token，不再用 Basic Auth
-- opencode 进程只监听 `127.0.0.1:4096`，VM 不开公网入站端口
-
-### 理由
-
-- Workers + Tunnel + Access 同属一个 Cloudflare 账号，身份体系不分裂
-- 边缘做 TLS 与 auth，VM 不需要 caddy/nginx/Let's Encrypt 续期
-- Service Token 在 Zero Trust Dashboard 一键签发/吊销，比维护 Basic Auth 用户名密码省心
-
-### 代码影响
-
-- [packages/website/src/lib/opencode/client.ts](packages/website/src/lib/opencode/client.ts) 不再读 `OPENCODE_SERVER_USERNAME` / `OPENCODE_SERVER_PASSWORD`，改读 `OPENCODE_ACCESS_CLIENT_ID` / `OPENCODE_ACCESS_CLIENT_SECRET`，发送 `CF-Access-Client-Id` / `CF-Access-Client-Secret`
-- 本地开发默认指向 `http://127.0.0.1:4096` 不发任何 auth header，与本机直连兼容
-
-### 排错入口
-
-- 全部 403 → CF Access policy 没绑到 Service Token
-- 全部 530/521 → cloudflared 没起来或 ingress 配错；`sudo systemctl status cloudflared`
-- 200 但 opencode 报错 → 检查 `~/.config/opencode/auth.json` LLM provider key

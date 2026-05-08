@@ -1,27 +1,25 @@
 肉团长
 ===
 
-肉团长是一个基于AI的跑团工具。让玩家可以在一个近乎无比自由的环境当中去进行跑团的游戏。
-我想要充分利用AI无限拓展的可能，将DND或者是COC的跑团融入其中。
+肉团长是一个基于 AI 的跑团工具。让玩家可以在一个近乎无比自由的环境当中去进行跑团的游戏。
+我想要充分利用 AI 无限拓展的可能，将 DND 或者 COC 的跑团融入其中。
 我们不能让像一般的酒馆那样，让用户拥有几乎无限的权利。我认为那样的话，对游戏体验是一种伤害。
-但是我也不想像标准的CRPG那样，用户只能在一个相当有限的框架内游戏。
+但是我也不想像标准的 CRPG 那样，用户只能在一个相当有限的框架内游戏。
 所以我希望做一个新的产品出来。
 
 
 项目结构
 ---
 
-- packages/website 主站控制面（登录、模组、计费、建局、llmproxy）
-- packages/play 独立游戏运行时（play.muirpg.meathill.com）
-- packages/core 共享库
-- packages/mobile 移动应用
+- `packages/website` 主站与游戏运行时（登录、模组、计费、建局、游戏页）
+- `packages/core` 共享库
+- `packages/mobile` 移动应用
 
 
 当前运行架构
 ---
 
-- `muirpg.meathill.com` 承载 `packages/website`，负责登录、模组、账单、建局和 `api/llmproxy`
-- `play.muirpg.meathill.com` 承载 `packages/play`，负责真实游戏运行时与聊天交互
+- `muirpg.meathill.com` 承载 `packages/website`，负责登录、模组、账单、建局和真实游戏运行时
 - `i.muirpg.meathill.com` 预留给图片、音频、视频等生成资产
 - 服务端工作区目录保持为 `workspace/{user_id}/{game_id}`，但公开链接只暴露 `game_id`
 
@@ -31,37 +29,29 @@
 
 当前推荐的本地完整链路如下：
 
-- website 使用 `NEXT_PUBLIC_GAME_CREATION_MODE=play`
-- play 使用 `NEXT_PUBLIC_PLAY_RUNTIME=opencode` 或 `NEXT_PUBLIC_PLAY_RUNTIME=stub`
-- 两边使用同一个 `INTERNAL_SERVICE_TOKEN`
+- `GAME_RUNTIME=opencode` 或 `GAME_RUNTIME=stub`
+- 使用同一个 `packages/website`
+- 游戏入口统一为 `/games/{gameId}`
 
 最小必需环境变量：
 
 website:
 `BETTER_AUTH_SECRET`
 `NEXT_PUBLIC_APP_BASE_URL`
-`NEXT_PUBLIC_PLAY_BASE_URL`
 `DATABASE_URL`
-`INTERNAL_SERVICE_TOKEN`
-`NEXT_PUBLIC_GAME_CREATION_MODE=play`
+`GAME_RUNTIME`
+`GAME_LLM_MODEL`
+`OPENCODE_WORKSPACE_ROOT`
 
-如果要测试 `NEXT_PUBLIC_PLAY_RUNTIME=opencode`，website 还需要：
+如果要测试 `GAME_RUNTIME=opencode`，还需要：
 
 `NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL`
 `LLM_PROXY_UPSTREAM_API_KEY`
 `NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS`
 
-play:
-`NEXT_PUBLIC_PLAY_BASE_URL`
-`NEXT_PUBLIC_WEBSITE_BASE_URL`
-`INTERNAL_SERVICE_TOKEN`
-`NEXT_PUBLIC_PLAY_RUNTIME`
-`NEXT_PUBLIC_PLAY_LLM_MODEL`
-
 更细的说明见：
 
 - `packages/website/README.md`
-- `packages/play/README.md`
 
 
 技术栈
@@ -80,7 +70,6 @@ play:
 ---
 
 - `packages/website` 已补齐 OpenNext Cloudflare Workers 入口，并在 Workers 下使用 D1
-- `packages/play` 已补齐 OpenNext Cloudflare Workers 入口
 - 本地 Node.js 开发 / 测试仍支持 SQLite 文件
 
 完整部署说明见 `DEPLOYMENT.md`。
@@ -126,11 +115,11 @@ play:
 
 整个游戏仍然像一般的跑团那样。
 
-- DM也就是肉团长负责描述环境，然后接手用户的输入。
+- DM 也就是肉团长负责描述环境，然后接手用户的输入。
 - 用户创建角色卡上面会记录角色的各种属性、装备技能等等。
 - 通过创建游戏模组来控制游戏的环境和规则。
 - 玩家在文本框输入他想采用的行为和要说的话。
-- AI需要判断哪些是用户说的话，哪些是用户要采取的行为，哪些是用户希望对周边世界世家的影响。然后根据规则来分别应对这些东西。既要让玩家能够更自由的与这个世界互动，也不能让玩家自意的改变这个世界。
+- AI 需要判断哪些是用户说的话，哪些是用户要采取的行为，哪些是用户希望对周边世界世家的影响。然后根据规则来分别应对这些东西。既要让玩家能够更自由的与这个世界互动，也不能让玩家自意的改变这个世界。
 
 
 开发计划

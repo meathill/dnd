@@ -7,11 +7,9 @@ export default async function HomePage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.22em] text-zinc-500">Website 2</p>
+        <p className="text-sm uppercase tracking-[0.22em] text-zinc-500">肉团长</p>
         <h1 className="text-4xl font-semibold text-zinc-950">选择一个模组，进入你的游戏</h1>
-        <p className="max-w-2xl text-zinc-600">
-          登录后可查看模组列表，选择人物卡，然后交由 opencode 与现成 skills 主持游戏。
-        </p>
+        <p className="max-w-2xl text-zinc-600">登录后可查看模组列表，选择人物卡，并直接在主站内进入统一游戏运行页。</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {modules.map((moduleRecord) => (

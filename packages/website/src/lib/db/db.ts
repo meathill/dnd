@@ -12,6 +12,7 @@ type DatabaseInstance = {
 
 let databaseSingleton: DatabaseInstance | null = null;
 let databaseSingletonKey = '';
+const initializedSqliteDatabases = new Set<string>();
 
 async function resolveDefaultDatabasePath(): Promise<string> {
   const { resolve } = await import('node:path');
@@ -91,6 +92,13 @@ async function createDatabase(): Promise<DatabaseInstance> {
   const resolvedFilePath = await filePath;
   await mkdir(dirname(resolvedFilePath), { recursive: true });
   const sqlite = await createNodeSqliteExecutor(resolvedFilePath);
+  if (!initializedSqliteDatabases.has(resolvedFilePath)) {
+    const { readFile } = await import('node:fs/promises');
+    const { resolve } = await import('node:path');
+    const migrationSql = await readFile(resolve(process.cwd(), 'migrations', '0001_init.sql'), 'utf8');
+    await sqlite.exec(migrationSql);
+    initializedSqliteDatabases.add(resolvedFilePath);
+  }
   return { sqlite, kind: 'sqlite' };
 }
 

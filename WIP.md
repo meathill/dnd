@@ -69,8 +69,8 @@
 ### Phase 8: 最小验证入口
 - [x] 提供最小 runner / 脚本入口验证 skills
 - [x] 补针对性测试
-- [ ] 跑格式化
-- [ ] 跑构建与相关测试
+- [x] 跑格式化
+- [x] 跑构建与相关测试
 
 ### Phase 9: Website / Play 架构收敛
 - [x] website 增加 play 域名与资产域名配置边界
@@ -92,6 +92,13 @@
 - [x] 补齐 `wrangler` / OpenNext Cloudflare 配置
 - [x] 补充并更新 Cloudflare 部署与验证文档
 - [x] 回归验证 `lint` / `format:check` / `typecheck` / `test` / `build`
+
+### Phase 11: Website / Play 彻底合并
+- [x] 将 `packages/play` 的游戏页与 runtime 逻辑并入 `packages/website`
+- [x] 将 `/games/[id]` 改成主站内直接运行，不再跨域跳转
+- [x] 移除 website 建局时的 opencode session bootstrap 主链路
+- [x] 清理 `play` package、跨服务自调用代码与相关文档
+- [x] 回归验证 `format` / `typecheck` / `test` / `build`
 
 ## 当前新增能力
 

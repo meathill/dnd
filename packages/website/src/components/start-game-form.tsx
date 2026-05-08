@@ -26,15 +26,11 @@ export function StartGameForm({ moduleId, characters }: StartGameFormProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ moduleId, characterId }),
       });
-      const payload = (await response.json()) as { game?: { id: string }; playUrl?: string; error?: string };
+      const payload = (await response.json()) as { game?: { id: string }; gameUrl?: string; error?: string };
       if (!response.ok || !payload.game) {
         throw new Error(payload.error || '创建游戏失败');
       }
-      const destination = payload.playUrl?.trim() || `/games/${payload.game.id}`;
-      if (/^https?:\/\//.test(destination)) {
-        window.location.assign(destination);
-        return;
-      }
+      const destination = payload.gameUrl?.trim() || `/games/${payload.game.id}`;
       router.push(destination);
       router.refresh();
     } catch (error) {

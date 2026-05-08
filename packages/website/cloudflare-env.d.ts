@@ -9,10 +9,10 @@ declare namespace Cloudflare {
 		IMAGES: ImagesBinding;
 		ASSETS: Fetcher;
 		NEXT_PUBLIC_APP_BASE_URL: "https://muirpg.meathill.com";
-		NEXT_PUBLIC_PLAY_BASE_URL: "https://play.muirpg.meathill.com";
 		NEXT_PUBLIC_ASSET_BASE_URL: "https://i.muirpg.meathill.com";
 		NEXT_PUBLIC_AUTH_COOKIE_DOMAIN: ".muirpg.meathill.com";
-		NEXT_PUBLIC_GAME_CREATION_MODE: "play";
+		GAME_RUNTIME: "opencode";
+		GAME_LLM_MODEL: "mimo-v2.5-pro";
 		NEXTJS_ENV: string;
 		OPENAI_API_KEY: string;
 		GEMINI_API_KEY: string;
@@ -27,7 +27,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NEXT_PUBLIC_APP_BASE_URL" | "NEXT_PUBLIC_PLAY_BASE_URL" | "NEXT_PUBLIC_ASSET_BASE_URL" | "NEXT_PUBLIC_AUTH_COOKIE_DOMAIN" | "NEXT_PUBLIC_GAME_CREATION_MODE" | "NEXTJS_ENV" | "OPENAI_API_KEY" | "GEMINI_API_KEY" | "ROOT_USER_EMAIL" | "BETTER_AUTH_SECRET" | "OPENAI_IMAGE_MODEL">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NEXT_PUBLIC_APP_BASE_URL" | "NEXT_PUBLIC_ASSET_BASE_URL" | "NEXT_PUBLIC_AUTH_COOKIE_DOMAIN" | "GAME_RUNTIME" | "GAME_LLM_MODEL" | "NEXTJS_ENV" | "OPENAI_API_KEY" | "GEMINI_API_KEY" | "ROOT_USER_EMAIL" | "BETTER_AUTH_SECRET" | "OPENAI_IMAGE_MODEL">> {}
 }
 
 // Begin runtime types

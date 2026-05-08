@@ -1,12 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getRequestSession } from '@/lib/auth/session';
-import { buildPlayGameUrl, getRuntimeConfig } from '@/lib/config/runtime';
+import { buildGameHref } from '@/lib/config/runtime';
 import { createGame, getCharacterById, getModuleById } from '@/lib/db/repositories';
-import { getDmSystemPrompt } from '@/lib/game/dm-system-prompt';
-import { PLAY_MANAGED_SESSION_ID } from '@/lib/game/runtime';
+import { LOCAL_RUNTIME_SESSION_ID } from '@/lib/game/runtime';
 import type { CharacterRecord, ModuleRecord } from '@/lib/game/types';
-import { createGameplaySession } from '@/lib/opencode/gameplay';
 import { ensureWorkspace } from '@/lib/opencode/workspace';
 
 type CreateGameRequest = {
@@ -18,10 +16,6 @@ export async function POST(request: Request) {
   const session = await getRequestSession();
   if (!session) {
     return NextResponse.json({ error: '未登录' }, { status: 401 });
-  }
-  const runtime = getRuntimeConfig();
-  if (runtime.gameCreationMode === 'play' && !runtime.playBaseUrl) {
-    return NextResponse.json({ error: 'play 服务入口未配置' }, { status: 503 });
   }
 
   let body: CreateGameRequest;
@@ -39,13 +33,8 @@ export async function POST(request: Request) {
 
   let moduleRecord: ModuleRecord | null;
   let characterRecord: CharacterRecord | null;
-  let systemPrompt: string | null;
   try {
-    [moduleRecord, characterRecord, systemPrompt] = await Promise.all([
-      getModuleById(moduleId),
-      getCharacterById(characterId),
-      runtime.gameCreationMode === 'opencode' ? Promise.resolve(getDmSystemPrompt()) : Promise.resolve(null),
-    ]);
+    [moduleRecord, characterRecord] = await Promise.all([getModuleById(moduleId), getCharacterById(characterId)]);
   } catch (error) {
     console.error('[api/games] 加载游戏资源失败', error);
     return NextResponse.json({ error: '创建游戏失败' }, { status: 500 });
@@ -68,34 +57,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '创建游戏失败' }, { status: 500 });
   }
 
-  let opencodeSessionId = PLAY_MANAGED_SESSION_ID;
-  if (runtime.gameCreationMode === 'opencode') {
-    try {
-      const opencodeSession = await createGameplaySession({
-        title: `${moduleRecord.title} · ${characterRecord.name}`,
-        workspacePath,
-        moduleRecord,
-        characterRecord,
-        systemPrompt: systemPrompt ?? '',
-      });
-      opencodeSessionId = opencodeSession.id;
-    } catch (error) {
-      console.error('[api/games] 创建 opencode session 失败', error);
-      return NextResponse.json({ error: '游戏服务暂不可用，请稍后重试' }, { status: 502 });
-    }
-  }
-
   try {
     const game = await createGame({
       id: gameId,
       userId: session.userId,
       moduleId: moduleRecord.id,
       characterId: characterRecord.id,
-      opencodeSessionId,
+      opencodeSessionId: LOCAL_RUNTIME_SESSION_ID,
       workspacePath,
     });
 
-    return NextResponse.json({ game, playUrl: buildPlayGameUrl(game.id) }, { status: 201 });
+    return NextResponse.json({ game, gameUrl: buildGameHref(game.id) }, { status: 201 });
   } catch (error) {
     console.error('[api/games] 写入游戏记录失败', error);
     return NextResponse.json({ error: '创建游戏失败' }, { status: 500 });

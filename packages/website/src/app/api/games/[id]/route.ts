@@ -1,32 +1,22 @@
 import { NextResponse } from 'next/server';
-import { buildPlayGameUrl } from '@/lib/config/runtime';
-import { getCharacterById, getGameByIdForUser, getModuleById, listMessagesByGameId } from '@/lib/db/repositories';
+import { getGameContext } from '@/lib/game/runtime';
 import { getRequestIdentity } from '@/lib/internal/request-auth';
 
 type GameRouteProps = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(request: Request, { params }: GameRouteProps) {
-  const identity = await getRequestIdentity(request);
+export async function GET(_: Request, { params }: GameRouteProps) {
+  const identity = await getRequestIdentity();
   if (identity instanceof NextResponse) {
     return identity;
   }
-  const { id } = await params;
-  const game = await getGameByIdForUser(id, identity.userId);
-  if (!game) {
-    return NextResponse.json({ error: '游戏不存在' }, { status: 404 });
+  try {
+    const { id } = await params;
+    return NextResponse.json(await getGameContext(id, identity.userId));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '读取游戏失败';
+    const status = message === '游戏不存在' ? 404 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
-  const [moduleRecord, characterRecord, messages] = await Promise.all([
-    getModuleById(game.moduleId),
-    getCharacterById(game.characterId),
-    listMessagesByGameId(game.id),
-  ]);
-  return NextResponse.json({
-    game,
-    playUrl: buildPlayGameUrl(game.id),
-    module: moduleRecord,
-    character: characterRecord,
-    messages,
-  });
 }

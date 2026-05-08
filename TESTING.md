@@ -3,8 +3,8 @@
 当前仓库的验证目标不是单一前端页面，而是：
 
 1. `website` 控制面
-2. `play` 运行时
-3. `llmproxy` 与 internal turn 的服务间链路
+2. 主站内统一游戏运行时
+3. 模型调用与回合持久化链路
 
 ## 安装依赖
 
@@ -35,11 +35,10 @@ pnpm format
 pnpm typecheck
 ```
 
-也可以分别执行：
+也可以单独执行：
 
 ```bash
 pnpm --dir packages/website typecheck
-pnpm --dir packages/play typecheck
 ```
 
 ## 单元测试
@@ -48,11 +47,10 @@ pnpm --dir packages/play typecheck
 pnpm test
 ```
 
-也可以分别执行：
+也可以单独执行：
 
 ```bash
 pnpm --dir packages/website test
-pnpm --dir packages/play test
 ```
 
 ## 构建验证
@@ -61,11 +59,10 @@ pnpm --dir packages/play test
 pnpm build
 ```
 
-也可以分别执行：
+也可以单独执行：
 
 ```bash
 pnpm --dir packages/website build
-pnpm --dir packages/play build
 ```
 
 ## 推荐完整回归命令
@@ -83,51 +80,38 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
 当前已覆盖的关键点：
 
 - 建局接口
-- `NEXT_PUBLIC_GAME_CREATION_MODE=play` 行为
-- 旧消息接口错误分支
-- `api/llmproxy` 内部鉴权与 allowlist
-- internal turn 回写
-- 仓储层原子回合写入
-
-### play
-
-当前已覆盖的关键点：
-
-- session 读取
+- 统一游戏消息接口
+- `GAME_RUNTIME=stub` / `GAME_RUNTIME=opencode` 分支
 - 游戏上下文读取
-- `stub` / `website` / `opencode` runtime 分支
-- 通过 cookie 或内部 token 访问 website
-- 发消息 API 的错误映射
+- 上游模型调用 helper
+- 仓储层原子回合写入
 
 ## 端到端 smoke
 
 当前仓库没有正式纳入 CI 的 e2e 测试框架，但已经验证过一条真实 smoke：
 
-`注册登录 -> website 建局 -> play 发消息 -> website 落库扣费`
+`注册登录 -> website 建局 -> 进入 /games/[id] -> 发消息 -> 落库扣费`
 
 建议部署测试时按两阶段执行：
 
 ### 阶段 1：最小联调
 
-- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=play`
-- `play`: `NEXT_PUBLIC_PLAY_RUNTIME=stub`
+- `website`: `GAME_RUNTIME=stub`
 
 验证：
 
 - 登录
 - 建局
-- 跳转到 play
+- 进入 `/games/{id}`
 - 发消息后余额减少
-- website 可以看到消息记录
+- 刷新后仍能看到消息记录
 
 ### 阶段 2：完整模型联调
 
-- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=play`
-- `play`: `NEXT_PUBLIC_PLAY_RUNTIME=opencode`
+- `website`: `GAME_RUNTIME=opencode`
 
 额外验证：
 
-- `website /api/llmproxy` 能成功调用上游模型
 - assistant message meta 中带有 `providerId` / `modelId` / `tokens`
 
 ## 测试约定
@@ -149,12 +133,11 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
 
 ```bash
 pnpm --dir packages/website exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts
-pnpm --dir packages/play exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.generated.d.ts
 ```
 
 部署到 Cloudflare Workers 后，至少补做一轮 smoke：
 
 - `muirpg.meathill.com` 能登录并建局
-- `play.muirpg.meathill.com/{gameId}` 能正常进入游戏
+- `muirpg.meathill.com/games/{gameId}` 能正常进入游戏
 - `i.muirpg.meathill.com` 能作为静态资产域被引用
-- `play -> website /api/internal/games/[id]/turn` 能正常落库到 D1 并扣费
+- 游戏消息提交后能正常落库到 D1 并扣费

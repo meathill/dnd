@@ -1,37 +1,31 @@
+import { NextResponse } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockGetPlaySession, mockGetPlayGameContext } = vi.hoisted(() => ({
-  mockGetPlaySession: vi.fn(),
-  mockGetPlayGameContext: vi.fn(),
+const { mockGetRequestIdentity, mockGetGameContext } = vi.hoisted(() => ({
+  mockGetRequestIdentity: vi.fn(),
+  mockGetGameContext: vi.fn(),
 }));
 
-vi.mock('next/headers', () => ({
-  headers: vi.fn().mockResolvedValue({
-    get: vi.fn().mockReturnValue('cookie=value'),
-  }),
+vi.mock('@/lib/internal/request-auth', () => ({
+  getRequestIdentity: mockGetRequestIdentity,
 }));
 
-vi.mock('@/lib/play/session', () => ({
-  getPlaySession: mockGetPlaySession,
-}));
-
-vi.mock('@/lib/play/runtime', () => ({
-  getPlayGameContext: mockGetPlayGameContext,
+vi.mock('@/lib/game/runtime', () => ({
+  getGameContext: mockGetGameContext,
 }));
 
 import { GET } from './route';
 
-describe('play api/games/[id]', () => {
+describe('GET /api/games/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetPlaySession.mockResolvedValue({
+    mockGetRequestIdentity.mockResolvedValue({
       userId: 'user-1',
-      displayName: 'Smoke',
-      email: 'smoke@example.com',
       balance: 100,
     });
-    mockGetPlayGameContext.mockResolvedValue({
+    mockGetGameContext.mockResolvedValue({
       game: { id: 'game-1' },
+      gameUrl: '/games/game-1',
       module: { title: '破门驱邪' },
       character: { name: '林雾' },
       messages: [],
@@ -46,15 +40,12 @@ describe('play api/games/[id]', () => {
 
     expect(response.status).toBe(200);
     expect(payload.game.id).toBe('game-1');
-    expect(mockGetPlayGameContext).toHaveBeenCalledWith(
-      'game-1',
-      expect.objectContaining({ userId: 'user-1' }),
-      'cookie=value',
-    );
+    expect(mockGetGameContext).toHaveBeenCalledWith('game-1', 'user-1');
   });
 
   it('returns 401 when session is missing', async () => {
-    mockGetPlaySession.mockResolvedValue(null);
+    const unauthorized = NextResponse.json({ error: '未登录' }, { status: 401 });
+    mockGetRequestIdentity.mockResolvedValue(unauthorized);
 
     const response = await GET(new Request('http://localhost/api/games/game-1'), {
       params: Promise.resolve({ id: 'game-1' }),
@@ -66,7 +57,7 @@ describe('play api/games/[id]', () => {
   });
 
   it('maps missing game to 404', async () => {
-    mockGetPlayGameContext.mockRejectedValue(new Error('游戏不存在'));
+    mockGetGameContext.mockRejectedValue(new Error('游戏不存在'));
 
     const response = await GET(new Request('http://localhost/api/games/game-1'), {
       params: Promise.resolve({ id: 'game-1' }),

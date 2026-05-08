@@ -60,3 +60,19 @@ export type SessionInfo = {
   email: string;
   balance: number;
 };
+
+export type GameRuntimeSession = Pick<SessionInfo, 'userId' | 'balance'>;
+
+export type GameContext = {
+  game: GameRecord;
+  gameUrl: string;
+  module: ModuleRecord | null;
+  character: CharacterRecord | null;
+  messages: GameMessageRecord[];
+};
+
+export type GameTurnReply = {
+  userMessage: GameMessageRecord;
+  assistantMessage: GameMessageRecord;
+  balance: number;
+};

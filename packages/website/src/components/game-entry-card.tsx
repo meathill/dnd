@@ -11,7 +11,6 @@ type GameEntryCardProps = {
 
 export function GameEntryCard({ game, moduleRecord, characterRecord }: GameEntryCardProps) {
   const gameHref = buildGameHref(game.id);
-  const isExternal = /^https?:\/\//.test(gameHref);
 
   return (
     <Card className="space-y-6">
@@ -26,17 +25,15 @@ export function GameEntryCard({ game, moduleRecord, characterRecord }: GameEntry
         <p className="text-sm leading-7 text-zinc-700">{characterRecord.summary}</p>
       </div>
       <div className="space-y-3 rounded-xl bg-zinc-950 p-4 text-sm leading-7 text-white">
-        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">游戏入口</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">游戏地址</p>
         <p className="break-all text-zinc-200">{gameHref}</p>
-        <p className="text-zinc-300">主站负责账号、模组、计费与建局，真正的游戏运行时会落在 play 域名。</p>
+        <p className="text-zinc-300">当前游戏运行页已经并入主站，建局后会直接进入该页面。</p>
       </div>
       <Link
         className="inline-flex items-center justify-center rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
         href={gameHref}
-        rel={isExternal ? 'noreferrer' : undefined}
-        target={isExternal ? '_blank' : undefined}
       >
-        进入游戏域
+        进入游戏
       </Link>
     </Card>
   );

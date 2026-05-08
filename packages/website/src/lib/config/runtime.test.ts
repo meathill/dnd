@@ -1,24 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildAssetUrl, buildGameHref, buildPlayGameUrl, buildWebsiteGameUrl, getRuntimeConfig } from './runtime';
+import { buildAssetUrl, buildGameHref, getRuntimeConfig } from './runtime';
 
 afterEach(() => {
-  Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_PLAY_BASE_URL');
   Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_ASSET_BASE_URL');
-  Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_GAME_CREATION_MODE');
+  Reflect.deleteProperty(process.env, 'GAME_RUNTIME');
+  Reflect.deleteProperty(process.env, 'GAME_LLM_MODEL');
+  Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL');
+  Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS');
 });
 
 describe('runtime url helpers', () => {
-  it('returns website game url when play domain is unset', () => {
-    expect(buildPlayGameUrl('game-1')).toBe('/games/game-1');
+  it('returns local game href', () => {
     expect(buildGameHref('game-1')).toBe('/games/game-1');
-    expect(buildWebsiteGameUrl('game-1')).toBe('/games/game-1');
-  });
-
-  it('returns play domain game url when configured', () => {
-    process.env.NEXT_PUBLIC_PLAY_BASE_URL = 'https://play.muirpg.meathill.com';
-
-    expect(buildPlayGameUrl('game-1')).toBe('https://play.muirpg.meathill.com/game-1');
-    expect(buildGameHref('game-1')).toBe('https://play.muirpg.meathill.com/game-1');
   });
 
   it('returns asset url on asset domain when configured', () => {
@@ -27,13 +20,26 @@ describe('runtime url helpers', () => {
     expect(buildAssetUrl('images/cover.png')).toBe('https://i.muirpg.meathill.com/images/cover.png');
   });
 
-  it('uses opencode game creation mode by default', () => {
-    expect(getRuntimeConfig().gameCreationMode).toBe('opencode');
+  it('uses stub game runtime by default', () => {
+    const runtime = getRuntimeConfig();
+
+    expect(runtime.gameRuntimeMode).toBe('stub');
+    expect(runtime.gameLlmModel).toBe('gpt-4.1-mini');
+    expect(runtime.llmUpstreamBaseUrl).toBeNull();
+    expect(runtime.llmAllowedModels).toEqual([]);
   });
 
-  it('supports play-managed game creation mode', () => {
-    process.env.NEXT_PUBLIC_GAME_CREATION_MODE = 'play';
+  it('supports opencode game runtime configuration', () => {
+    process.env.GAME_RUNTIME = 'opencode';
+    process.env.GAME_LLM_MODEL = 'mimo-v2.5-pro';
+    process.env.NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL = 'https://api.example.com';
+    process.env.NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS = 'mimo-v2.5-pro gpt-4o-mini';
 
-    expect(getRuntimeConfig().gameCreationMode).toBe('play');
+    expect(getRuntimeConfig()).toMatchObject({
+      gameRuntimeMode: 'opencode',
+      gameLlmModel: 'mimo-v2.5-pro',
+      llmUpstreamBaseUrl: 'https://api.example.com',
+      llmAllowedModels: ['mimo-v2.5-pro', 'gpt-4o-mini'],
+    });
   });
 });

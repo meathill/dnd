@@ -5,19 +5,19 @@
 当前推荐部署方式：
 
 1. `packages/website` 通过 OpenNext 部署到 Cloudflare Workers
-2. `packages/play` 通过 OpenNext 部署到 Cloudflare Workers
-3. `website` 在 Workers 上使用 Cloudflare D1
+2. `website` 在 Workers 上使用 Cloudflare D1
+3. 游戏运行页直接挂在同一个 `website` 服务内
 4. 本地开发 / 测试继续使用 Node.js + SQLite 文件
 
 ## 当前状态
 
 ### 已验证能力
 
-- `website` / `play` 都可以正常 `build`
-- `play` 支持三种 runtime：`stub` / `website` / `opencode`
-- `website` 支持 `NEXT_PUBLIC_GAME_CREATION_MODE=play`
+- `website` 可以正常 `build`
+- 主站支持统一游戏运行时：`stub` / `opencode`
+- 游戏入口统一为 `/games/{id}`
 - 已真实 smoke 跑通：
-  `注册登录 -> website 建局 -> play 发消息 -> website 落库扣费`
+  `注册登录 -> website 建局 -> website 发消息 -> website 落库扣费`
 
 ### 当前不建议宣称已支持的部署形态
 
@@ -28,7 +28,6 @@
 ### 域名职责
 
 - `muirpg.meathill.com` -> `packages/website`
-- `play.muirpg.meathill.com` -> `packages/play`
 - `i.muirpg.meathill.com` -> 媒体资产域名
 
 ### 服务职责
@@ -38,63 +37,39 @@
 - 登录与 session
 - 模组 / 人物卡 / 游戏记录读取
 - 建局
+- 统一游戏运行页 `/games/[id]`
 - 钱包、账本、消息落库
-- `api/llmproxy`
-- internal turn 回写接口
-
-`play` 负责：
-
-- 游戏运行页
-- 游戏上下文读取
-- 聊天输入处理
-- 调用 `website llmproxy`
-- 将 user/assistant 回合写回 `website`
+- 调用上游模型推进回合
 
 ### 工作区
 
 - 服务端目录约定：`workspace/{user_id}/{game_id}`
 - 对外公开 URL 仅暴露 `game_id`
 
-## 部署模式
+## 运行模式
 
 ### 模式 A：最小联调模式
 
-适合先验证登录、建局、跳转、落库、扣费。
+适合先验证登录、建局、落库、扣费。
 
-- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=play`
-- `play`: `NEXT_PUBLIC_PLAY_RUNTIME=stub`
+- `website`: `GAME_RUNTIME=stub`
 
 特点：
 
 - 不依赖真实模型
-- 不依赖 opencode bootstrap
-- 能验证绝大多数链路
+- 能验证绝大多数主链路
 
 ### 模式 B：完整模型联调模式
 
-适合验证 `play -> llmproxy -> website turn` 主链路。
+适合验证真实模型回合推进。
 
-- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=play`
-- `play`: `NEXT_PUBLIC_PLAY_RUNTIME=opencode`
+- `website`: `GAME_RUNTIME=opencode`
 
 特点：
 
-- 真实走模型代理
-- 不依赖 website 建局时的 opencode session bootstrap
+- 真实走模型上游
+- 不再依赖独立 `play` 服务
 - 当前最接近目标架构
-
-### 模式 C：旧 website bootstrap 模式
-
-仅用于兼容旧链路或保留历史能力。
-
-- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=opencode`
-- `play`: 任意
-
-特点：
-
-- 建局时创建 opencode session
-- 仍保留旧 website 消息链路
-- 不是当前推荐主线
 
 ## 环境准备
 
@@ -121,10 +96,9 @@
 ```bash
 BETTER_AUTH_SECRET=change-me
 NEXT_PUBLIC_APP_BASE_URL=https://muirpg.meathill.com
-NEXT_PUBLIC_PLAY_BASE_URL=https://play.muirpg.meathill.com
 DATABASE_URL=/srv/muirpg/data/website.sqlite
-INTERNAL_SERVICE_TOKEN=replace-me
-NEXT_PUBLIC_GAME_CREATION_MODE=play
+GAME_RUNTIME=opencode
+GAME_LLM_MODEL=gpt-4.1-mini
 OPENCODE_WORKSPACE_ROOT=/srv/muirpg/workspace
 ```
 
@@ -134,23 +108,13 @@ OPENCODE_WORKSPACE_ROOT=/srv/muirpg/workspace
 NEXT_PUBLIC_AUTH_COOKIE_DOMAIN=.muirpg.meathill.com
 ```
 
-### 如果要启用 `llmproxy`
+### 如果要启用真实模型
 
 ```bash
 NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL=https://api.openai.com
 LLM_PROXY_UPSTREAM_API_KEY=replace-me
 NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS=gpt-4.1-mini,gpt-4o-mini
 ```
-
-### 仅在 `NEXT_PUBLIC_GAME_CREATION_MODE=opencode` 时需要
-
-```bash
-NEXT_PUBLIC_OPENCODE_BASE_URL=https://opencode.muirpg.meathill.com
-OPENCODE_ACCESS_CLIENT_ID=replace-me
-OPENCODE_ACCESS_CLIENT_SECRET=replace-me
-```
-
-opencode server 通过 Cloudflare Tunnel 暴露，认证由 Cloudflare Access Service Token 接管，详见下文「opencode server 自托管」章节。
 
 ### 构建命令
 
@@ -170,125 +134,48 @@ pnpm --dir packages/website exec wrangler types --env-interface CloudflareEnv ./
 Cloudflare 上建议通过 `wrangler secret put` 配置敏感变量，例如：
 
 - `BETTER_AUTH_SECRET`
-- `INTERNAL_SERVICE_TOKEN`
 - `LLM_PROXY_UPSTREAM_API_KEY`
-- `OPENCODE_ACCESS_CLIENT_ID`
-- `OPENCODE_ACCESS_CLIENT_SECRET`
-
-## Play 部署
-
-### 必需环境变量
-
-```bash
-NEXT_PUBLIC_PLAY_BASE_URL=https://play.muirpg.meathill.com
-NEXT_PUBLIC_WEBSITE_BASE_URL=https://muirpg.meathill.com
-INTERNAL_SERVICE_TOKEN=replace-me
-NEXT_PUBLIC_PLAY_RUNTIME=opencode
-NEXT_PUBLIC_PLAY_LLM_MODEL=gpt-4.1-mini
-```
-
-### 构建命令
-
-```bash
-pnpm install --frozen-lockfile
-pnpm --dir packages/play build
-```
-
-如果修改了 `packages/play/wrangler.jsonc`，记得同步更新类型：
-
-```bash
-pnpm --dir packages/play exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.generated.d.ts
-```
-
-其中 `packages/play/cloudflare-env.d.ts` 只补充 `wrangler types` 不会自动产出的 secret 声明，例如 `INTERNAL_SERVICE_TOKEN`。
-
-## opencode server 自托管
-
-仅在 `NEXT_PUBLIC_GAME_CREATION_MODE=opencode` 时需要。当前生产部署的目标机器是 GCP VM `34.177.119.169`，对外通过 Cloudflare Tunnel 暴露成 `https://opencode.muirpg.meathill.com`，认证由 Cloudflare Access Service Token 在边缘统一处理。
-
-### 拓扑
-
-```
-Cloudflare Workers (Website)
-  ─ headers: CF-Access-Client-Id, CF-Access-Client-Secret
-  → https://opencode.muirpg.meathill.com
-    → Cloudflare Access (Service Token policy)
-      → Cloudflare Tunnel
-        → cloudflared (GCP VM)
-          → opencode serve --hostname 127.0.0.1 --port 4096
-```
-
-VM 不开任何公网入站端口，opencode 只监听回环地址。
-
-### 服务器端组件
-
-- `opencode` CLI（npm `opencode-ai` 或官方 `curl ... | bash` 安装），由 systemd 守护
-- `cloudflared`，建独立 tunnel 后通过 `cloudflared service install` 守护
-- `/srv/muirpg/workspace/{user_id}/{game_id}` 作为 opencode 工作区根
-
-LLM provider key 写在 `~/.config/opencode/auth.json` 或 `/etc/opencode/opencode.env`（systemd `EnvironmentFile`），不入仓库不入 systemd unit 明文。
-
-### Cloudflare 端组件
-
-1. Zero Trust → Access → Applications → Add Self-hosted，domain 填 `opencode.muirpg.meathill.com`
-2. Policy: Action = Service Auth，Selector 指向下一步的 Service Token
-3. Zero Trust → Access → Service Auth → Service Tokens → Create，名字如 `website-worker`，记下 Client ID / Secret（Secret 仅展示一次）
-4. Workers 端写入 secret：`NEXT_PUBLIC_OPENCODE_BASE_URL`、`OPENCODE_ACCESS_CLIENT_ID`、`OPENCODE_ACCESS_CLIENT_SECRET`
-
-### 自检
-
-```bash
-# 不带 token，应被 CF Access 拦下
-curl -i https://opencode.muirpg.meathill.com/session
-
-# 带 token，应返回 200/JSON
-curl -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>" \
-  https://opencode.muirpg.meathill.com/session
-```
 
 ## 推荐部署顺序
 
 1. 部署 `website`
-2. 部署 `play`
-3. 配置反向代理
-4. 配置 `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`
-5. 先用 `NEXT_PUBLIC_PLAY_RUNTIME=stub` 跑通主链路
-6. 再切到 `NEXT_PUBLIC_PLAY_RUNTIME=opencode`
+2. 配置反向代理
+3. 配置 `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`
+4. 先用 `GAME_RUNTIME=stub` 跑通主链路
+5. 再切到 `GAME_RUNTIME=opencode`
 
 ## 上线前检查
 
-至少确认以下接口可用：
+至少确认以下接口与页面可用：
 
 - `GET /api/session`
 - `GET /api/modules`
 - `POST /api/games`
 - `GET /api/games/{id}`
-- `POST /api/games/{id}/messages`（仅旧链路）
-- `POST /api/internal/games/{id}/turn`
-- `POST /api/llmproxy/v1/chat/completions`
-- `GET play /api/session`
-- `GET play /api/games/{id}`
-- `POST play /api/games/{id}/messages`
+- `POST /api/games/{id}/messages`
+- `GET /games/{id}`
 
 ## 常见问题
 
-### 建局时报 `play 服务入口未配置`
+### 建局成功但进入游戏后 404
 
-你启用了 `NEXT_PUBLIC_GAME_CREATION_MODE=play`，但没有设置 `NEXT_PUBLIC_PLAY_BASE_URL`。
+通常是该 game 不属于当前登录用户，或部署环境数据库没有同步对应数据。
 
-### play 侧报 `llmproxy 需要 INTERNAL_SERVICE_TOKEN`
+### 发消息时报 `LLM 上游未配置`
 
-`NEXT_PUBLIC_PLAY_RUNTIME=opencode` 时，play 必须带内部 token 调用 website `/api/llmproxy`。
+说明当前用了 `GAME_RUNTIME=opencode`，但没有设置：
 
-### 登录成功但 play 侧仍未登录
+- `NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL`
+- `LLM_PROXY_UPSTREAM_API_KEY`
 
-通常是跨子域 cookie 配置不完整。检查：
+### 发消息时报 `模型未开放`
+
+检查 `NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS` 是否包含当前 `GAME_LLM_MODEL`。
+
+### 登录成功但请求接口仍返回 401
+
+通常是 cookie 域、反向代理头或 `NEXT_PUBLIC_APP_BASE_URL` 配置不完整。优先检查：
 
 - `NEXT_PUBLIC_APP_BASE_URL`
-- `NEXT_PUBLIC_PLAY_BASE_URL`
-- `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN=.muirpg.meathill.com`
+- `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`
 - 反向代理是否正确透传 `Host` 和 `X-Forwarded-Proto`
-
-### website 旧消息接口返回 `当前游戏由 play 运行时托管，请前往游戏域继续`
-
-这是预期行为，说明该 game 是 `NEXT_PUBLIC_GAME_CREATION_MODE=play` 创建的，后续消息应走 `play`。

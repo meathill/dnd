@@ -56,7 +56,7 @@ export default async function ModuleDetailPage({ params }: ModulePageProps) {
         <div className="space-y-2">
           <p className="text-sm uppercase tracking-[0.18em] text-zinc-500">开始游戏</p>
           <h2 className="text-2xl font-semibold text-zinc-950">选择人物卡</h2>
-          <p className="text-sm text-zinc-600">确认之后，网站会读取模组详情并交给 opencode 创建新的游戏区。</p>
+          <p className="text-sm text-zinc-600">确认之后，网站会读取模组详情并直接进入统一游戏运行页。</p>
         </div>
         <StartGameForm characters={characters} moduleId={moduleRecord.id} />
       </Card>

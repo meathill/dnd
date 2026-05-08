@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import type { Message } from '@opencode-ai/sdk';
 import type {
   BillingLedgerRecord,
   CharacterRecord,
@@ -513,20 +512,4 @@ export async function listBillingLedger(userId: string): Promise<BillingLedgerRe
       [userId],
     )
   ).map(mapBillingLedger);
-}
-
-export function buildAssistantMeta(
-  message: Message | null,
-  extra: Record<string, unknown> = {},
-): Record<string, unknown> {
-  if (!message || message.role !== 'assistant') {
-    return extra;
-  }
-  return {
-    ...extra,
-    providerId: message.providerID,
-    modelId: message.modelID,
-    cost: message.cost,
-    tokens: message.tokens,
-  };
 }

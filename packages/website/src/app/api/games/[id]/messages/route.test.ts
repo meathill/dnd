@@ -1,45 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PLAY_MANAGED_SESSION_ID } from '@/lib/game/runtime';
 
-const {
-  mockReadFile,
-  mockGetRequestIdentity,
-  mockBuildAssistantMeta,
-  mockGetGameByIdForUser,
-  mockListMessagesByGameId,
-  mockRecordGameTurn,
-  mockSendGameplayMessage,
-} = vi.hoisted(() => ({
-  mockReadFile: vi.fn(),
-  mockGetRequestIdentity: vi.fn(),
-  mockBuildAssistantMeta: vi.fn(),
-  mockGetGameByIdForUser: vi.fn(),
-  mockListMessagesByGameId: vi.fn(),
-  mockRecordGameTurn: vi.fn(),
-  mockSendGameplayMessage: vi.fn(),
-}));
-
-vi.mock('node:fs/promises', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:fs/promises')>();
-  return {
-    ...actual,
-    readFile: mockReadFile,
-  };
-});
+const { mockGetRequestIdentity, mockGetGameByIdForUser, mockListMessagesByGameId, mockSendGameMessage } = vi.hoisted(
+  () => ({
+    mockGetRequestIdentity: vi.fn(),
+    mockGetGameByIdForUser: vi.fn(),
+    mockListMessagesByGameId: vi.fn(),
+    mockSendGameMessage: vi.fn(),
+  }),
+);
 
 vi.mock('@/lib/internal/request-auth', () => ({
   getRequestIdentity: mockGetRequestIdentity,
 }));
 
 vi.mock('@/lib/db/repositories', () => ({
-  buildAssistantMeta: mockBuildAssistantMeta,
   getGameByIdForUser: mockGetGameByIdForUser,
   listMessagesByGameId: mockListMessagesByGameId,
-  recordGameTurn: mockRecordGameTurn,
 }));
 
-vi.mock('@/lib/opencode/gameplay', () => ({
-  sendGameplayMessage: mockSendGameplayMessage,
+vi.mock('@/lib/game/runtime', () => ({
+  sendGameMessage: mockSendGameMessage,
 }));
 
 import { GET, POST } from './route';
@@ -74,15 +54,31 @@ function createPostRequest(body: unknown) {
 describe('games/[id]/messages route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockReadFile.mockResolvedValue('system prompt');
     mockGetRequestIdentity.mockResolvedValue({
-      kind: 'user',
       userId: defaultSession.userId,
       balance: defaultSession.balance,
     });
     mockGetGameByIdForUser.mockResolvedValue(game);
-    mockBuildAssistantMeta.mockReturnValue({ sessionId: 'session-1', partCount: 1 });
     mockListMessagesByGameId.mockResolvedValue([]);
+    mockSendGameMessage.mockResolvedValue({
+      userMessage: {
+        id: 'user-message-1',
+        role: 'user',
+        content: 'hello',
+        gameId: 'game-1',
+        meta: {},
+        createdAt: 'now',
+      },
+      assistantMessage: {
+        id: 'assistant-message-1',
+        role: 'assistant',
+        content: 'assistant reply',
+        gameId: 'game-1',
+        meta: { runtime: 'stub' },
+        createdAt: 'now',
+      },
+      balance: 95,
+    });
   });
 
   it('returns messages for an authenticated game owner', async () => {
@@ -98,37 +94,6 @@ describe('games/[id]/messages route', () => {
   });
 
   it('sends message, stores transcript and charges wallet', async () => {
-    mockSendGameplayMessage.mockResolvedValue({
-      sessionId: 'session-1',
-      assistantMessage: { role: 'assistant' },
-      content: 'assistant reply',
-      parts: [{ type: 'text', text: 'assistant reply' }],
-    });
-    mockRecordGameTurn.mockResolvedValue({
-      userMessage: {
-        id: 'user-message-1',
-        role: 'user',
-        content: 'hello',
-        gameId: 'game-1',
-        meta: {},
-        createdAt: 'now',
-      },
-      assistantMessage: {
-        id: 'assistant-message-1',
-        role: 'assistant',
-        content: 'assistant reply',
-        gameId: 'game-1',
-        meta: {},
-        createdAt: 'now',
-      },
-      wallet: {
-        userId: 'user-1',
-        balance: 95,
-        createdAt: 'now',
-        updatedAt: 'now',
-      },
-    });
-
     const response = await POST(createPostRequest({ content: 'hello' }), {
       params: Promise.resolve({ id: 'game-1' }),
     });
@@ -142,23 +107,18 @@ describe('games/[id]/messages route', () => {
     expect(payload.balance).toBe(95);
     expect(payload.userMessage.id).toBe('user-message-1');
     expect(payload.assistantMessage.id).toBe('assistant-message-1');
-    expect(mockRecordGameTurn).toHaveBeenCalledWith(
+    expect(mockSendGameMessage).toHaveBeenCalledWith(
+      'game-1',
+      'hello',
       expect.objectContaining({
         userId: 'user-1',
-        gameId: 'game-1',
-        userContent: 'hello',
-        assistantContent: 'assistant reply',
-        chargeAmount: 5,
+        balance: 100,
       }),
     );
   });
 
-  it('returns 402 when balance is insufficient before calling opencode', async () => {
-    mockGetRequestIdentity.mockResolvedValue({
-      kind: 'user',
-      userId: defaultSession.userId,
-      balance: 4,
-    });
+  it('maps insufficient balance to 402', async () => {
+    mockSendGameMessage.mockRejectedValue(new Error('余额不足'));
 
     const response = await POST(createPostRequest({ content: 'hello' }), {
       params: Promise.resolve({ id: 'game-1' }),
@@ -167,11 +127,10 @@ describe('games/[id]/messages route', () => {
 
     expect(response.status).toBe(402);
     expect(payload.error).toBe('余额不足');
-    expect(mockSendGameplayMessage).not.toHaveBeenCalled();
   });
 
-  it('returns 502 when opencode request fails and does not persist partial messages', async () => {
-    mockSendGameplayMessage.mockRejectedValue(new Error('opencode timeout'));
+  it('maps runtime failure to 502', async () => {
+    mockSendGameMessage.mockRejectedValue(new Error('模型请求失败'));
 
     const response = await POST(createPostRequest({ content: 'hello' }), {
       params: Promise.resolve({ id: 'game-1' }),
@@ -179,12 +138,11 @@ describe('games/[id]/messages route', () => {
     const payload = (await response.json()) as { error: string };
 
     expect(response.status).toBe(502);
-    expect(payload.error).toBe('游戏服务暂不可用，请稍后重试');
-    expect(mockRecordGameTurn).not.toHaveBeenCalled();
+    expect(payload.error).toBe('模型请求失败');
   });
 
   it('returns 404 when the game is missing', async () => {
-    mockGetGameByIdForUser.mockResolvedValue(null);
+    mockSendGameMessage.mockRejectedValue(new Error('游戏不存在'));
 
     const response = await POST(createPostRequest({ content: 'hello' }), {
       params: Promise.resolve({ id: 'game-1' }),
@@ -193,40 +151,5 @@ describe('games/[id]/messages route', () => {
 
     expect(response.status).toBe(404);
     expect(payload.error).toBe('游戏不存在');
-  });
-
-  it('returns 409 when the game is managed by play runtime', async () => {
-    mockGetGameByIdForUser.mockResolvedValue({
-      ...game,
-      opencodeSessionId: PLAY_MANAGED_SESSION_ID,
-    });
-
-    const response = await POST(createPostRequest({ content: 'hello' }), {
-      params: Promise.resolve({ id: 'game-1' }),
-    });
-    const payload = (await response.json()) as { error: string };
-
-    expect(response.status).toBe(409);
-    expect(payload.error).toBe('当前游戏由 play 运行时托管，请前往游戏域继续');
-    expect(mockSendGameplayMessage).not.toHaveBeenCalled();
-    expect(mockRecordGameTurn).not.toHaveBeenCalled();
-  });
-
-  it('returns 402 when turn persistence rejects for insufficient balance', async () => {
-    mockSendGameplayMessage.mockResolvedValue({
-      sessionId: 'session-1',
-      assistantMessage: { role: 'assistant' },
-      content: 'assistant reply',
-      parts: [{ type: 'text', text: 'assistant reply' }],
-    });
-    mockRecordGameTurn.mockRejectedValue(new Error('余额不足'));
-
-    const response = await POST(createPostRequest({ content: 'hello' }), {
-      params: Promise.resolve({ id: 'game-1' }),
-    });
-    const payload = (await response.json()) as { error: string };
-
-    expect(response.status).toBe(402);
-    expect(payload.error).toBe('余额不足');
   });
 });
