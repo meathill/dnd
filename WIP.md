@@ -82,7 +82,7 @@
 - [x] play `stub` runtime 通过 website internal turn 接口统一落库与扣费
 - [x] website 将“保存 user/assistant 消息 + 扣费 + 账本”收敛为原子回合写入
 - [x] play 接入真实 `opencode` runtime，并通过 website `llmproxy` 发起模型请求
-- [x] website 支持 `GAME_CREATION_MODE=play`，可在无 opencode bootstrap 时完整建局并跳转 play
+- [x] website 支持 `NEXT_PUBLIC_GAME_CREATION_MODE=play`，可在无 opencode bootstrap 时完整建局并跳转 play
 - [x] 真实 smoke 跑通“注册登录 -> website 建局 -> play 发消息 -> website 落库扣费”主链路
 
 ### Phase 10: OpenNext Cloudflare 迁移

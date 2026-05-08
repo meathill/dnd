@@ -83,7 +83,7 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
 当前已覆盖的关键点：
 
 - 建局接口
-- `GAME_CREATION_MODE=play` 行为
+- `NEXT_PUBLIC_GAME_CREATION_MODE=play` 行为
 - 旧消息接口错误分支
 - `api/llmproxy` 内部鉴权与 allowlist
 - internal turn 回写
@@ -109,8 +109,8 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
 
 ### 阶段 1：最小联调
 
-- `website`: `GAME_CREATION_MODE=play`
-- `play`: `PLAY_RUNTIME=stub`
+- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=play`
+- `play`: `NEXT_PUBLIC_PLAY_RUNTIME=stub`
 
 验证：
 
@@ -122,8 +122,8 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
 
 ### 阶段 2：完整模型联调
 
-- `website`: `GAME_CREATION_MODE=play`
-- `play`: `PLAY_RUNTIME=opencode`
+- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=play`
+- `play`: `NEXT_PUBLIC_PLAY_RUNTIME=opencode`
 
 额外验证：
 

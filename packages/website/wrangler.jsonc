@@ -3,10 +3,7 @@
   "name": "dndcoc",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-12-01",
-  "compatibility_flags": [
-    "nodejs_compat",
-    "global_fetch_strictly_public"
-  ],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"
@@ -44,13 +41,13 @@
     "mode": "smart"
   },
   "vars": {
-    "APP_BASE_URL": "https://muirpg.meathill.com",
-    "PLAY_BASE_URL": "https://play.muirpg.meathill.com",
-    "ASSET_BASE_URL": "https://i.muirpg.meathill.com",
-    "AUTH_COOKIE_DOMAIN": ".muirpg.meathill.com",
-    "GAME_CREATION_MODE": "opencode",
-    "OPENCODE_BASE_URL": "https://opencode.muirpg.meathill.com",
-    "LLM_PROXY_UPSTREAM_BASE_URL": "https://api.openai.com",
-    "LLM_PROXY_ALLOWED_MODELS": "gpt-5.4-mini"
+    "NEXT_PUBLIC_APP_BASE_URL": "https://muirpg.meathill.com",
+    "NEXT_PUBLIC_PLAY_BASE_URL": "https://play.muirpg.meathill.com",
+    "NEXT_PUBLIC_ASSET_BASE_URL": "https://i.muirpg.meathill.com",
+    "NEXT_PUBLIC_AUTH_COOKIE_DOMAIN": ".muirpg.meathill.com",
+    "NEXT_PUBLIC_GAME_CREATION_MODE": "opencode",
+    "NEXT_PUBLIC_OPENCODE_BASE_URL": "https://opencode.muirpg.meathill.com",
+    "NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL": "https://api.openai.com",
+    "NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS": "gpt-5.4-mini"
   }
 }

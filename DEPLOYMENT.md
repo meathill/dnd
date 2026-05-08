@@ -15,7 +15,7 @@
 
 - `website` / `play` 都可以正常 `build`
 - `play` 支持三种 runtime：`stub` / `website` / `opencode`
-- `website` 支持 `GAME_CREATION_MODE=play`
+- `website` 支持 `NEXT_PUBLIC_GAME_CREATION_MODE=play`
 - 已真实 smoke 跑通：
   `注册登录 -> website 建局 -> play 发消息 -> website 落库扣费`
 
@@ -61,8 +61,8 @@
 
 适合先验证登录、建局、跳转、落库、扣费。
 
-- `website`: `GAME_CREATION_MODE=play`
-- `play`: `PLAY_RUNTIME=stub`
+- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=play`
+- `play`: `NEXT_PUBLIC_PLAY_RUNTIME=stub`
 
 特点：
 
@@ -74,8 +74,8 @@
 
 适合验证 `play -> llmproxy -> website turn` 主链路。
 
-- `website`: `GAME_CREATION_MODE=play`
-- `play`: `PLAY_RUNTIME=opencode`
+- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=play`
+- `play`: `NEXT_PUBLIC_PLAY_RUNTIME=opencode`
 
 特点：
 
@@ -87,7 +87,7 @@
 
 仅用于兼容旧链路或保留历史能力。
 
-- `website`: `GAME_CREATION_MODE=opencode`
+- `website`: `NEXT_PUBLIC_GAME_CREATION_MODE=opencode`
 - `play`: 任意
 
 特点：
@@ -120,32 +120,32 @@
 
 ```bash
 BETTER_AUTH_SECRET=change-me
-APP_BASE_URL=https://muirpg.meathill.com
-PLAY_BASE_URL=https://play.muirpg.meathill.com
+NEXT_PUBLIC_APP_BASE_URL=https://muirpg.meathill.com
+NEXT_PUBLIC_PLAY_BASE_URL=https://play.muirpg.meathill.com
 DATABASE_URL=/srv/muirpg/data/website.sqlite
 INTERNAL_SERVICE_TOKEN=replace-me
-GAME_CREATION_MODE=play
+NEXT_PUBLIC_GAME_CREATION_MODE=play
 OPENCODE_WORKSPACE_ROOT=/srv/muirpg/workspace
 ```
 
 ### 如果要启用跨子域登录
 
 ```bash
-AUTH_COOKIE_DOMAIN=.muirpg.meathill.com
+NEXT_PUBLIC_AUTH_COOKIE_DOMAIN=.muirpg.meathill.com
 ```
 
 ### 如果要启用 `llmproxy`
 
 ```bash
-LLM_PROXY_UPSTREAM_BASE_URL=https://api.openai.com
+NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL=https://api.openai.com
 LLM_PROXY_UPSTREAM_API_KEY=replace-me
-LLM_PROXY_ALLOWED_MODELS=gpt-4.1-mini,gpt-4o-mini
+NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS=gpt-4.1-mini,gpt-4o-mini
 ```
 
-### 仅在 `GAME_CREATION_MODE=opencode` 时需要
+### 仅在 `NEXT_PUBLIC_GAME_CREATION_MODE=opencode` 时需要
 
 ```bash
-OPENCODE_BASE_URL=https://opencode.muirpg.meathill.com
+NEXT_PUBLIC_OPENCODE_BASE_URL=https://opencode.muirpg.meathill.com
 OPENCODE_ACCESS_CLIENT_ID=replace-me
 OPENCODE_ACCESS_CLIENT_SECRET=replace-me
 ```
@@ -180,11 +180,11 @@ Cloudflare 上建议通过 `wrangler secret put` 配置敏感变量，例如：
 ### 必需环境变量
 
 ```bash
-PLAY_BASE_URL=https://play.muirpg.meathill.com
-WEBSITE_BASE_URL=https://muirpg.meathill.com
+NEXT_PUBLIC_PLAY_BASE_URL=https://play.muirpg.meathill.com
+NEXT_PUBLIC_WEBSITE_BASE_URL=https://muirpg.meathill.com
 INTERNAL_SERVICE_TOKEN=replace-me
-PLAY_RUNTIME=opencode
-PLAY_LLM_MODEL=gpt-4.1-mini
+NEXT_PUBLIC_PLAY_RUNTIME=opencode
+NEXT_PUBLIC_PLAY_LLM_MODEL=gpt-4.1-mini
 ```
 
 ### 构建命令
@@ -204,7 +204,7 @@ pnpm --dir packages/play exec wrangler types --env-interface CloudflareEnv ./clo
 
 ## opencode server 自托管
 
-仅在 `GAME_CREATION_MODE=opencode` 时需要。当前生产部署的目标机器是 GCP VM `34.177.119.169`，对外通过 Cloudflare Tunnel 暴露成 `https://opencode.muirpg.meathill.com`，认证由 Cloudflare Access Service Token 在边缘统一处理。
+仅在 `NEXT_PUBLIC_GAME_CREATION_MODE=opencode` 时需要。当前生产部署的目标机器是 GCP VM `34.177.119.169`，对外通过 Cloudflare Tunnel 暴露成 `https://opencode.muirpg.meathill.com`，认证由 Cloudflare Access Service Token 在边缘统一处理。
 
 ### 拓扑
 
@@ -233,7 +233,7 @@ LLM provider key 写在 `~/.config/opencode/auth.json` 或 `/etc/opencode/openco
 1. Zero Trust → Access → Applications → Add Self-hosted，domain 填 `opencode.muirpg.meathill.com`
 2. Policy: Action = Service Auth，Selector 指向下一步的 Service Token
 3. Zero Trust → Access → Service Auth → Service Tokens → Create，名字如 `website-worker`，记下 Client ID / Secret（Secret 仅展示一次）
-4. Workers 端写入 secret：`OPENCODE_BASE_URL`、`OPENCODE_ACCESS_CLIENT_ID`、`OPENCODE_ACCESS_CLIENT_SECRET`
+4. Workers 端写入 secret：`NEXT_PUBLIC_OPENCODE_BASE_URL`、`OPENCODE_ACCESS_CLIENT_ID`、`OPENCODE_ACCESS_CLIENT_SECRET`
 
 ### 自检
 
@@ -251,9 +251,9 @@ curl -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>" \
 1. 部署 `website`
 2. 部署 `play`
 3. 配置反向代理
-4. 配置 `AUTH_COOKIE_DOMAIN`
-5. 先用 `PLAY_RUNTIME=stub` 跑通主链路
-6. 再切到 `PLAY_RUNTIME=opencode`
+4. 配置 `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`
+5. 先用 `NEXT_PUBLIC_PLAY_RUNTIME=stub` 跑通主链路
+6. 再切到 `NEXT_PUBLIC_PLAY_RUNTIME=opencode`
 
 ## 上线前检查
 
@@ -274,21 +274,21 @@ curl -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>" \
 
 ### 建局时报 `play 服务入口未配置`
 
-你启用了 `GAME_CREATION_MODE=play`，但没有设置 `PLAY_BASE_URL`。
+你启用了 `NEXT_PUBLIC_GAME_CREATION_MODE=play`，但没有设置 `NEXT_PUBLIC_PLAY_BASE_URL`。
 
 ### play 侧报 `llmproxy 需要 INTERNAL_SERVICE_TOKEN`
 
-`PLAY_RUNTIME=opencode` 时，play 必须带内部 token 调用 website `/api/llmproxy`。
+`NEXT_PUBLIC_PLAY_RUNTIME=opencode` 时，play 必须带内部 token 调用 website `/api/llmproxy`。
 
 ### 登录成功但 play 侧仍未登录
 
 通常是跨子域 cookie 配置不完整。检查：
 
-- `APP_BASE_URL`
-- `PLAY_BASE_URL`
-- `AUTH_COOKIE_DOMAIN=.muirpg.meathill.com`
+- `NEXT_PUBLIC_APP_BASE_URL`
+- `NEXT_PUBLIC_PLAY_BASE_URL`
+- `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN=.muirpg.meathill.com`
 - 反向代理是否正确透传 `Host` 和 `X-Forwarded-Proto`
 
 ### website 旧消息接口返回 `当前游戏由 play 运行时托管，请前往游戏域继续`
 
-这是预期行为，说明该 game 是 `GAME_CREATION_MODE=play` 创建的，后续消息应走 `play`。
+这是预期行为，说明该 game 是 `NEXT_PUBLIC_GAME_CREATION_MODE=play` 创建的，后续消息应走 `play`。

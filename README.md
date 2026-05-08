@@ -31,32 +31,32 @@
 
 当前推荐的本地完整链路如下：
 
-- website 使用 `GAME_CREATION_MODE=play`
-- play 使用 `PLAY_RUNTIME=opencode` 或 `PLAY_RUNTIME=stub`
+- website 使用 `NEXT_PUBLIC_GAME_CREATION_MODE=play`
+- play 使用 `NEXT_PUBLIC_PLAY_RUNTIME=opencode` 或 `NEXT_PUBLIC_PLAY_RUNTIME=stub`
 - 两边使用同一个 `INTERNAL_SERVICE_TOKEN`
 
 最小必需环境变量：
 
 website:
 `BETTER_AUTH_SECRET`
-`APP_BASE_URL`
-`PLAY_BASE_URL`
+`NEXT_PUBLIC_APP_BASE_URL`
+`NEXT_PUBLIC_PLAY_BASE_URL`
 `DATABASE_URL`
 `INTERNAL_SERVICE_TOKEN`
-`GAME_CREATION_MODE=play`
+`NEXT_PUBLIC_GAME_CREATION_MODE=play`
 
-如果要测试 `PLAY_RUNTIME=opencode`，website 还需要：
+如果要测试 `NEXT_PUBLIC_PLAY_RUNTIME=opencode`，website 还需要：
 
-`LLM_PROXY_UPSTREAM_BASE_URL`
+`NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL`
 `LLM_PROXY_UPSTREAM_API_KEY`
-`LLM_PROXY_ALLOWED_MODELS`
+`NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS`
 
 play:
-`PLAY_BASE_URL`
-`WEBSITE_BASE_URL`
+`NEXT_PUBLIC_PLAY_BASE_URL`
+`NEXT_PUBLIC_WEBSITE_BASE_URL`
 `INTERNAL_SERVICE_TOKEN`
-`PLAY_RUNTIME`
-`PLAY_LLM_MODEL`
+`NEXT_PUBLIC_PLAY_RUNTIME`
+`NEXT_PUBLIC_PLAY_LLM_MODEL`
 
 更细的说明见：
 
@@ -100,7 +100,7 @@ play:
 - 人物卡必须绑定 `scriptId`，不能跨剧本复用；角色的可选项需受剧本限制，自由字段主要是名字、背景、动机等文本描述。人物卡归属到用户（`user_id`）。
 - 人物卡支持头像（avatar），用于游戏内展示。
 - 人物卡记录幸运值（COC 3D6×5），随角色存档。
-- 头像存储在 R2（绑定名 `ASSETS_BUCKET`，桶名 `dnd`），对外域名由 `ASSET_BASE_URL` 提供。
+- 头像存储在 R2（绑定名 `ASSETS_BUCKET`，桶名 `dnd`），对外域名由 `NEXT_PUBLIC_ASSET_BASE_URL` 提供。
 - 游戏由 `scriptId + characterId` 开始，确保人物卡与剧本一一匹配；人物卡不可被多次开局复用。
 - 首页展示剧本列表与游戏记录，点击剧本进入详情页建卡，完成后开始游戏；也可从首页继续游戏记录。
 - 路由约定：模组详情 `/modules/:id`，进入游戏 `/games/:id`。

@@ -29,9 +29,9 @@
     "binding": "IMAGES"
   },
   "vars": {
-    "PLAY_BASE_URL": "https://play.muirpg.meathill.com",
-    "WEBSITE_BASE_URL": "https://muirpg.meathill.com",
-    "PLAY_RUNTIME": "opencode",
-    "PLAY_LLM_MODEL": "gpt-5.4-mini"
+    "NEXT_PUBLIC_PLAY_BASE_URL": "https://play.muirpg.meathill.com",
+    "NEXT_PUBLIC_WEBSITE_BASE_URL": "https://muirpg.meathill.com",
+    "NEXT_PUBLIC_PLAY_RUNTIME": "opencode",
+    "NEXT_PUBLIC_PLAY_LLM_MODEL": "gpt-5.4-mini"
   }
 }

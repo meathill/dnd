@@ -1,7 +1,7 @@
 import { createOpencodeClient } from '@opencode-ai/sdk';
 
 export function getOpencodeClient(directory?: string) {
-  const baseUrl = process.env.OPENCODE_BASE_URL?.trim() || 'http://127.0.0.1:4096';
+  const baseUrl = process.env.NEXT_PUBLIC_OPENCODE_BASE_URL?.trim() || 'http://127.0.0.1:4096';
   const accessClientId = process.env.OPENCODE_ACCESS_CLIENT_ID?.trim();
   const accessClientSecret = process.env.OPENCODE_ACCESS_CLIENT_SECRET?.trim();
   const headers: Record<string, string> = {};

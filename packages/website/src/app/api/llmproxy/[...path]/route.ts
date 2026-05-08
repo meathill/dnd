@@ -21,7 +21,7 @@ type LlmProxyRouteProps = {
 };
 
 function parseAllowedModels(): string[] {
-  const raw = process.env.LLM_PROXY_ALLOWED_MODELS?.trim();
+  const raw = process.env.NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS?.trim();
   if (!raw) {
     return [];
   }
@@ -32,7 +32,7 @@ function parseAllowedModels(): string[] {
 }
 
 function buildUpstreamUrl(pathSegments: ReadonlyArray<string>, requestUrl: string): string | null {
-  const baseUrl = process.env.LLM_PROXY_UPSTREAM_BASE_URL?.trim();
+  const baseUrl = process.env.NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL?.trim();
   if (!baseUrl) {
     return null;
   }

@@ -171,10 +171,10 @@ client 在能力未稳定前，不应承担产品定义责任。
 
 ### 建局模式
 
-- `GAME_CREATION_MODE=opencode`：保留旧模式，建局时创建 opencode session
-- `GAME_CREATION_MODE=play`：建局时不依赖 opencode bootstrap，直接交给 `play` 域运行
+- `NEXT_PUBLIC_GAME_CREATION_MODE=opencode`：保留旧模式，建局时创建 opencode session
+- `NEXT_PUBLIC_GAME_CREATION_MODE=play`：建局时不依赖 opencode bootstrap，直接交给 `play` 域运行
 
-新增 `GAME_CREATION_MODE=play` 的原因不是为了兼容两套长期并存的产品形态，而是为了让“完整建局 -> 进入 play -> 发消息 -> 持久化/扣费”主链路可以在没有 opencode bootstrap 的情况下独立验证，并与未来以 `play` 为主运行时的正式架构保持一致
+新增 `NEXT_PUBLIC_GAME_CREATION_MODE=play` 的原因不是为了兼容两套长期并存的产品形态，而是为了让“完整建局 -> 进入 play -> 发消息 -> 持久化/扣费”主链路可以在没有 opencode bootstrap 的情况下独立验证，并与未来以 `play` 为主运行时的正式架构保持一致
 
 ## OpenNext Cloudflare 收尾注意事项
 

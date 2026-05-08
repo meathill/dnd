@@ -14,8 +14,8 @@ describe('api/llmproxy proxy route', () => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', mockFetch);
     process.env.INTERNAL_SERVICE_TOKEN = 'internal-token';
-    process.env.LLM_PROXY_UPSTREAM_BASE_URL = 'https://upstream.example.com';
-    Reflect.deleteProperty(process.env, 'LLM_PROXY_ALLOWED_MODELS');
+    process.env.NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL = 'https://upstream.example.com';
+    Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS');
     Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_API_KEY');
   });
 
@@ -23,8 +23,8 @@ describe('api/llmproxy proxy route', () => {
     vi.unstubAllGlobals();
     Reflect.deleteProperty(process.env, 'INTERNAL_SERVICE_TOKEN');
     Reflect.deleteProperty(process.env, 'INTERNAL_SERVICE_TOKENS');
-    Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_BASE_URL');
-    Reflect.deleteProperty(process.env, 'LLM_PROXY_ALLOWED_MODELS');
+    Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL');
+    Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS');
     Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_API_KEY');
   });
 
@@ -39,7 +39,7 @@ describe('api/llmproxy proxy route', () => {
   });
 
   it('rejects requests when upstream is not configured', async () => {
-    Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_BASE_URL');
+    Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL');
 
     const request = publicRequest('http://localhost/api/llmproxy/v1/models', {
       headers: { Authorization: 'Bearer internal-token' },
@@ -69,7 +69,7 @@ describe('api/llmproxy proxy route', () => {
   });
 
   it('rejects models outside the configured allowlist', async () => {
-    process.env.LLM_PROXY_ALLOWED_MODELS = 'gpt-4.1-mini gpt-4o-mini';
+    process.env.NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS = 'gpt-4.1-mini gpt-4o-mini';
 
     const request = publicRequest('http://localhost/api/llmproxy/v1/chat/completions', {
       method: 'POST',
@@ -90,7 +90,7 @@ describe('api/llmproxy proxy route', () => {
   });
 
   it('proxies request to upstream with rewritten authorization header', async () => {
-    process.env.LLM_PROXY_ALLOWED_MODELS = 'gpt-4.1-mini';
+    process.env.NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS = 'gpt-4.1-mini';
     process.env.LLM_PROXY_UPSTREAM_API_KEY = 'upstream-secret';
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ id: 'resp_1' }), {

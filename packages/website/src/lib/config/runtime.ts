@@ -33,7 +33,7 @@ function resolveOptionalUrl(value: string | undefined): string | null {
 }
 
 function resolveAppBaseUrl(): string {
-  const configured = process.env.APP_BASE_URL?.trim();
+  const configured = process.env.NEXT_PUBLIC_APP_BASE_URL?.trim();
   if (configured) {
     return normalizeOrigin(configured);
   }
@@ -49,21 +49,21 @@ function collectTrustedOrigins(origins: ReadonlyArray<string | null>): string[] 
 }
 
 function resolveGameCreationMode(): GameCreationMode {
-  const mode = process.env.GAME_CREATION_MODE?.trim();
+  const mode = process.env.NEXT_PUBLIC_GAME_CREATION_MODE?.trim();
   return mode === 'play' ? 'play' : 'opencode';
 }
 
 export function getRuntimeConfig(): RuntimeConfig {
   const appBaseUrl = resolveAppBaseUrl();
-  const playBaseUrl = resolveOptionalUrl(process.env.PLAY_BASE_URL);
-  const assetBaseUrl = resolveOptionalUrl(process.env.ASSET_BASE_URL);
+  const playBaseUrl = resolveOptionalUrl(process.env.NEXT_PUBLIC_PLAY_BASE_URL);
+  const assetBaseUrl = resolveOptionalUrl(process.env.NEXT_PUBLIC_ASSET_BASE_URL);
   return {
     appBaseUrl,
     playBaseUrl,
     assetBaseUrl,
     llmProxyUrl: new URL('/api/llmproxy', `${appBaseUrl}/`).toString(),
     gameCreationMode: resolveGameCreationMode(),
-    authCookieDomain: process.env.AUTH_COOKIE_DOMAIN?.trim() || null,
+    authCookieDomain: process.env.NEXT_PUBLIC_AUTH_COOKIE_DOMAIN?.trim() || null,
     trustedOrigins: collectTrustedOrigins([
       normalizeOrigin(appBaseUrl),
       playBaseUrl ? normalizeOrigin(playBaseUrl) : null,

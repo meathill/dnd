@@ -13,12 +13,12 @@ function normalizeOrigin(value: string): string {
 }
 
 export function getPlayRuntimeConfig(): PlayRuntimeConfig {
-  const runtimeMode = (process.env.PLAY_RUNTIME?.trim() || 'stub') as PlayRuntimeMode;
+  const runtimeMode = (process.env.NEXT_PUBLIC_PLAY_RUNTIME?.trim() || 'stub') as PlayRuntimeMode;
   return {
-    playBaseUrl: normalizeOrigin(process.env.PLAY_BASE_URL?.trim() || 'http://127.0.0.1:3091'),
-    websiteBaseUrl: normalizeOrigin(process.env.WEBSITE_BASE_URL?.trim() || 'http://127.0.0.1:3090'),
+    playBaseUrl: normalizeOrigin(process.env.NEXT_PUBLIC_PLAY_BASE_URL?.trim() || 'http://127.0.0.1:3091'),
+    websiteBaseUrl: normalizeOrigin(process.env.NEXT_PUBLIC_WEBSITE_BASE_URL?.trim() || 'http://127.0.0.1:3090'),
     internalServiceToken: process.env.INTERNAL_SERVICE_TOKEN?.trim() || null,
-    llmModel: process.env.PLAY_LLM_MODEL?.trim() || 'gpt-4.1-mini',
+    llmModel: process.env.NEXT_PUBLIC_PLAY_LLM_MODEL?.trim() || 'gpt-4.1-mini',
     runtimeMode,
   };
 }

@@ -68,7 +68,7 @@ const session = {
 describe('play runtime', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    Reflect.deleteProperty(process.env, 'PLAY_RUNTIME');
+    Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_PLAY_RUNTIME');
     mockFetchWebsiteGameContext.mockResolvedValue(gameContext);
     mockRecordWebsiteTurnAsInternal.mockResolvedValue({
       userMessage: {
@@ -103,7 +103,7 @@ describe('play runtime', () => {
   });
 
   afterEach(() => {
-    Reflect.deleteProperty(process.env, 'PLAY_RUNTIME');
+    Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_PLAY_RUNTIME');
   });
 
   it('loads game context from website', async () => {
@@ -145,7 +145,7 @@ describe('play runtime', () => {
   });
 
   it('delegates to website runtime when configured', async () => {
-    process.env.PLAY_RUNTIME = 'website';
+    process.env.NEXT_PUBLIC_PLAY_RUNTIME = 'website';
     mockSendWebsiteGameMessage.mockResolvedValue({
       userMessage: { id: 'u1' },
       assistantMessage: { id: 'a1' },
@@ -159,7 +159,7 @@ describe('play runtime', () => {
   });
 
   it('delegates to website runtime through internal token path when cookie is unavailable', async () => {
-    process.env.PLAY_RUNTIME = 'website';
+    process.env.NEXT_PUBLIC_PLAY_RUNTIME = 'website';
     mockSendWebsiteGameMessageAsInternal.mockResolvedValue({
       userMessage: { id: 'u1' },
       assistantMessage: { id: 'a1' },
@@ -178,7 +178,7 @@ describe('play runtime', () => {
   });
 
   it('uses llmproxy-backed opencode runtime when configured', async () => {
-    process.env.PLAY_RUNTIME = 'opencode';
+    process.env.NEXT_PUBLIC_PLAY_RUNTIME = 'opencode';
 
     const result = await sendPlayMessage('game-1', 'hello', session, 'cookie=value');
 
@@ -218,7 +218,7 @@ describe('play runtime', () => {
   });
 
   it('rejects opencode runtime before calling model when balance is insufficient', async () => {
-    process.env.PLAY_RUNTIME = 'opencode';
+    process.env.NEXT_PUBLIC_PLAY_RUNTIME = 'opencode';
 
     await expect(sendPlayMessage('game-1', 'hello', { ...session, balance: 4 }, 'cookie=value')).rejects.toThrow(
       '余额不足',

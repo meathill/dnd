@@ -82,8 +82,8 @@ function createRequest(body: unknown) {
 describe('POST /api/games', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    Reflect.deleteProperty(process.env, 'PLAY_BASE_URL');
-    Reflect.deleteProperty(process.env, 'GAME_CREATION_MODE');
+    Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_PLAY_BASE_URL');
+    Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_GAME_CREATION_MODE');
     mockReadFile.mockResolvedValue('system prompt');
     mockGetRequestSession.mockResolvedValue(defaultSession);
     mockGetModuleById.mockResolvedValue(moduleRecord);
@@ -124,7 +124,7 @@ describe('POST /api/games', () => {
   });
 
   it('returns external play url when play domain is configured', async () => {
-    process.env.PLAY_BASE_URL = 'https://play.muirpg.meathill.com';
+    process.env.NEXT_PUBLIC_PLAY_BASE_URL = 'https://play.muirpg.meathill.com';
 
     const response = await POST(createRequest({ moduleId: 'module-1', characterId: 'character-1' }));
     const payload = (await response.json()) as { playUrl: string };
@@ -134,8 +134,8 @@ describe('POST /api/games', () => {
   });
 
   it('creates play-managed game without bootstrapping opencode session', async () => {
-    process.env.GAME_CREATION_MODE = 'play';
-    process.env.PLAY_BASE_URL = 'https://play.muirpg.meathill.com';
+    process.env.NEXT_PUBLIC_GAME_CREATION_MODE = 'play';
+    process.env.NEXT_PUBLIC_PLAY_BASE_URL = 'https://play.muirpg.meathill.com';
     mockCreateGame.mockResolvedValue({
       id: 'game-1',
       userId: 'user-1',
@@ -163,7 +163,7 @@ describe('POST /api/games', () => {
   });
 
   it('rejects play-managed game creation when play url is unset', async () => {
-    process.env.GAME_CREATION_MODE = 'play';
+    process.env.NEXT_PUBLIC_GAME_CREATION_MODE = 'play';
 
     const response = await POST(createRequest({ moduleId: 'module-1', characterId: 'character-1' }));
     const payload = (await response.json()) as { error: string };
