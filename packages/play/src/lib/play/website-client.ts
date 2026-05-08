@@ -35,6 +35,30 @@ type ChatCompletionPayload = {
   };
 };
 
+type ErrorEnvelope = {
+  error?: string | { message?: string; type?: string; code?: string | number };
+};
+
+function extractErrorMessage(payload: ErrorEnvelope | null, fallback: string): string {
+  if (!payload?.error) {
+    return fallback;
+  }
+  if (typeof payload.error === 'string') {
+    return payload.error;
+  }
+  if (typeof payload.error === 'object') {
+    if (typeof payload.error.message === 'string' && payload.error.message.trim()) {
+      return payload.error.message;
+    }
+    try {
+      return JSON.stringify(payload.error);
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
 async function getWebsiteBinding(): Promise<Fetcher | null> {
   try {
     const { env } = await getCloudflareContext({ async: true });
@@ -84,7 +108,7 @@ export async function fetchWebsiteGameContext(gameId: string, cookieHeader?: str
   });
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error || '读取游戏上下文失败');
+    throw new Error(extractErrorMessage(payload, '读取游戏上下文失败'));
   }
   return (await response.json()) as GameContext;
 }
@@ -101,7 +125,7 @@ export async function sendWebsiteGameMessage(
   });
   const payload = (await response.json()) as PlayReply & { error?: string };
   if (!response.ok) {
-    throw new Error(payload.error || '发送消息失败');
+    throw new Error(extractErrorMessage(payload, '发送消息失败'));
   }
   return payload;
 }
@@ -119,7 +143,7 @@ export async function fetchWebsiteGameContextAsInternal(input: {
   });
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error || '读取游戏上下文失败');
+    throw new Error(extractErrorMessage(payload, '读取游戏上下文失败'));
   }
   return (await response.json()) as GameContext;
 }
@@ -141,7 +165,7 @@ export async function sendWebsiteGameMessageAsInternal(input: {
   });
   const payload = (await response.json()) as PlayReply & { error?: string };
   if (!response.ok) {
-    throw new Error(payload.error || '发送消息失败');
+    throw new Error(extractErrorMessage(payload, '发送消息失败'));
   }
   return payload;
 }
@@ -177,7 +201,7 @@ export async function recordWebsiteTurnAsInternal(input: {
   });
   const payload = (await response.json()) as PlayReply & { error?: string };
   if (!response.ok) {
-    throw new Error(payload.error || '记录回合失败');
+    throw new Error(extractErrorMessage(payload, '记录回合失败'));
   }
   return payload;
 }
@@ -222,7 +246,7 @@ export async function sendWebsiteChatCompletion(input: {
 
   const payload = (await response.json()) as ChatCompletionPayload & { error?: string };
   if (!response.ok) {
-    throw new Error(payload.error || '模型请求失败');
+    throw new Error(extractErrorMessage(payload, '模型请求失败'));
   }
 
   const choice = payload.choices?.[0];
