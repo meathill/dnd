@@ -1,3 +1,4 @@
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { getRuntimeConfig } from '../config/runtime';
 
 export type ChatCompletionMessage = {
@@ -54,6 +55,19 @@ function extractErrorMessage(payload: ErrorEnvelope | null, fallback: string): s
   }
 }
 
+async function resolveUpstreamApiKey(): Promise<string | undefined> {
+  try {
+    const { env } = await getCloudflareContext({ async: true });
+    const fromBinding = (env as unknown as Record<string, unknown>).LLM_PROXY_UPSTREAM_API_KEY;
+    if (typeof fromBinding === 'string' && fromBinding.trim()) {
+      return fromBinding.trim();
+    }
+  } catch {
+    // 非 Cloudflare 运行时（vitest、本地 node 直跑），落到 process.env
+  }
+  return process.env.LLM_PROXY_UPSTREAM_API_KEY?.trim();
+}
+
 function extractChatCompletionText(content: unknown): string {
   if (typeof content === 'string') {
     return content.trim();
@@ -91,7 +105,7 @@ export async function createChatCompletion(input: {
   const headers = new Headers({
     'Content-Type': 'application/json',
   });
-  const upstreamApiKey = process.env.LLM_PROXY_UPSTREAM_API_KEY?.trim();
+  const upstreamApiKey = await resolveUpstreamApiKey();
   if (upstreamApiKey) {
     headers.set('Authorization', `Bearer ${upstreamApiKey}`);
   }
