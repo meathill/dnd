@@ -9,6 +9,21 @@
     "binding": "ASSETS",
     "directory": ".open-next/assets"
   },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "placement": {
+    "mode": "smart"
+  },
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "site-cache"
+    }
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
@@ -19,19 +34,10 @@
       "service": "dndcoc"
     }
   ],
-  "r2_buckets": [
-    {
-      "binding": "NEXT_INC_CACHE_R2_BUCKET",
-      "bucket_name": "site-cache"
-    }
-  ],
-  "images": {
-    "binding": "IMAGES"
-  },
   "vars": {
     "NEXT_PUBLIC_PLAY_BASE_URL": "https://play.muirpg.meathill.com",
     "NEXT_PUBLIC_WEBSITE_BASE_URL": "https://muirpg.meathill.com",
     "NEXT_PUBLIC_PLAY_RUNTIME": "opencode",
-    "NEXT_PUBLIC_PLAY_LLM_MODEL": "gpt-5.4-mini"
+    "NEXT_PUBLIC_PLAY_LLM_MODEL": "mimo-v2.5-pro"
   }
 }
