@@ -52,7 +52,11 @@ export class StubOpencodeAdapter implements OpencodeAdapter {
  * 部署后如果端点签名变了，把这个类按实际响应改一下即可，不影响 agent-server 的接口契约。
  */
 export class HttpOpencodeAdapter implements OpencodeAdapter {
-  constructor(private readonly options: OpencodeClientOptions) {}
+  private readonly options: OpencodeClientOptions;
+
+  constructor(options: OpencodeClientOptions) {
+    this.options = options;
+  }
 
   private get headers(): HeadersInit {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
