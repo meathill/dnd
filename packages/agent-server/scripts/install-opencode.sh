@@ -30,6 +30,24 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
+# 把 .env 里现有的值 source 进来。下面如果发现某项缺失，会 prompt 后追加回 .env，
+# 这样重跑脚本就不用再次输入。
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+
+upsert_env() {
+  local key="$1"
+  local value="$2"
+  if grep -q "^${key}=" "$ENV_FILE"; then
+    # 用 # 作为分隔符避免 url / key 里的 / 干扰 sed
+    sed -i "s#^${key}=.*#${key}=${value}#" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # 1. 装 opencode CLI
 # ---------------------------------------------------------------------------
@@ -48,6 +66,7 @@ echo "==> opencode 版本：$(opencode --version 2>&1 | head -1 || echo 未知)"
 if [[ -z "${LLM_PROXY_UPSTREAM_BASE_URL:-}" ]]; then
   read -rp "LLM 上游 base url（留空使用 https://token-plan-sgp.xiaomimimo.com）: " UPSTREAM_BASE
   UPSTREAM_BASE="${UPSTREAM_BASE:-https://token-plan-sgp.xiaomimimo.com}"
+  upsert_env LLM_PROXY_UPSTREAM_BASE_URL "$UPSTREAM_BASE"
 else
   UPSTREAM_BASE="$LLM_PROXY_UPSTREAM_BASE_URL"
 fi
@@ -55,6 +74,7 @@ fi
 if [[ -z "${LLM_PROXY_UPSTREAM_API_KEY:-}" ]]; then
   read -rsp "LLM 上游 API key: " UPSTREAM_KEY
   echo
+  upsert_env LLM_PROXY_UPSTREAM_API_KEY "$UPSTREAM_KEY"
 else
   UPSTREAM_KEY="$LLM_PROXY_UPSTREAM_API_KEY"
 fi
@@ -62,6 +82,7 @@ fi
 if [[ -z "${OPENCODE_DEFAULT_MODEL:-}" ]]; then
   read -rp "opencode 默认模型（留空使用 mimo-v2.5-pro）: " OC_MODEL
   OC_MODEL="${OC_MODEL:-mimo-v2.5-pro}"
+  upsert_env OPENCODE_DEFAULT_MODEL "$OC_MODEL"
 else
   OC_MODEL="$OPENCODE_DEFAULT_MODEL"
 fi

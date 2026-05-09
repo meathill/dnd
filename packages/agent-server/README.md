@@ -74,12 +74,32 @@ curl https://opencode.muirpg.meathill.com/healthz   # {"ok":true,"opencodeMode":
 
 `setup-vps.sh` 把 agent-server 跑在 `OPENCODE_MODE=stub`。要切到真实 LLM 调用：
 
+**方式 1：先把 key 填进 `.env`，然后跑脚本（推荐）**
+
 ```bash
 cd ~/dnd/packages/agent-server
+nano .env
+# 把 LLM_PROXY_UPSTREAM_API_KEY=<your-key> 填上
+# （LLM_PROXY_UPSTREAM_BASE_URL / OPENCODE_DEFAULT_MODEL 已有默认值，按需改）
+
+bash scripts/install-opencode.sh
+```
+
+**方式 2：临时通过环境变量注入**
+
+```bash
 LLM_PROXY_UPSTREAM_API_KEY=<your-key> bash scripts/install-opencode.sh
 ```
 
-这会装 `opencode-ai`、写 `~/.config/opencode/opencode.json`、起 `opencode.service`，并把 agent-server 切到 `OPENCODE_MODE=opencode`。
+脚本逻辑：
+
+1. `source .env` 加载现有值
+2. 任一缺失的字段（`LLM_PROXY_UPSTREAM_BASE_URL` / `LLM_PROXY_UPSTREAM_API_KEY` / `OPENCODE_DEFAULT_MODEL`）会 prompt
+3. **prompt 输入的值会回写到 `.env`**，重跑脚本不需要再次输入
+4. 装 `opencode-ai`、写 `~/.config/opencode/opencode.json`、起 `opencode.service`
+5. 把 agent-server 切到 `OPENCODE_MODE=opencode` 并重启
+
+`.env` 是 chmod 600 的；不要把它 commit 到 git。
 
 ## 本地开发（docker）
 

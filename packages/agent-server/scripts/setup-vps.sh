@@ -122,12 +122,18 @@ ENV_FILE="$WORKDIR/.env"
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "==> 生成 .env"
   cat > "$ENV_FILE" <<EOF
+# === agent-server 自身 ===
 AGENT_SERVER_TOKEN=$(openssl rand -hex 32)
 OPENCODE_SERVER_PASSWORD=$(openssl rand -hex 32)
 OPENCODE_MODE=stub
 OPENCODE_BASE_URL=http://127.0.0.1:4096
 PORT=4180
 HOSTNAME=127.0.0.1
+
+# === install-opencode.sh 会读这几个值；提前填好可以避免 prompt ===
+LLM_PROXY_UPSTREAM_BASE_URL=https://token-plan-sgp.xiaomimimo.com
+LLM_PROXY_UPSTREAM_API_KEY=
+OPENCODE_DEFAULT_MODEL=mimo-v2.5-pro
 EOF
   chmod 600 "$ENV_FILE"
 else
