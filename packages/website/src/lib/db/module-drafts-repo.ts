@@ -16,6 +16,7 @@ type ModuleDraftRow = {
   status: string;
   published_module_id: string | null;
   skill_set: string;
+  agent_session_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -56,6 +57,7 @@ function mapDraft(row: ModuleDraftRow): ModuleDraftRecord {
     status: normalizeStatus(row.status),
     publishedModuleId: row.published_module_id,
     skillSet: row.skill_set === 'play' ? 'play' : 'authoring',
+    agentSessionId: row.agent_session_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -183,6 +185,16 @@ export async function updateModuleDraftData(id: string, data: Record<string, unk
   const updatedAt = buildTimestamp();
   await sqlite.execute('UPDATE module_drafts SET data_json = ?, updated_at = ? WHERE id = ?', [
     JSON.stringify(data),
+    updatedAt,
+    id,
+  ]);
+}
+
+export async function setModuleDraftAgentSessionId(id: string, agentSessionId: string): Promise<void> {
+  const { sqlite } = await getDatabase();
+  const updatedAt = buildTimestamp();
+  await sqlite.execute('UPDATE module_drafts SET agent_session_id = ?, updated_at = ? WHERE id = ?', [
+    agentSessionId,
     updatedAt,
     id,
   ]);

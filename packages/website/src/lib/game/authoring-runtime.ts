@@ -1,11 +1,5 @@
-import { getRuntimeConfig } from '../config/runtime';
-import {
-  type CreateDraftMessageInput,
-  createModuleDraftMessage,
-  listModuleDraftMessages,
-} from '../db/module-drafts-repo';
-import { type ChatCompletionMessage, createChatCompletion } from '../llm/chat-completion';
-import { buildSystemPrompt } from './dm-system-prompt';
+import { AgentServerUnavailableError, isAgentServerConfigured, sendAgentMessage } from '../agent/client';
+import { type CreateDraftMessageInput, createModuleDraftMessage } from '../db/module-drafts-repo';
 import type { ModuleDraftMessageRecord, ModuleDraftRecord } from './types';
 
 export type AuthoringTurnInput = {
@@ -18,28 +12,11 @@ export type AuthoringTurnResult = {
   assistantMessage: ModuleDraftMessageRecord;
 };
 
-function buildContextSummary(draft: ModuleDraftRecord): string {
-  return [
-    '## 当前模组草稿',
-    `slug：${draft.slug}`,
-    `标题：${draft.title}`,
-    `工作目录：${draft.workspacePath}`,
-    '### Meta',
-    JSON.stringify(draft.meta, null, 2),
-    '### 当前 data 概览',
-    JSON.stringify(draft.data, null, 2),
-  ].join('\n\n');
-}
-
-function toChatMessage(record: ModuleDraftMessageRecord): ChatCompletionMessage {
-  return { role: record.role, content: record.content };
-}
-
 function buildStubAssistantReply(draft: ModuleDraftRecord, content: string): string {
   return [
-    `这里是模组创作 stub runtime。当前模组《${draft.title}》（slug: ${draft.slug}）。`,
+    `这里是模组创作 stub runtime（agent-server 未配置）。当前模组《${draft.title}》（slug: ${draft.slug}）。`,
     `editor 输入：${content}`,
-    '在生产环境配置 GAME_RUNTIME=opencode 后，会调用 LLM 并按 create_module skill 流程协作。',
+    '在 wrangler.jsonc 配置 OPENCODE_AGENT_BASE_URL 与 OPENCODE_AGENT_TOKEN 后，会调用 VPS 上的 opencode agent loop。',
   ].join('\n\n');
 }
 
@@ -48,7 +25,6 @@ export async function sendAuthoringMessage(input: AuthoringTurnInput): Promise<A
   if (!trimmed) {
     throw new Error('消息不能为空');
   }
-  const history = await listModuleDraftMessages(input.draft.id);
 
   const baseUserPayload: CreateDraftMessageInput = {
     moduleDraftId: input.draft.id,
@@ -58,30 +34,27 @@ export async function sendAuthoringMessage(input: AuthoringTurnInput): Promise<A
   };
   const userMessage = await createModuleDraftMessage(baseUserPayload);
 
-  const { gameRuntimeMode, gameLlmModel } = getRuntimeConfig();
   let assistantContent: string;
   let assistantMeta: Record<string, unknown>;
-  if (gameRuntimeMode === 'opencode') {
-    const completion = await createChatCompletion({
-      model: gameLlmModel,
-      messages: [
-        {
-          role: 'system',
-          content: buildSystemPrompt({ scenario: 'authoring', contextSummary: buildContextSummary(input.draft) }),
-        },
-        ...history.map(toChatMessage),
-        { role: 'user', content: trimmed },
-      ],
-    });
-    assistantContent = completion.content;
-    assistantMeta = {
-      runtime: 'authoring',
-      providerId: 'llm-upstream',
-      modelId: completion.modelId,
-      finishReason: completion.finishReason,
-      responseId: completion.responseId,
-      ...(completion.usage ? { tokens: completion.usage } : {}),
-    };
+
+  if (input.draft.agentSessionId && (await isAgentServerConfigured())) {
+    try {
+      const result = await sendAgentMessage(input.draft.agentSessionId, trimmed);
+      assistantContent = result.assistantMessage.content;
+      assistantMeta = {
+        runtime: 'agent-server',
+        agentMessageId: result.assistantMessage.id,
+        skillCalls: result.assistantMessage.skillCalls,
+      };
+    } catch (error) {
+      if (error instanceof AgentServerUnavailableError) {
+        assistantContent = buildStubAssistantReply(input.draft, trimmed);
+        assistantMeta = { runtime: 'stub', reason: 'agent-server-unavailable' };
+      } else {
+        const message = error instanceof Error ? error.message : '调用 agent-server 失败';
+        throw new Error(message);
+      }
+    }
   } else {
     assistantContent = buildStubAssistantReply(input.draft, trimmed);
     assistantMeta = { runtime: 'stub' };

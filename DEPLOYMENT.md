@@ -136,13 +136,51 @@ Cloudflare 上建议通过 `wrangler secret put` 配置敏感变量，例如：
 - `BETTER_AUTH_SECRET`
 - `LLM_PROXY_UPSTREAM_API_KEY`
 
+## Agent Server 部署（VPS）
+
+`packages/agent-server` 是部署在 VPS 上的 agent runner。它接收 worker 的 HTTP 请求，转发给同一台机器上的 `opencode serve`，并维护每个 session 的 workspace 目录。
+
+详细部署步骤见 [`packages/agent-server/README.md`](packages/agent-server/README.md)。最简流程：
+
+```bash
+git clone https://github.com/meathill/dnd.git
+cd dnd/packages/agent-server
+cat > .env <<EOF
+AGENT_SERVER_TOKEN=$(openssl rand -hex 32)
+OPENCODE_SERVER_PASSWORD=$(openssl rand -hex 32)
+EOF
+docker compose up -d
+```
+
+VPS 前置加 Caddy / nginx 做 TLS，对外暴露形如 `https://agent.your-domain.com`。
+
+### 把 agent-server 接入 worker
+
+`packages/website/wrangler.jsonc` 已经预留 `OPENCODE_AGENT_BASE_URL` 字段：
+
+```jsonc
+"vars": {
+  "OPENCODE_AGENT_BASE_URL": "https://agent.your-domain.com"
+}
+```
+
+然后注入 token（不要写进 `wrangler.jsonc`）：
+
+```bash
+pnpm --dir packages/website exec wrangler secret put OPENCODE_AGENT_TOKEN
+# 粘贴上面的 AGENT_SERVER_TOKEN 值
+```
+
+未配置 `OPENCODE_AGENT_BASE_URL` / `OPENCODE_AGENT_TOKEN` 时，模组创作会话会回退到 stub 回复，主链路不影响（创建草稿、发布、玩家开始游戏都仍然能跑）。
+
 ## 推荐部署顺序
 
-1. 部署 `website`
+1. 部署 `website`（先不启用 agent-server，模组创作走 stub）
 2. 配置反向代理
 3. 配置 `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`
 4. 先用 `GAME_RUNTIME=stub` 跑通主链路
-5. 再切到 `GAME_RUNTIME=opencode`
+5. 切到 `GAME_RUNTIME=opencode` 验证模型回合
+6. VPS 上部署 `agent-server` + opencode，配 `OPENCODE_AGENT_BASE_URL` / `OPENCODE_AGENT_TOKEN`，验证模组创作会话能调用 skill
 
 ## 上线前检查
 

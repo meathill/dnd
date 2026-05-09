@@ -105,6 +105,32 @@ export async function resolveAdminEmails(): Promise<string[]> {
   return parseAdminEmails(process.env.ADMIN_EMAILS);
 }
 
+export type AgentServerConfig = {
+  baseUrl: string | null;
+  token: string | null;
+};
+
+export async function resolveAgentServerConfig(): Promise<AgentServerConfig> {
+  let baseUrl: string | null = null;
+  let token: string | null = null;
+  try {
+    const cloudflare = await import('@opennextjs/cloudflare');
+    const { env } = await cloudflare.getCloudflareContext({ async: true });
+    const bindings = env as unknown as Record<string, unknown>;
+    if (typeof bindings.OPENCODE_AGENT_BASE_URL === 'string' && bindings.OPENCODE_AGENT_BASE_URL.trim()) {
+      baseUrl = bindings.OPENCODE_AGENT_BASE_URL.trim();
+    }
+    if (typeof bindings.OPENCODE_AGENT_TOKEN === 'string' && bindings.OPENCODE_AGENT_TOKEN.trim()) {
+      token = bindings.OPENCODE_AGENT_TOKEN.trim();
+    }
+  } catch {
+    // 非 Cloudflare 运行时
+  }
+  baseUrl = baseUrl ?? process.env.OPENCODE_AGENT_BASE_URL?.trim() ?? null;
+  token = token ?? process.env.OPENCODE_AGENT_TOKEN?.trim() ?? null;
+  return { baseUrl, token };
+}
+
 export function buildGameHref(gameId: string): string {
   return `/games/${gameId}`;
 }

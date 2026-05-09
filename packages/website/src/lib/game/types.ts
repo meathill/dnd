@@ -70,6 +70,7 @@ export type ModuleDraftRecord = {
   status: ModuleDraftStatus;
   publishedModuleId: string | null;
   skillSet: 'authoring' | 'play';
+  agentSessionId: string | null;
   createdAt: string;
   updatedAt: string;
 };

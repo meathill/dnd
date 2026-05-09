@@ -7,13 +7,14 @@ describe('chat completion helper', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', mockFetch);
-    process.env.NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL = 'https://upstream.example.com';
+    vi.stubEnv('NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL', 'https://upstream.example.com');
     Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS');
     Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_API_KEY');
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL');
     Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS');
     Reflect.deleteProperty(process.env, 'LLM_PROXY_UPSTREAM_API_KEY');
@@ -26,15 +27,15 @@ describe('chat completion helper', () => {
   });
 
   it('rejects models outside the configured allowlist', async () => {
-    process.env.NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS = 'gpt-4.1-mini gpt-4o-mini';
+    vi.stubEnv('NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS', 'gpt-4.1-mini gpt-4o-mini');
 
     await expect(createChatCompletion({ model: 'gpt-5', messages: [] })).rejects.toThrow('模型未开放');
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('forwards request to upstream with rewritten authorization header', async () => {
-    process.env.NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS = 'gpt-4.1-mini';
-    process.env.LLM_PROXY_UPSTREAM_API_KEY = 'upstream-secret';
+    vi.stubEnv('NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS', 'gpt-4.1-mini');
+    vi.stubEnv('LLM_PROXY_UPSTREAM_API_KEY', 'upstream-secret');
     mockFetch.mockResolvedValue(
       new Response(
         JSON.stringify({

@@ -205,3 +205,36 @@ client 在能力未稳定前，不应承担产品定义责任。
 ### 草稿创作不扣费
 
 - `authoring-runtime.ts` 不调用 `chargeWallet`/`recordGameTurn`。如果以后要给 editor 计费，应当走单独的账本类型，避免和玩家的 `game` 钱包混在一起。
+
+## VPS 上的 agent-server
+
+### 拓扑
+
+```
+[Cloudflare Worker (website)]
+    │ HTTP + Bearer
+    ▼
+[VPS · @dnd/agent-server]  Hono / Node 24
+    │
+    ├── /workspace/sessions/{id}/   per-session 工作目录（含 .opencode/skills/ 模板）
+    │
+    └── HTTP → [opencode serve]  agent loop + skill 执行
+                 │
+                 └── LLM 上游
+```
+
+### 关键设计
+
+- **VPS 是模组创作的 single source of truth**：worker 不写 fs，所有 module data 的中间状态都在 VPS workspace 里。worker 的 `module_drafts.data_json` 只在「发布前同步一次」、「stub 模式下保留兜底」两种场景写入。
+- **agent_session_id 关联**：`module_drafts.agent_session_id` 字段把 worker 的草稿 id 和 VPS 的 session id 串起来。worker 不知道 opencode 内部 sessionId，agent-server 维护 `agent session ↔ opencode session` 的 1:1 映射。
+- **降级策略**：worker 端所有调用 agent-server 的地方都用 `isAgentServerConfigured()` 守卫；未配置时退化成 stub 回复，主链路（创建草稿、发布、开始游戏）仍可走通。这是为了让 worker 部署不强依赖 VPS。
+- **skills 同步**：`packages/agent-server/Dockerfile` 在构建时把 `repo/skills/` 复制到镜像 `/var/agent/skills`；session 创建时再复制到该 session workspace 的 `.opencode/skills/`，opencode 自动识别。修改 skill 后要 rebuild docker image。
+- **session 持久化**：当前 SessionStore 是内存级（重启会丢索引）。重启后 worker 端那些指向旧 sessionId 的草稿会自动 fallback 到 stub。后续要持久化时可以换 sqlite，agent-server tsconfig / Dockerfile 已经预留 `better-sqlite3` 不冲突。
+
+### 接口契约
+
+完整端点见 `packages/agent-server/README.md` 与 `packages/agent-server/src/types.ts`。worker 端 `lib/agent/client.ts` 的类型必须与 agent-server `src/types.ts` 保持一致——不直接共享类型是因为 worker 包不应依赖 Node 包。
+
+### opencode adapter 的不确定性
+
+`HttpOpencodeAdapter` 按 opencode `/session` 与 `/session/{id}/message` 的常见形态写。但 opencode schema 还在迭代，部署后第一次跑通要看 `http://localhost:4096/doc`（OpenAPI）确认实际响应字段，调整 `extractSkillCalls` 等解析逻辑即可，不影响 agent-server 对外的接口契约。

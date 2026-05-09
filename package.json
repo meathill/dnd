@@ -7,8 +7,8 @@
     "format": "biome format --write .",
     "format:check": "biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .",
     "lint": "biome check .",
-    "typecheck": "pnpm --dir packages/website typecheck",
-    "test": "pnpm --dir packages/website test",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
     "build": "pnpm --dir packages/website build"
   },
   "keywords": [],

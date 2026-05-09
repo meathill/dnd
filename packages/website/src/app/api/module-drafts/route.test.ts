@@ -3,17 +3,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   mockGetRequestSession,
   mockResolveAdminEmails,
+  mockResolveAgentServerConfig,
   mockCreateModuleDraft,
   mockListModuleDraftsForOwner,
   mockGetModuleDraftBySlug,
+  mockSetModuleDraftAgentSessionId,
   mockEnsureModuleDraftWorkspace,
+  mockCreateAgentSession,
 } = vi.hoisted(() => ({
   mockGetRequestSession: vi.fn(),
   mockResolveAdminEmails: vi.fn(),
+  mockResolveAgentServerConfig: vi.fn(),
   mockCreateModuleDraft: vi.fn(),
   mockListModuleDraftsForOwner: vi.fn(),
   mockGetModuleDraftBySlug: vi.fn(),
+  mockSetModuleDraftAgentSessionId: vi.fn(),
   mockEnsureModuleDraftWorkspace: vi.fn(),
+  mockCreateAgentSession: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/session', () => ({
@@ -22,16 +28,28 @@ vi.mock('@/lib/auth/session', () => ({
 
 vi.mock('@/lib/config/runtime', () => ({
   resolveAdminEmails: mockResolveAdminEmails,
+  resolveAgentServerConfig: mockResolveAgentServerConfig,
 }));
 
 vi.mock('@/lib/db/module-drafts-repo', () => ({
   createModuleDraft: mockCreateModuleDraft,
   getModuleDraftBySlug: mockGetModuleDraftBySlug,
   listModuleDraftsForOwner: mockListModuleDraftsForOwner,
+  setModuleDraftAgentSessionId: mockSetModuleDraftAgentSessionId,
 }));
 
 vi.mock('@/lib/opencode/workspace', () => ({
   ensureModuleDraftWorkspace: mockEnsureModuleDraftWorkspace,
+}));
+
+vi.mock('@/lib/agent/client', () => ({
+  AgentServerUnavailableError: class extends Error {
+    constructor() {
+      super('agent-server 未配置');
+    }
+  },
+  createAgentSession: mockCreateAgentSession,
+  isAgentServerConfigured: vi.fn(async () => false),
 }));
 
 import { GET, POST } from './route';
@@ -59,6 +77,7 @@ describe('module-drafts API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockResolveAdminEmails.mockResolvedValue([]);
+    mockResolveAgentServerConfig.mockResolvedValue({ baseUrl: null, token: null });
     mockEnsureModuleDraftWorkspace.mockResolvedValue('/workspace/modules/drafts/haunted');
     mockGetModuleDraftBySlug.mockResolvedValue(null);
     mockCreateModuleDraft.mockImplementation(async (input) => ({

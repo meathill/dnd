@@ -100,6 +100,16 @@
 - [x] 清理 `play` package、跨服务自调用代码与相关文档
 - [x] 回归验证 `format` / `typecheck` / `test` / `build`
 
+### Phase 13: VPS Agent Server（接 opencode）
+- [x] 新建 `packages/agent-server`：Hono + bearer auth + workspace fs + opencode adapter（stub/opencode 两种）
+- [x] `POST /sessions` / `POST /sessions/:id/messages` / `GET /sessions/:id/data` / `POST /sessions/:id/publish` / `GET /healthz`
+- [x] Dockerfile + docker-compose（opencode + agent-server）
+- [x] worker: `lib/agent/client.ts`、`module_drafts.agent_session_id`（migration 0003）、authoring-runtime 接 agent-server、publish 流程同步
+- [x] wrangler.jsonc 加 `OPENCODE_AGENT_BASE_URL` 占位；secret 通过 `wrangler secret put OPENCODE_AGENT_TOKEN`
+- [x] 降级：未配置 agent-server 时 worker 端退到 stub，主链路不破
+- [ ] VPS 实际部署 + `https://agent.your-domain.com` 反代（待用户在 VPS 上 docker compose up + 配置）
+- [ ] 第一次跑通后根据 opencode 真实响应调整 `HttpOpencodeAdapter.extractSkillCalls`
+
 ### Phase 12: 模组创作流程（admin → editor → module）
 - [x] `user.role` + `ADMIN_EMAILS` 环境变量；`permission.ts` 集中权限判定
 - [x] `/admin` + `/admin/users` 页面 + `/api/admin/users` API：管理员可把用户切为 editor

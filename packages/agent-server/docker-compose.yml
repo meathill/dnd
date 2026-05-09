@@ -1,0 +1,33 @@
+services:
+  opencode:
+    image: ghcr.io/sst/opencode:latest
+    restart: unless-stopped
+    environment:
+      OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD}
+    command: ["serve", "--port", "4096", "--hostname", "0.0.0.0"]
+    volumes:
+      - agent-workspace:/workspace
+    expose:
+      - "4096"
+
+  agent-server:
+    build:
+      context: ../../
+      dockerfile: packages/agent-server/Dockerfile
+    restart: unless-stopped
+    environment:
+      AGENT_SERVER_TOKEN: ${AGENT_SERVER_TOKEN}
+      AGENT_WORKSPACE_ROOT: /var/agent/workspace
+      AGENT_SKILLS_DIR: /var/agent/skills
+      OPENCODE_MODE: opencode
+      OPENCODE_BASE_URL: http://opencode:4096
+      OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD}
+    volumes:
+      - agent-workspace:/var/agent/workspace
+    ports:
+      - "4180:4180"
+    depends_on:
+      - opencode
+
+volumes:
+  agent-workspace:

@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createModuleDraft, getModuleDraftBySlug, listModuleDraftsForOwner } from '@/lib/db/module-drafts-repo';
+import { AgentServerUnavailableError, createAgentSession, isAgentServerConfigured } from '@/lib/agent/client';
+import {
+  createModuleDraft,
+  getModuleDraftBySlug,
+  listModuleDraftsForOwner,
+  setModuleDraftAgentSessionId,
+} from '@/lib/db/module-drafts-repo';
 import { requireEditor } from '@/lib/internal/draft-auth';
 import { ensureModuleDraftWorkspace } from '@/lib/opencode/workspace';
 
@@ -61,6 +67,26 @@ export async function POST(request: Request) {
     meta: body.meta,
     workspacePath,
   });
+
+  // 仅当 agent-server 已配置时才远程开 session；否则草稿仍可创建，会话退化为 stub。
+  if (await isAgentServerConfigured()) {
+    try {
+      const session = await createAgentSession({
+        scenario: 'authoring',
+        ownerId: editor.session.userId,
+        externalRef: draft.id,
+        moduleSlug: draft.slug,
+        meta: draft.meta,
+        initialModuleData: draft.data,
+      });
+      await setModuleDraftAgentSessionId(draft.id, session.id);
+      draft.agentSessionId = session.id;
+    } catch (error) {
+      if (!(error instanceof AgentServerUnavailableError)) {
+        console.error('[api/module-drafts] 创建 agent session 失败', error);
+      }
+    }
+  }
 
   return NextResponse.json({ draft }, { status: 201 });
 }

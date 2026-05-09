@@ -48,6 +48,7 @@
     "GAME_LLM_MODEL": "mimo-v2.5-pro",
     "NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL": "https://token-plan-sgp.xiaomimimo.com",
     "NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS": "mimo-v2.5-pro",
-    "ADMIN_EMAILS": "meathill@gmail.com"
+    "ADMIN_EMAILS": "meathill@gmail.com",
+    "OPENCODE_AGENT_BASE_URL": ""
   }
 }

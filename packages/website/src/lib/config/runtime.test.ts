@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildAssetUrl, buildGameHref, getRuntimeConfig } from './runtime';
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_ASSET_BASE_URL');
   Reflect.deleteProperty(process.env, 'GAME_RUNTIME');
   Reflect.deleteProperty(process.env, 'GAME_LLM_MODEL');
@@ -15,7 +16,7 @@ describe('runtime url helpers', () => {
   });
 
   it('returns asset url on asset domain when configured', () => {
-    process.env.NEXT_PUBLIC_ASSET_BASE_URL = 'https://i.muirpg.meathill.com';
+    vi.stubEnv('NEXT_PUBLIC_ASSET_BASE_URL', 'https://i.muirpg.meathill.com');
 
     expect(buildAssetUrl('images/cover.png')).toBe('https://i.muirpg.meathill.com/images/cover.png');
   });
@@ -30,10 +31,10 @@ describe('runtime url helpers', () => {
   });
 
   it('supports opencode game runtime configuration', () => {
-    process.env.GAME_RUNTIME = 'opencode';
-    process.env.GAME_LLM_MODEL = 'mimo-v2.5-pro';
-    process.env.NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL = 'https://api.example.com';
-    process.env.NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS = 'mimo-v2.5-pro gpt-4o-mini';
+    vi.stubEnv('GAME_RUNTIME', 'opencode');
+    vi.stubEnv('GAME_LLM_MODEL', 'mimo-v2.5-pro');
+    vi.stubEnv('NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL', 'https://api.example.com');
+    vi.stubEnv('NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS', 'mimo-v2.5-pro gpt-4o-mini');
 
     expect(getRuntimeConfig()).toMatchObject({
       gameRuntimeMode: 'opencode',
