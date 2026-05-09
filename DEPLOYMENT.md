@@ -140,19 +140,19 @@ Cloudflare 上建议通过 `wrangler secret put` 配置敏感变量，例如：
 
 `packages/agent-server` 是部署在 VPS 上的 agent runner。它接收 worker 的 HTTP 请求，转发给同一台机器上的 `opencode serve`，并维护每个 session 的 workspace 目录。
 
-详细部署步骤见 [`packages/agent-server/README.md`](packages/agent-server/README.md)。最简流程：
+详细见 [`packages/agent-server/README.md`](packages/agent-server/README.md)。**推荐 systemd 方案（小内存友好，不依赖 docker）**：
 
 ```bash
-git clone https://github.com/meathill/dnd.git
-cd dnd/packages/agent-server
-cat > .env <<EOF
-AGENT_SERVER_TOKEN=$(openssl rand -hex 32)
-OPENCODE_SERVER_PASSWORD=$(openssl rand -hex 32)
-EOF
-docker compose up -d
+git clone https://github.com/meathill/dnd.git ~/dnd
+cd ~/dnd/packages/agent-server
+bash scripts/setup-vps.sh
 ```
 
-VPS 前置加 Caddy / nginx 做 TLS，对外暴露形如 `https://agent.your-domain.com`。
+脚本会自动：加 swap、装 Node 24、写 systemd unit、生成 token、启动并 healthz 验证。
+
+VPS 前置反代选项：
+- 已有 cloudflared tunnel：把 ingress 指到 `127.0.0.1:4180`（一行 `sed` 即可）
+- 没有：自己用 Caddy / nginx 加 TLS
 
 ### 把 agent-server 接入 worker
 
