@@ -1,6 +1,7 @@
 ---
 name: save_local_report
 description: 把战报写入工作区 `data/reports`，正文为 Markdown，元数据为 frontmatter。
+scenarios: [play]
 metadata:
   author: meathill
   version: "1.0.0"

@@ -12,6 +12,7 @@ export async function SiteHeader() {
         </Link>
         <nav className="flex items-center gap-6 text-sm text-zinc-600">
           <Link href="/">模组</Link>
+          {session?.isAdmin ? <Link href="/admin">后台</Link> : null}
           {session ? <Link href="/billing">余额 {session.balance}</Link> : null}
           {session ? (
             <>

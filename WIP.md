@@ -100,6 +100,18 @@
 - [x] 清理 `play` package、跨服务自调用代码与相关文档
 - [x] 回归验证 `format` / `typecheck` / `test` / `build`
 
+### Phase 12: 模组创作流程（admin → editor → module）
+- [x] `user.role` + `ADMIN_EMAILS` 环境变量；`permission.ts` 集中权限判定
+- [x] `/admin` + `/admin/users` 页面 + `/api/admin/users` API：管理员可把用户切为 editor
+- [x] skill 加载基础设施：`scripts/generate-skill-manifest.ts` 扫描 `skills/*/SKILL.md`，生成 manifest.generated.ts；loader 按 scenario 过滤
+- [x] 给 26 个现有 skill + 新建的 `create_module` 总入口 skill 都打上 `scenarios: [authoring | play | both]`
+- [x] `dm-system-prompt.ts` 改成 `buildSystemPrompt({ scenario, contextSummary })`，把 skill catalog 注入 system prompt
+- [x] `module_drafts` 表 + `module_draft_messages` 表 + 独立 workspace `/workspace/modules/drafts/{slug}`
+- [x] `/api/module-drafts` CRUD + 创作会话 `/api/module-drafts/[id]/messages`（authoring runtime，不扣费）+ `/api/module-drafts/[id]/publish` 发布
+- [x] `/modules/new`（Meta 表单）+ `/modules/drafts/[id]`（双栏：会话 + 数据概览 + 发布按钮）
+- [x] `createGame()` 在玩家开始游戏时把发布的模组物化到 `/workspace/{userId}/{gameId}/data/modules/...`
+- [x] 全量回归 `pnpm run format / lint / typecheck / test / build` 通过
+
 ## 当前新增能力
 
 - `create_character`：按当前剧本快速车卡，并返回 `isValid` / `fieldErrors`

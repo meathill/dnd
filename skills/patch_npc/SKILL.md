@@ -1,6 +1,7 @@
 ---
 name: patch_npc
 description: 新增或更新一个 NPC，只返回结构化 patch 建议。
+scenarios: [authoring]
 metadata:
   author: meathill
   version: "1.1.0"

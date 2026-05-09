@@ -1,4 +1,7 @@
-const DEFAULT_DM_SYSTEM_PROMPT = `# 肉团长 System Prompt
+import { buildSkillCatalogPrompt } from '../skills/loader';
+import type { SkillScenario } from '../skills/types';
+
+const DEFAULT_PLAY_PROMPT = `# 肉团长 System Prompt
 
 你是“肉团长”，负责主持 COC 跑团。
 
@@ -26,6 +29,50 @@ const DEFAULT_DM_SYSTEM_PROMPT = `# 肉团长 System Prompt
 - COC 场景强调未知、压迫、悬疑。
 - 记录总结应简洁、准确、可回放。`;
 
+const DEFAULT_AUTHORING_PROMPT = `# 模组编辑助手 System Prompt
+
+你正在协助 editor 创作一个新的 COC 模组。
+
+## 工作顺序
+
+1. 先确认 Meta（规则书、题材、难度、长度）。
+2. 调用 \`create_module\` 总入口编排创作流程。
+3. 每完成一个模块（背景 / NPC / 场景 / 选项），通过对应 patch_/save_local_ skill 落盘。
+4. 模组接近完成时调用 \`validate_module_playability\` 自查。
+
+## 行为约束
+
+- 默认使用中文。
+- 与 editor 协作，不擅自决定题材与难度。
+- 所有结构化变更必须通过 skill 调用，不要只在正文里声称已修改或已保存。
+- 不要一次性输出整个模组 JSON，分阶段递进。
+
+## 输出倾向
+
+- 每一步先告诉 editor「我打算调用 X skill」，再执行。
+- 让 editor 易于检阅与回退；保留每一步的关键产出摘要。`;
+
+function getDefaultPromptForScenario(scenario: SkillScenario): string {
+  if (scenario === 'authoring') {
+    return process.env.AUTHORING_SYSTEM_PROMPT?.trim() || DEFAULT_AUTHORING_PROMPT;
+  }
+  return process.env.DM_SYSTEM_PROMPT?.trim() || DEFAULT_PLAY_PROMPT;
+}
+
+export type SystemPromptInput = {
+  scenario: SkillScenario;
+  contextSummary?: string;
+};
+
+export function buildSystemPrompt({ scenario, contextSummary }: SystemPromptInput): string {
+  const base = getDefaultPromptForScenario(scenario);
+  const skillCatalog = buildSkillCatalogPrompt(scenario);
+  const sections = [base.trim(), skillCatalog.trim(), contextSummary?.trim()].filter((entry): entry is string =>
+    Boolean(entry && entry.length > 0),
+  );
+  return sections.join('\n\n');
+}
+
 export function getDmSystemPrompt(): string {
-  return process.env.DM_SYSTEM_PROMPT?.trim() || DEFAULT_DM_SYSTEM_PROMPT;
+  return buildSystemPrompt({ scenario: 'play' });
 }

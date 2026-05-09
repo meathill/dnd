@@ -1,6 +1,7 @@
 ---
 name: patch_background
 description: 修改模组背景章节，包括总览、核心真相、主题、势力、地点和隐藏要点。
+scenarios: [authoring]
 metadata:
   author: meathill
   version: "1.0.0"

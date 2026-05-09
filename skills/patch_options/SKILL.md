@@ -1,6 +1,7 @@
 ---
 name: patch_options
 description: 修改模组的装备、出身、buff、debuff 选项池，只返回结构化 patch 建议。
+scenarios: [authoring]
 metadata:
   author: meathill
   version: "1.0.0"

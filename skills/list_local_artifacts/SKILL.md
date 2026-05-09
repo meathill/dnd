@@ -1,6 +1,7 @@
 ---
 name: list_local_artifacts
 description: 列出工作区中已经保存的模组、人物卡或战报。
+scenarios: [authoring, play]
 metadata:
   author: meathill
   version: "1.0.0"

@@ -1,6 +1,7 @@
 ---
 name: select_ruleset
 description: 列出当前可用规则系统，默认返回 coc-7e-lite。
+scenarios: [authoring, play]
 metadata:
   author: meathill
   version: "1.0.0"

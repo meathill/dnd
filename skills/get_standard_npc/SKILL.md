@@ -1,6 +1,7 @@
 ---
 name: get_standard_npc
 description: 读取规则书中的标准 NPC 模板。
+scenarios: [authoring, play]
 metadata:
   author: meathill
   version: "1.0.0"

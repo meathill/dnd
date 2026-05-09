@@ -11,10 +11,13 @@ import {
   getCharacterById,
   getGameByIdForUser,
   getModuleById,
+  getUserById,
+  listAllUsers,
   listBillingLedger,
   listMessagesByGameId,
   listModules,
   recordGameTurn,
+  updateUserRole,
 } from './repositories';
 
 let databaseDir = '';
@@ -162,5 +165,25 @@ describe('repositories', () => {
 
     expect(messages).toHaveLength(0);
     expect(ledger).toHaveLength(0);
+  });
+
+  it('lists users and updates role', async () => {
+    await seedUser('user-a');
+    await seedUser('user-b');
+
+    const initial = await getUserById('user-a');
+    expect(initial?.role).toBe('user');
+
+    const updated = await updateUserRole('user-a', 'editor');
+    expect(updated?.role).toBe('editor');
+
+    const fetched = await getUserById('user-a');
+    expect(fetched?.role).toBe('editor');
+
+    const all = await listAllUsers();
+    const ids = all.map((entry) => entry.id);
+    expect(ids).toContain('user-a');
+    expect(ids).toContain('user-b');
+    expect(all.find((entry) => entry.id === 'user-b')?.role).toBe('user');
   });
 });

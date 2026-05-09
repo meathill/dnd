@@ -1,6 +1,7 @@
 ---
 name: patch_basic
 description: 修改模组的标题、简介、背景设定与难度，只返回结构化 patch 建议。
+scenarios: [authoring]
 metadata:
   author: meathill
   version: "1.0.0"

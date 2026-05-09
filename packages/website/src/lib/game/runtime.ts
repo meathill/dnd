@@ -7,16 +7,15 @@ import {
   recordGameTurn,
 } from '../db/repositories';
 import { type ChatCompletionMessage, createChatCompletion } from '../llm/chat-completion';
-import { getDmSystemPrompt } from './dm-system-prompt';
+import { buildSystemPrompt } from './dm-system-prompt';
 import type { GameContext, GameRuntimeSession, GameTurnReply } from './types';
 
 const TURN_COST = 5;
 
 export const LOCAL_RUNTIME_SESSION_ID = 'local-runtime';
 
-function buildModelSystemPrompt(context: GameContext, systemPrompt: string): string {
+function buildContextSummary(context: GameContext): string {
   return [
-    systemPrompt.trim(),
     '## 当前游戏上下文',
     `游戏 ID：${context.game.id}`,
     `工作目录：${context.game.workspacePath}`,
@@ -27,11 +26,11 @@ function buildModelSystemPrompt(context: GameContext, systemPrompt: string): str
   ].join('\n\n');
 }
 
-function buildModelMessages(context: GameContext, systemPrompt: string, content: string): ChatCompletionMessage[] {
+function buildModelMessages(context: GameContext, content: string): ChatCompletionMessage[] {
   return [
     {
       role: 'system',
-      content: buildModelSystemPrompt(context, systemPrompt),
+      content: buildSystemPrompt({ scenario: 'play', contextSummary: buildContextSummary(context) }),
     },
     ...context.messages
       .filter((message) => (message.role === 'user' || message.role === 'assistant') && message.content.trim())
@@ -92,11 +91,10 @@ async function sendOpencodeRuntimeMessage(
     throw new Error('余额不足');
   }
 
-  const systemPrompt = getDmSystemPrompt();
   const { gameLlmModel } = getRuntimeConfig();
   const completion = await createChatCompletion({
     model: gameLlmModel,
-    messages: buildModelMessages(context, systemPrompt, content),
+    messages: buildModelMessages(context, content),
   });
 
   return recordRuntimeTurn({

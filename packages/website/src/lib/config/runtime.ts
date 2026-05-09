@@ -12,6 +12,7 @@ export type RuntimeConfig = {
   gameLlmModel: string;
   llmUpstreamBaseUrl: string | null;
   llmAllowedModels: string[];
+  adminEmails: string[];
 };
 
 function trimTrailingSlash(value: string): string {
@@ -60,6 +61,16 @@ function parseAllowedModels(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function parseAdminEmails(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .split(/[\s,;]+/)
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 function resolveGameRuntimeMode(): GameRuntimeMode {
   return process.env.GAME_RUNTIME?.trim() === 'opencode' ? 'opencode' : 'stub';
 }
@@ -76,7 +87,22 @@ export function getRuntimeConfig(): RuntimeConfig {
     gameLlmModel: process.env.GAME_LLM_MODEL?.trim() || DEFAULT_GAME_LLM_MODEL,
     llmUpstreamBaseUrl: resolveOptionalUrl(process.env.NEXT_PUBLIC_LLM_PROXY_UPSTREAM_BASE_URL),
     llmAllowedModels: parseAllowedModels(process.env.NEXT_PUBLIC_LLM_PROXY_ALLOWED_MODELS),
+    adminEmails: parseAdminEmails(process.env.ADMIN_EMAILS),
   };
+}
+
+export async function resolveAdminEmails(): Promise<string[]> {
+  try {
+    const cloudflare = await import('@opennextjs/cloudflare');
+    const { env } = await cloudflare.getCloudflareContext({ async: true });
+    const fromBinding = (env as unknown as Record<string, unknown>).ADMIN_EMAILS;
+    if (typeof fromBinding === 'string' && fromBinding.trim()) {
+      return parseAdminEmails(fromBinding);
+    }
+  } catch {
+    // 非 Cloudflare 运行时（vitest、本地 node 直跑），落到 process.env
+  }
+  return parseAdminEmails(process.env.ADMIN_EMAILS);
 }
 
 export function buildGameHref(gameId: string): string {

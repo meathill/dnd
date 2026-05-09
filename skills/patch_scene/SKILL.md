@@ -1,6 +1,7 @@
 ---
 name: patch_scene
 description: 新增或更新一个场景，只返回结构化 patch 建议。
+scenarios: [authoring]
 metadata:
   author: meathill
   version: "1.0.0"

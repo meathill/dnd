@@ -5,7 +5,7 @@ import { buildGameHref } from '@/lib/config/runtime';
 import { createGame, getCharacterById, getModuleById } from '@/lib/db/repositories';
 import { LOCAL_RUNTIME_SESSION_ID } from '@/lib/game/runtime';
 import type { CharacterRecord, ModuleRecord } from '@/lib/game/types';
-import { ensureWorkspace } from '@/lib/opencode/workspace';
+import { ensureWorkspace, materializeModuleIntoGameWorkspace } from '@/lib/opencode/workspace';
 
 type CreateGameRequest = {
   moduleId?: string;
@@ -52,6 +52,11 @@ export async function POST(request: Request) {
   let workspacePath: string;
   try {
     workspacePath = await ensureWorkspace(session.userId, gameId);
+    await materializeModuleIntoGameWorkspace({
+      moduleId: moduleRecord.id,
+      moduleData: moduleRecord.data,
+      gameWorkspacePath: workspacePath,
+    });
   } catch (error) {
     console.error('[api/games] 创建工作区失败', error);
     return NextResponse.json({ error: '创建游戏失败' }, { status: 500 });

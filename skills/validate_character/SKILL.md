@@ -1,6 +1,7 @@
 ---
 name: validate_character
 description: 检查人物卡是否满足当前剧本的职业、属性、技能与装备限制。
+scenarios: [authoring, play]
 metadata:
   author: meathill
   version: "1.0.0"

@@ -1,7 +1,9 @@
 import { headers } from 'next/headers';
-import { ensureWallet } from '../db/repositories';
+import { resolveAdminEmails } from '../config/runtime';
+import { ensureWallet, getUserById } from '../db/repositories';
 import type { SessionInfo } from '../game/types';
 import { getAuth } from './auth';
+import { isAdminEmail, resolveSessionRole } from './permission';
 
 export async function getRequestSession(): Promise<SessionInfo | null> {
   const auth = await getAuth();
@@ -9,11 +11,19 @@ export async function getRequestSession(): Promise<SessionInfo | null> {
   if (!authSession?.user) {
     return null;
   }
-  const wallet = await ensureWallet(authSession.user.id);
+  const userId = authSession.user.id;
+  const email = authSession.user.email ?? '';
+  const [wallet, profile, adminEmails] = await Promise.all([
+    ensureWallet(userId),
+    getUserById(userId),
+    resolveAdminEmails(),
+  ]);
   return {
-    userId: authSession.user.id,
-    displayName: authSession.user.name ?? authSession.user.email ?? authSession.user.id,
-    email: authSession.user.email ?? '',
+    userId,
+    displayName: authSession.user.name ?? authSession.user.email ?? userId,
+    email,
     balance: wallet.balance,
+    role: resolveSessionRole(profile?.role),
+    isAdmin: isAdminEmail(email, adminEmails),
   };
 }

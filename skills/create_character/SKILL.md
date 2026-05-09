@@ -1,6 +1,7 @@
 ---
 name: create_character
 description: 基于当前剧本生成一张可落盘的人物卡，并返回校验结果。
+scenarios: [authoring, play]
 metadata:
   author: meathill
   version: "1.0.0"

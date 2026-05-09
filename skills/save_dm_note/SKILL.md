@@ -1,6 +1,7 @@
 ---
 name: save_dm_note
 description: 把游戏中产生的线索、道具、状态变化写入 DM 笔记，供后续查询。
+scenarios: [play]
 metadata:
   author: meathill
   version: "1.0.0"

@@ -1,6 +1,7 @@
 ---
 name: remove_scene
 description: 删除指定 id 的场景，只返回结构化删除建议。
+scenarios: [authoring]
 metadata:
   author: meathill
   version: "1.0.0"

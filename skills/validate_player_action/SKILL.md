@@ -1,6 +1,7 @@
 ---
 name: validate_player_action
 description: 在执行任何玩家行动前，验证其合法性并确定检定方式（直接/优势/劣势/拒绝）。
+scenarios: [play]
 metadata:
   author: meathill
   version: "1.0.0"

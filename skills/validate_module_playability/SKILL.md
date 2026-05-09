@@ -1,6 +1,7 @@
 ---
 name: validate_module_playability
 description: 检查模组是否具备开场、场景、探索区域、隐藏真相和推进节点。
+scenarios: [authoring]
 metadata:
   author: meathill
   version: "1.1.0"

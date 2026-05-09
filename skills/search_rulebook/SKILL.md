@@ -1,6 +1,7 @@
 ---
 name: search_rulebook
 description: 搜索 COC 最小规则库中的技能、模板、怪物和规则条目。
+scenarios: [authoring, play]
 metadata:
   author: meathill
   version: "1.0.0"

@@ -1,14 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LOCAL_RUNTIME_SESSION_ID } from '@/lib/game/runtime';
 
-const { mockGetRequestSession, mockGetModuleById, mockGetCharacterById, mockCreateGame, mockEnsureWorkspace } =
-  vi.hoisted(() => ({
-    mockGetRequestSession: vi.fn(),
-    mockGetModuleById: vi.fn(),
-    mockGetCharacterById: vi.fn(),
-    mockCreateGame: vi.fn(),
-    mockEnsureWorkspace: vi.fn(),
-  }));
+const {
+  mockGetRequestSession,
+  mockGetModuleById,
+  mockGetCharacterById,
+  mockCreateGame,
+  mockEnsureWorkspace,
+  mockMaterializeModuleIntoGameWorkspace,
+} = vi.hoisted(() => ({
+  mockGetRequestSession: vi.fn(),
+  mockGetModuleById: vi.fn(),
+  mockGetCharacterById: vi.fn(),
+  mockCreateGame: vi.fn(),
+  mockEnsureWorkspace: vi.fn(),
+  mockMaterializeModuleIntoGameWorkspace: vi.fn(),
+}));
 
 vi.mock('@/lib/auth/session', () => ({
   getRequestSession: mockGetRequestSession,
@@ -22,6 +29,7 @@ vi.mock('@/lib/db/repositories', () => ({
 
 vi.mock('@/lib/opencode/workspace', () => ({
   ensureWorkspace: mockEnsureWorkspace,
+  materializeModuleIntoGameWorkspace: mockMaterializeModuleIntoGameWorkspace,
 }));
 
 import { POST } from './route';
@@ -65,6 +73,7 @@ describe('POST /api/games', () => {
     mockGetModuleById.mockResolvedValue(moduleRecord);
     mockGetCharacterById.mockResolvedValue(characterRecord);
     mockEnsureWorkspace.mockResolvedValue('/workspace/user-1/game-1');
+    mockMaterializeModuleIntoGameWorkspace.mockResolvedValue(undefined);
     mockCreateGame.mockResolvedValue({
       id: 'game-1',
       userId: 'user-1',
@@ -90,6 +99,11 @@ describe('POST /api/games', () => {
     expect(payload.gameUrl).toBe('/games/game-1');
     const generatedGameId = mockEnsureWorkspace.mock.calls[0]?.[1];
     expect(mockEnsureWorkspace).toHaveBeenCalledWith('user-1', generatedGameId);
+    expect(mockMaterializeModuleIntoGameWorkspace).toHaveBeenCalledWith({
+      moduleId: 'module-1',
+      moduleData: moduleRecord.data,
+      gameWorkspacePath: '/workspace/user-1/game-1',
+    });
     expect(mockCreateGame).toHaveBeenCalledWith(
       expect.objectContaining({
         id: generatedGameId,

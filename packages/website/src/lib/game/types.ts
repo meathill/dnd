@@ -54,11 +54,52 @@ export type GameMessageRecord = {
   createdAt: string;
 };
 
+export type ModuleDraftStatus = 'draft' | 'published';
+
+export type ModuleDraftRecord = {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  setting: string;
+  difficulty: string;
+  ownerUserId: string;
+  meta: Record<string, unknown>;
+  data: Record<string, unknown>;
+  workspacePath: string;
+  status: ModuleDraftStatus;
+  publishedModuleId: string | null;
+  skillSet: 'authoring' | 'play';
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ModuleDraftMessageRecord = {
+  id: string;
+  moduleDraftId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  meta: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type UserRole = 'user' | 'editor';
+
+export type UserAccountRecord = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  createdAt: number;
+};
+
 export type SessionInfo = {
   userId: string;
   displayName: string;
   email: string;
   balance: number;
+  role: UserRole;
+  isAdmin: boolean;
 };
 
 export type GameRuntimeSession = Pick<SessionInfo, 'userId' | 'balance'>;

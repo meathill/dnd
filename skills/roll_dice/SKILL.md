@@ -1,6 +1,7 @@
 ---
 name: roll_dice
 description: 执行技能、属性、幸运、理智或战斗检定，返回结构化结果与展示文本。
+scenarios: [play]
 metadata:
   author: meathill
   version: "1.1.0"

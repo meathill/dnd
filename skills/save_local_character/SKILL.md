@@ -1,6 +1,7 @@
 ---
 name: save_local_character
 description: 把结构化人物卡写入工作区 `data/characters`。
+scenarios: [authoring, play]
 metadata:
   author: meathill
   version: "1.1.0"

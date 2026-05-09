@@ -1,6 +1,7 @@
 ---
 name: save_local_module
 description: 把结构化模组写入工作区 `data/modules`。
+scenarios: [authoring]
 metadata:
   author: meathill
   version: "1.0.0"

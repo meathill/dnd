@@ -1,6 +1,7 @@
 ---
 name: create_temp_npc
 description: 为现场交互需要的临时 NPC 生成即时人物卡。
+scenarios: [play]
 metadata:
   author: meathill
   version: "1.0.0"

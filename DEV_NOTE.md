@@ -174,3 +174,34 @@ client 在能力未稳定前，不应承担产品定义责任。
 
 - `packages/website/wrangler.jsonc` 变更后，必须重新执行 `pnpm --dir packages/website exec wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts`
 - `@vitejs/plugin-react` 目前固定在 `^5.1.2`；升级到 `6.x` 会在 Vitest 启动时报 `ERR_PACKAGE_PATH_NOT_EXPORTED`，触发点是插件内部对 `vite/internal` 的导入
+
+## 模组创作流程（admin / editor / module_drafts）
+
+### 角色与权限
+
+- **admin** 由 `ADMIN_EMAILS` 环境变量决定，不入库；通过 `resolveAdminEmails()` 异步读取（worker 下走 `getCloudflareContext`，本地落到 `process.env`）。
+- **editor** 是 `user.role` 字段的取值（`'user' | 'editor'`，默认 `user`）。仅 admin 可改 role。
+- 权限判定集中在 `packages/website/src/lib/auth/permission.ts`，`canAdmin` / `canEdit` 是纯函数便于单测；admin 自动具备 editor 权限。
+- API 守卫别再分散到每个路由：admin API 用 `session.isAdmin`；editor API 走 `lib/internal/draft-auth.ts` 的 `requireEditor` / `loadDraftForOwner`。
+
+### skill 加载与场景隔离
+
+- `skills/*/SKILL.md` frontmatter 增加 `scenarios: [authoring | play | both]`。每次改 SKILL.md 后跑 `pnpm skills:build` 重新生成 `src/lib/skills/manifest.generated.ts`。
+- `manifest.generated.ts` 是一个普通 ts 模块，入 git，避免 Cloudflare Worker 在运行时读 fs。`prebuild` / `predev` / `pretest` 自动调用生成脚本。
+- 系统提示拼装走 `dm-system-prompt.ts:buildSystemPrompt({ scenario, contextSummary })`：根据 scenario 过滤 skill 列表注入到 prompt。游戏 runtime 默认 `play`，创作 runtime 默认 `authoring`。
+- 一个 skill 可以同时属于 authoring 和 play（例如 `search_rulebook`、`create_character`）。
+
+### 模组数据流
+
+- 创作期间数据停在 `module_drafts` 表 + `/workspace/modules/drafts/{slug}/`。
+- 发布时（`POST /api/module-drafts/[id]/publish`）写入 `modules` 表 + 把 workspace 整体复制到 `/workspace/modules/published/{moduleId}/`。
+- 玩家创建 game 时由 `materializeModuleIntoGameWorkspace()` 把已发布 module 复制一份到 `/workspace/{userId}/{gameId}/`，再写一份 `data/modules/{moduleId}.json`。游戏会话只读这份副本，不会污染原始模组。
+
+### Workspace fs 行为
+
+- `OPENCODE_WORKSPACE_ROOT` 未设置时所有 `ensure*Workspace` / `materialize*` / `copyDirectoryIfExists` 都只返回逻辑路径，不真的写盘——这是为了让 Cloudflare Worker 不会在 fs 不可用时报错。
+- 本地开发要看到真实文件，需要在 `.env` 设置 `OPENCODE_WORKSPACE_ROOT=/some/path`。
+
+### 草稿创作不扣费
+
+- `authoring-runtime.ts` 不调用 `chargeWallet`/`recordGameTurn`。如果以后要给 editor 计费，应当走单独的账本类型，避免和玩家的 `game` 钱包混在一起。

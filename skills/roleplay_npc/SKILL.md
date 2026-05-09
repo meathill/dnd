@@ -1,6 +1,7 @@
 ---
 name: roleplay_npc
 description: 在扮演关键 NPC 前先读取模组中的预设档案。
+scenarios: [play]
 metadata:
   author: meathill
   version: "1.0.0"

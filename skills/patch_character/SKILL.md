@@ -1,6 +1,7 @@
 ---
 name: patch_character
 description: 基于现有人物卡应用局部修改，并返回更新后的结构化结果与校验状态。
+scenarios: [play]
 metadata:
   author: meathill
   version: "1.0.0"

@@ -1,6 +1,7 @@
 ---
 name: estimate_scene_risk
 description: 根据规则书引用、线索门槛与理智损失估算 COC 场景风险。
+scenarios: [play]
 metadata:
   author: meathill
   version: "1.0.0"

@@ -1,6 +1,7 @@
 ---
 name: get_rule_entry
 description: 按 id 读取单个规则说明、技能条目、模板或怪物档案。
+scenarios: [authoring, play]
 metadata:
   author: meathill
   version: "1.0.0"

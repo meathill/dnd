@@ -93,10 +93,15 @@ async function createDatabase(): Promise<DatabaseInstance> {
   await mkdir(dirname(resolvedFilePath), { recursive: true });
   const sqlite = await createNodeSqliteExecutor(resolvedFilePath);
   if (!initializedSqliteDatabases.has(resolvedFilePath)) {
-    const { readFile } = await import('node:fs/promises');
+    const { readdir, readFile } = await import('node:fs/promises');
     const { resolve } = await import('node:path');
-    const migrationSql = await readFile(resolve(process.cwd(), 'migrations', '0001_init.sql'), 'utf8');
-    await sqlite.exec(migrationSql);
+    const migrationsDir = resolve(process.cwd(), 'migrations');
+    const entries = await readdir(migrationsDir);
+    const sqlFiles = entries.filter((entry) => entry.endsWith('.sql')).sort();
+    for (const file of sqlFiles) {
+      const migrationSql = await readFile(resolve(migrationsDir, file), 'utf8');
+      await sqlite.exec(migrationSql);
+    }
     initializedSqliteDatabases.add(resolvedFilePath);
   }
   return { sqlite, kind: 'sqlite' };

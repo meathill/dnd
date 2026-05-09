@@ -1,6 +1,7 @@
 ---
 name: get_creature_profile
 description: 读取规则书中的怪物或超自然威胁模板。
+scenarios: [authoring, play]
 metadata:
   author: meathill
   version: "1.0.0"
