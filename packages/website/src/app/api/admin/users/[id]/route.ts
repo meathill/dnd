@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getRequestSession } from '@/lib/auth/session';
-import { getUserById, updateUserRole } from '@/lib/db/repositories';
+import { getUserById, updateUserRole } from '@/lib/db/users-repo';
 import type { UserRole } from '@/lib/game/types';
 
 type PatchRequest = {

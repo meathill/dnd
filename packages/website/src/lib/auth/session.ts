@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { resolveAdminEmails } from '../config/runtime';
-import { ensureWallet, getUserById } from '../db/repositories';
+import { getUserById } from '../db/users-repo';
+import { ensureWallet } from '../db/wallets-repo';
 import type { SessionInfo } from '../game/types';
 import { getAuth } from './auth';
 import { isAdminEmail, resolveSessionRole } from './permission';

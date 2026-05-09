@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { Card } from '@/components/card';
 import { getRequestSession } from '@/lib/auth/session';
-import { listBillingLedger } from '@/lib/db/repositories';
+import { listBillingLedger } from '@/lib/db/billing-repo';
 
 export default async function BillingPage() {
   const session = await getRequestSession();

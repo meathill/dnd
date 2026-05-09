@@ -3,7 +3,7 @@ import { Card } from '@/components/card';
 import { canEdit } from '@/lib/auth/permission';
 import { getRequestSession } from '@/lib/auth/session';
 import { resolveAdminEmails } from '@/lib/config/runtime';
-import { listModules } from '@/lib/db/repositories';
+import { listModules } from '@/lib/db/modules-repo';
 
 export default async function HomePage() {
   const [modules, session, adminEmails] = await Promise.all([listModules(), getRequestSession(), resolveAdminEmails()]);

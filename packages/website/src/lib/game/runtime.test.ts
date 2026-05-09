@@ -16,12 +16,18 @@ const {
   mockCreateChatCompletion: vi.fn(),
 }));
 
-vi.mock('../db/repositories', () => ({
+vi.mock('../db/games-repo', () => ({
   getGameByIdForUser: mockGetGameByIdForUser,
-  getModuleById: mockGetModuleById,
-  getCharacterById: mockGetCharacterById,
   listMessagesByGameId: mockListMessagesByGameId,
   recordGameTurn: mockRecordGameTurn,
+}));
+
+vi.mock('../db/modules-repo', () => ({
+  getModuleById: mockGetModuleById,
+}));
+
+vi.mock('../db/characters-repo', () => ({
+  getCharacterById: mockGetCharacterById,
 }));
 
 vi.mock('../llm/chat-completion', () => ({

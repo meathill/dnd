@@ -1,11 +1,7 @@
 import { getRuntimeConfig } from '../config/runtime';
-import {
-  getCharacterById,
-  getGameByIdForUser,
-  getModuleById,
-  listMessagesByGameId,
-  recordGameTurn,
-} from '../db/repositories';
+import { getCharacterById } from '../db/characters-repo';
+import { getGameByIdForUser, listMessagesByGameId, recordGameTurn } from '../db/games-repo';
+import { getModuleById } from '../db/modules-repo';
 import { type ChatCompletionMessage, createChatCompletion } from '../llm/chat-completion';
 import { buildSystemPrompt } from './dm-system-prompt';
 import type { GameContext, GameRuntimeSession, GameTurnReply } from './types';

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getRequestSession } from '@/lib/auth/session';
-import { listBillingLedger } from '@/lib/db/repositories';
+import { listBillingLedger } from '@/lib/db/billing-repo';
 
 export async function GET() {
   const session = await getRequestSession();

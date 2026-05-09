@@ -2,7 +2,8 @@ import { notFound, redirect } from 'next/navigation';
 import { Card } from '@/components/card';
 import { StartGameForm } from '@/components/start-game-form';
 import { getRequestSession } from '@/lib/auth/session';
-import { getModuleById, listCharactersByModuleId } from '@/lib/db/repositories';
+import { listCharactersByModuleId } from '@/lib/db/characters-repo';
+import { getModuleById } from '@/lib/db/modules-repo';
 
 type ModulePageProps = {
   params: Promise<{ id: string }>;

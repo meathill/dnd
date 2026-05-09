@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getModuleById, listCharactersByModuleId } from '@/lib/db/repositories';
+import { listCharactersByModuleId } from '@/lib/db/characters-repo';
+import { getModuleById } from '@/lib/db/modules-repo';
 
 type ModuleRouteProps = {
   params: Promise<{ id: string }>;

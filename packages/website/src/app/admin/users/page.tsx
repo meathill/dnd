@@ -1,5 +1,5 @@
 import { Card } from '@/components/card';
-import { listAllUsers } from '@/lib/db/repositories';
+import { listAllUsers } from '@/lib/db/users-repo';
 import { UserRoleControl } from './role-control';
 
 export default async function AdminUsersPage() {

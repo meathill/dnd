@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getRequestSession } from '@/lib/auth/session';
-import { listAllUsers } from '@/lib/db/repositories';
+import { listAllUsers } from '@/lib/db/users-repo';
 
 export async function GET() {
   const session = await getRequestSession();

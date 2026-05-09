@@ -9,7 +9,7 @@ vi.mock('@/lib/auth/session', () => ({
   getRequestSession: mockGetRequestSession,
 }));
 
-vi.mock('@/lib/db/repositories', () => ({
+vi.mock('@/lib/db/users-repo', () => ({
   listAllUsers: mockListAllUsers,
 }));
 

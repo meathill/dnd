@@ -21,9 +21,15 @@ vi.mock('@/lib/auth/session', () => ({
   getRequestSession: mockGetRequestSession,
 }));
 
-vi.mock('@/lib/db/repositories', () => ({
+vi.mock('@/lib/db/games-repo', () => ({
   createGame: mockCreateGame,
+}));
+
+vi.mock('@/lib/db/characters-repo', () => ({
   getCharacterById: mockGetCharacterById,
+}));
+
+vi.mock('@/lib/db/modules-repo', () => ({
   getModuleById: mockGetModuleById,
 }));
 

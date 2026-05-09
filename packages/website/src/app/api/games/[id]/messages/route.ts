@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getGameByIdForUser, listMessagesByGameId } from '@/lib/db/repositories';
+import { getGameByIdForUser, listMessagesByGameId } from '@/lib/db/games-repo';
 import { sendGameMessage } from '@/lib/game/runtime';
 import { getRequestIdentity } from '@/lib/internal/request-auth';
 

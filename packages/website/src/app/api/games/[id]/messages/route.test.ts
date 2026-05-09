@@ -13,7 +13,7 @@ vi.mock('@/lib/internal/request-auth', () => ({
   getRequestIdentity: mockGetRequestIdentity,
 }));
 
-vi.mock('@/lib/db/repositories', () => ({
+vi.mock('@/lib/db/games-repo', () => ({
   getGameByIdForUser: mockGetGameByIdForUser,
   listMessagesByGameId: mockListMessagesByGameId,
 }));

@@ -1,5 +1,5 @@
 import { Card } from '@/components/card';
-import { listAllUsers } from '@/lib/db/repositories';
+import { listAllUsers } from '@/lib/db/users-repo';
 
 export default async function AdminOverviewPage() {
   const users = await listAllUsers();

@@ -2,23 +2,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { listBillingLedger } from './billing-repo';
+import { getCharacterById } from './characters-repo';
 import { getDatabase } from './db';
-import {
-  chargeWallet,
-  createGame,
-  createGameMessage,
-  ensureWallet,
-  getCharacterById,
-  getGameByIdForUser,
-  getModuleById,
-  getUserById,
-  listAllUsers,
-  listBillingLedger,
-  listMessagesByGameId,
-  listModules,
-  recordGameTurn,
-  updateUserRole,
-} from './repositories';
+import { createGame, createGameMessage, getGameByIdForUser, listMessagesByGameId, recordGameTurn } from './games-repo';
+import { getModuleById, listModules } from './modules-repo';
+import { getUserById, listAllUsers, updateUserRole } from './users-repo';
+import { chargeWallet, ensureWallet } from './wallets-repo';
 
 let databaseDir = '';
 
