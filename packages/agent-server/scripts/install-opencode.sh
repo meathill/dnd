@@ -115,11 +115,12 @@ chmod 600 "$CONFIG_DIR/opencode.json"
 # 3. 写 systemd unit for opencode
 # ---------------------------------------------------------------------------
 
-OC_PASSWORD="$(grep '^OPENCODE_SERVER_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)"
 OC_BIN="$(command -v opencode)"
 
 UNIT_PATH="/etc/systemd/system/opencode.service"
 echo "==> 写 $UNIT_PATH"
+# opencode serve 监听 127.0.0.1，由 agent-server 同机调用，
+# 不开 OPENCODE_SERVER_PASSWORD（外部网络访问已经被 cloudflared 反代到 agent-server 4180 端拦截）。
 sudo tee "$UNIT_PATH" > /dev/null <<EOF
 [Unit]
 Description=opencode serve
@@ -128,7 +129,6 @@ After=network.target
 [Service]
 Type=simple
 User=$USER_NAME
-Environment=OPENCODE_SERVER_PASSWORD=$OC_PASSWORD
 Environment=OPENCODE_DISABLE_AUTOUPDATE=1
 ExecStart=$OC_BIN serve --port 4096 --hostname 127.0.0.1
 Restart=on-failure
@@ -166,7 +166,7 @@ echo "==> opencode status"
 systemctl status opencode.service --no-pager | head -10 || true
 echo
 echo "==> opencode healthz"
-if curl -sf -H "x-opencode-password: $OC_PASSWORD" http://127.0.0.1:4096/doc 2>&1 | head -1 | grep -q -i 'openapi\|json'; then
+if curl -sf http://127.0.0.1:4096/doc 2>&1 | head -1 | grep -q -i 'openapi\|json'; then
   echo "✅ opencode serve 应答正常"
 else
   echo "⚠️  opencode 可能还在启动，过几秒看 journalctl -u opencode -f"

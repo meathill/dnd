@@ -17,6 +17,9 @@ importers:
       '@hono/node-server':
         specifier: ^2.0.2
         version: 2.0.2(hono@4.12.18)
+      '@opencode-ai/sdk':
+        specifier: ^1.14.41
+        version: 1.14.41
       hono:
         specifier: ^4.10.4
         version: 4.12.18
@@ -1287,6 +1290,9 @@ packages:
   '@node-minify/utils@8.0.6':
     resolution: {integrity: sha512-csY4qcR7jUwiZmkreNTJhcypQfts2aY2CK+a+rXgXUImZiZiySh0FvwHjRnlqWKvg+y6ae9lHFzDRjBTmqlTIQ==}
     engines: {node: '>=16.0.0'}
+
+  '@opencode-ai/sdk@1.14.41':
+    resolution: {integrity: sha512-RYb2dCUv0TWIvBNnnO6ANbAPYri6rKuWizSoVFw/Pw+SCDj9ASHM5gAZ+jkskp8gYMfLLHe/Fpkun/9mr8m0IQ==}
 
   '@opennextjs/aws@3.10.4':
     resolution: {integrity: sha512-xVmWHGdptJgVhQivuoeAYqsWpIgGoDEeZJC6AYMgvQYisDicGuS7gh10Z8MEmrgsJxNGdZ0arCCDieGxM88afw==}
@@ -5015,6 +5021,10 @@ snapshots:
   '@node-minify/utils@8.0.6':
     dependencies:
       gzip-size: 6.0.0
+
+  '@opencode-ai/sdk@1.14.41':
+    dependencies:
+      cross-spawn: 7.0.6
 
   '@opennextjs/aws@3.10.4(next@16.2.4(@babel/core@7.29.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))':
     dependencies:

@@ -1,8 +1,8 @@
+import { createOpencodeClient, type OpencodeClient } from '@opencode-ai/sdk';
 import type { AgentMessage, AgentSkillCall } from './types.ts';
 
 export type OpencodeClientOptions = {
   baseUrl: string;
-  serverPassword: string | null;
 };
 
 export type OpencodeChatInput = {
@@ -45,86 +45,84 @@ export class StubOpencodeAdapter implements OpencodeAdapter {
   }
 }
 
+type OpencodeReplyPart = {
+  type: string;
+  text?: string;
+  tool?: string;
+  state?: { input?: unknown; metadata?: unknown } | null;
+};
+
+function extractTextFromParts(parts: ReadonlyArray<OpencodeReplyPart>): string {
+  return parts
+    .filter((part) => part.type === 'text' && typeof part.text === 'string')
+    .map((part) => part.text ?? '')
+    .join('\n')
+    .trim();
+}
+
+function extractSkillCallsFromParts(parts: ReadonlyArray<OpencodeReplyPart>): AgentSkillCall[] {
+  const calls: AgentSkillCall[] = [];
+  for (const part of parts) {
+    if (part.type !== 'tool' || typeof part.tool !== 'string') {
+      continue;
+    }
+    const args =
+      (part.state?.input as Record<string, unknown> | undefined) ??
+      (part.state?.metadata as Record<string, unknown> | undefined) ??
+      {};
+    calls.push({ name: part.tool, arguments: args });
+  }
+  return calls;
+}
+
 /**
- * 真实 opencode adapter：通过 opencode serve 的 HTTP API 维护 session 与发送消息。
+ * 真实 opencode adapter：通过 @opencode-ai/sdk 调用 opencode serve（同机 127.0.0.1:4096）。
  *
- * 注意：opencode 的 schema 还在迭代中，本类按 4096 端口 OpenAPI 的最常见形态写。
- * 部署后如果端点签名变了，把这个类按实际响应改一下即可，不影响 agent-server 的接口契约。
+ * opencode serve 在 127.0.0.1 上跑 unsecured 模式（不需要 password）；
+ * 跨网络鉴权由 agent-server 自身的 bearer token 在外层做。
  */
 export class HttpOpencodeAdapter implements OpencodeAdapter {
-  private readonly options: OpencodeClientOptions;
+  private readonly client: OpencodeClient;
 
   constructor(options: OpencodeClientOptions) {
-    this.options = options;
-  }
-
-  private get headers(): HeadersInit {
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (this.options.serverPassword) {
-      headers['x-opencode-password'] = this.options.serverPassword;
-    }
-    return headers;
-  }
-
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const response = await fetch(new URL(path, this.options.baseUrl), {
-      method,
-      headers: this.headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(`opencode 请求失败 ${response.status}: ${text}`);
-    }
-    return (await response.json()) as T;
+    this.client = createOpencodeClient({ baseUrl: options.baseUrl });
   }
 
   async chat(input: OpencodeChatInput): Promise<OpencodeChatResult> {
     let sessionId = input.opencodeSessionId;
+
     if (!sessionId) {
-      const created = await this.request<{ id: string }>('POST', '/session', {
-        directory: input.workspacePath,
+      const created = await this.client.session.create({
+        body: { title: `${input.scenario}-${new Date().toISOString()}` },
+        query: { directory: input.workspacePath },
       });
-      sessionId = created.id;
+      const newId = (created.data as { id?: string } | undefined)?.id;
+      if (!newId) {
+        throw new Error('opencode session.create 没有返回 id');
+      }
+      sessionId = newId;
     }
-    const userMessage = [input.contextSummary, input.content].filter(Boolean).join('\n\n');
-    const reply = await this.request<{ content?: string; parts?: Array<{ text?: string; type?: string }> }>(
-      'POST',
-      `/session/${sessionId}/message`,
-      { content: userMessage },
-    );
-    const assistantContent =
-      typeof reply.content === 'string'
-        ? reply.content
-        : (reply.parts ?? [])
-            .filter((part) => part.type !== 'tool-call')
-            .map((part) => part.text ?? '')
-            .join('\n')
-            .trim();
+
+    const userText = [input.contextSummary, input.content].filter(Boolean).join('\n\n');
+    const reply = await this.client.session.prompt({
+      path: { id: sessionId },
+      query: { directory: input.workspacePath },
+      body: {
+        parts: [{ type: 'text', text: userText }],
+      },
+    });
+
+    const data = reply.data as { parts?: OpencodeReplyPart[] } | undefined;
+    const parts = data?.parts ?? [];
+    const text = extractTextFromParts(parts);
+    const skillCalls = extractSkillCallsFromParts(parts);
+
     return {
       opencodeSessionId: sessionId,
-      assistantContent: assistantContent || '(opencode 未返回文本内容)',
-      skillCalls: extractSkillCalls(reply),
+      assistantContent: text || '(opencode 未返回文本内容)',
+      skillCalls,
     };
   }
-}
-
-function extractSkillCalls(reply: {
-  parts?: Array<{ type?: string; name?: string; arguments?: unknown }>;
-}): AgentSkillCall[] {
-  if (!Array.isArray(reply.parts)) {
-    return [];
-  }
-  const calls: AgentSkillCall[] = [];
-  for (const part of reply.parts) {
-    if (part.type === 'tool-call' && typeof part.name === 'string') {
-      calls.push({
-        name: part.name,
-        arguments: (part.arguments as Record<string, unknown> | undefined) ?? {},
-      });
-    }
-  }
-  return calls;
 }
 
 export function buildAgentMessage(input: {

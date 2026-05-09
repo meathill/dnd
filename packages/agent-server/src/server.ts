@@ -154,10 +154,7 @@ export function createApp(options: { store?: SessionStore; adapter?: ReturnType<
 
 function buildAdapter(config: ReturnType<typeof loadConfig>) {
   if (config.opencodeMode === 'opencode') {
-    return new HttpOpencodeAdapter({
-      baseUrl: config.opencodeBaseUrl,
-      serverPassword: config.opencodeServerPassword,
-    });
+    return new HttpOpencodeAdapter({ baseUrl: config.opencodeBaseUrl });
   }
   return new StubOpencodeAdapter();
 }

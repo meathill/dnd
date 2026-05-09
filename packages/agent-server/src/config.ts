@@ -10,7 +10,6 @@ export type AgentServerConfig = {
   // opencode 模式
   opencodeMode: 'stub' | 'opencode';
   opencodeBaseUrl: string;
-  opencodeServerPassword: string | null;
 };
 
 export function loadConfig(): AgentServerConfig {
@@ -24,7 +23,6 @@ export function loadConfig(): AgentServerConfig {
   const skillsSourceDir = process.env.AGENT_SKILLS_DIR?.trim() || '/var/agent/skills';
   const opencodeMode = process.env.OPENCODE_MODE === 'opencode' ? 'opencode' : 'stub';
   const opencodeBaseUrl = process.env.OPENCODE_BASE_URL?.trim() || 'http://127.0.0.1:4096';
-  const opencodeServerPassword = process.env.OPENCODE_SERVER_PASSWORD?.trim() || null;
 
   return {
     port,
@@ -34,6 +32,5 @@ export function loadConfig(): AgentServerConfig {
     skillsSourceDir,
     opencodeMode,
     opencodeBaseUrl,
-    opencodeServerPassword,
   };
 }
