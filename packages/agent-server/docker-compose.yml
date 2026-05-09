@@ -1,12 +1,25 @@
+# 用法：
+#   - 本机仅启 agent-server（stub 模式）：
+#       docker compose up -d agent-server
+#   - 同时启 opencode + agent-server：
+#       OPENCODE_MODE=opencode docker compose --profile opencode up -d
+#
+# opencode service 走 profile，因为镜像还没有官方发布，先用本仓库自带的
+# Dockerfile 基于 node:24 npm install opencode CLI。第一次启动会比较慢。
+
 services:
   opencode:
-    image: ghcr.io/sst/opencode:latest
+    profiles: [opencode]
+    build:
+      context: ../../
+      dockerfile: packages/agent-server/opencode.Dockerfile
     restart: unless-stopped
     environment:
       OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD}
-    command: ["serve", "--port", "4096", "--hostname", "0.0.0.0"]
+    command: ["opencode", "serve", "--port", "4096", "--hostname", "0.0.0.0"]
     volumes:
       - agent-workspace:/workspace
+      - opencode-config:/root/.config/opencode
     expose:
       - "4096"
 
@@ -19,15 +32,14 @@ services:
       AGENT_SERVER_TOKEN: ${AGENT_SERVER_TOKEN}
       AGENT_WORKSPACE_ROOT: /var/agent/workspace
       AGENT_SKILLS_DIR: /var/agent/skills
-      OPENCODE_MODE: opencode
+      OPENCODE_MODE: ${OPENCODE_MODE:-stub}
       OPENCODE_BASE_URL: http://opencode:4096
       OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD}
     volumes:
       - agent-workspace:/var/agent/workspace
     ports:
       - "4180:4180"
-    depends_on:
-      - opencode
 
 volumes:
   agent-workspace:
+  opencode-config:
