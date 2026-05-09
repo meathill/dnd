@@ -12,6 +12,7 @@
 ---
 
 - `packages/website` 主站与游戏运行时（登录、模组、计费、建局、游戏页）
+- `packages/agent-server` VPS 上跑的 agent runner，转发 worker 请求到本机 `opencode serve`，模组创作流程使用
 - `packages/core` 共享库
 - `packages/mobile` 移动应用
 
@@ -52,6 +53,7 @@ website:
 更细的说明见：
 
 - `packages/website/README.md`
+- `DEPLOYMENT.md`（含 `agent-server` VPS 部署与模组创作会话接入步骤）
 
 
 技术栈
