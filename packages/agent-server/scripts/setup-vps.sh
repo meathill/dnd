@@ -98,12 +98,13 @@ echo "==> Node 版本：$(node -v)"
 # ---------------------------------------------------------------------------
 
 if ! command -v pnpm &>/dev/null; then
-  echo "==> 启用 corepack + pnpm"
-  sudo corepack enable
+  echo "==> 装 pnpm（npm install -g）"
+  sudo env "PATH=$PATH" npm install -g pnpm@10.28.1
 fi
 
-# 确保是项目要求的版本
-sudo corepack prepare pnpm@10.28.1 --activate
+if [[ "$(pnpm --version 2>/dev/null)" != "10.28.1" ]]; then
+  sudo env "PATH=$PATH" npm install -g pnpm@10.28.1
+fi
 
 # ---------------------------------------------------------------------------
 # 5. 安装依赖
