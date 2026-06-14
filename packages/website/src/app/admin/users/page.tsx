@@ -1,8 +1,14 @@
+import { redirect } from 'next/navigation';
 import { Card } from '@/components/card';
+import { getRequestSession } from '@/lib/auth/session';
 import { listAllUsers } from '@/lib/db/users-repo';
 import { UserRoleControl } from './role-control';
 
 export default async function AdminUsersPage() {
+  const session = await getRequestSession();
+  if (!session?.isAdmin) {
+    redirect('/admin/module-drafts');
+  }
   const users = await listAllUsers();
   return (
     <Card className="space-y-4 p-0">

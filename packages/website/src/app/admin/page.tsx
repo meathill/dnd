@@ -1,7 +1,13 @@
+import { redirect } from 'next/navigation';
 import { Card } from '@/components/card';
+import { getRequestSession } from '@/lib/auth/session';
 import { listAllUsers } from '@/lib/db/users-repo';
 
 export default async function AdminOverviewPage() {
+  const session = await getRequestSession();
+  if (!session?.isAdmin) {
+    redirect('/admin/module-drafts');
+  }
   const users = await listAllUsers();
   const editorCount = users.filter((entry) => entry.role === 'editor').length;
   return (

@@ -3,7 +3,6 @@ import { Card } from '@/components/card';
 import { canEdit } from '@/lib/auth/permission';
 import { getRequestSession } from '@/lib/auth/session';
 import { resolveAdminEmails } from '@/lib/config/runtime';
-import { listModuleDraftsForOwner } from '@/lib/db/module-drafts-repo';
 import { ModuleDraftForm } from './form';
 
 export default async function NewModulePage() {
@@ -15,7 +14,6 @@ export default async function NewModulePage() {
   if (!canEdit({ email: session.email, role: session.role }, adminEmails)) {
     redirect('/');
   }
-  const drafts = await listModuleDraftsForOwner(session.userId);
 
   return (
     <div className="space-y-8">
@@ -27,24 +25,6 @@ export default async function NewModulePage() {
       <Card>
         <ModuleDraftForm />
       </Card>
-      {drafts.length > 0 ? (
-        <Card className="space-y-3">
-          <h2 className="text-lg font-semibold text-zinc-950">我的草稿</h2>
-          <ul className="space-y-2 text-sm">
-            {drafts.map((draft) => (
-              <li className="flex items-center justify-between" key={draft.id}>
-                <div>
-                  <a className="font-medium text-zinc-900 underline" href={`/modules/drafts/${draft.id}`}>
-                    {draft.title}
-                  </a>
-                  <span className="ml-2 text-zinc-500">{draft.slug}</span>
-                </div>
-                <span className="text-xs uppercase tracking-[0.16em] text-zinc-500">{draft.status}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ) : null}
     </div>
   );
 }

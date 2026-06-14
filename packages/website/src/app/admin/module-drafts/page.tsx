@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { Card } from '@/components/card';
 import { getRequestSession } from '@/lib/auth/session';
 import { listModuleDraftsForOwner } from '@/lib/db/module-drafts-repo';
+import { DeleteDraftButton } from './delete-button';
 
 const STATUS_LABEL: Record<string, string> = {
   draft: '草稿中',
@@ -46,11 +47,8 @@ export default async function AdminModuleDraftsPage() {
       ) : (
         <ul className="divide-y divide-zinc-200">
           {drafts.map((draft) => (
-            <li key={draft.id} className="py-3">
-              <Link
-                className="block space-y-1 hover:bg-zinc-50 -mx-2 px-2 py-2 rounded-lg"
-                href={`/modules/drafts/${draft.id}`}
-              >
+            <li key={draft.id} className="group -mx-2 flex items-start gap-2 rounded-lg px-2 py-3 hover:bg-zinc-50">
+              <Link className="flex-1 space-y-1" href={`/modules/drafts/${draft.id}`}>
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
                   <span>{STATUS_LABEL[draft.status] ?? draft.status}</span>
                   <span>·</span>
@@ -62,6 +60,11 @@ export default async function AdminModuleDraftsPage() {
                 </div>
                 {draft.summary ? <p className="line-clamp-2 text-sm text-zinc-600">{draft.summary}</p> : null}
               </Link>
+              {draft.status === 'draft' ? (
+                <div className="shrink-0 pt-1">
+                  <DeleteDraftButton draftId={draft.id} draftTitle={draft.title} />
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
