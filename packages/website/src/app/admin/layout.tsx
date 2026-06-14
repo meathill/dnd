@@ -22,6 +22,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <Link className="text-zinc-700 hover:text-zinc-950" href="/admin">
           概览
         </Link>
+        <Link className="text-zinc-700 hover:text-zinc-950" href="/admin/module-drafts">
+          模组草稿
+        </Link>
         <Link className="text-zinc-700 hover:text-zinc-950" href="/admin/users">
           用户与权限
         </Link>

@@ -15,7 +15,9 @@ export default async function HomePage() {
           <p className="text-sm uppercase tracking-[0.22em] text-zinc-500">肉团长</p>
           <h1 className="text-4xl font-semibold text-zinc-950">选择一个模组，进入你的游戏</h1>
           <p className="max-w-2xl text-zinc-600">
-            登录后可查看模组列表，选择人物卡，并直接在主站内进入统一游戏运行页。
+            {session
+              ? '从下方挑一个模组，选择人物卡，开始今晚的故事。'
+              : '登录后可查看模组列表，选择人物卡，并直接在主站内进入统一游戏运行页。'}
           </p>
         </div>
         {showAuthoring ? (
