@@ -90,26 +90,63 @@ export function createApp(options: { store?: SessionStore; adapter?: ReturnType<
     });
     store.appendMessage(session.id, userMessage);
 
-    const chat = await adapter.chat({
-      opencodeSessionId: session.opencodeSessionId,
-      workspacePath: session.workspacePath,
-      content,
-      contextSummary: null,
-      scenario: session.scenario,
-    });
-    if (!session.opencodeSessionId) {
-      store.setOpencodeSessionId(session.id, chat.opencodeSessionId);
-    }
+    // 立刻 200 + chunked，先吐一个空格让 Cloudflare 看到 origin 已经开始响应，
+    // 再每 15s 写一个空格当 heartbeat。
+    // 真正的 JSON 在 adapter.chat 完成后写到最后；JSON.parse 容忍前导空白。
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        let heartbeat: ReturnType<typeof setInterval> | null = null;
+        try {
+          controller.enqueue(encoder.encode(' '));
+          heartbeat = setInterval(() => {
+            try {
+              controller.enqueue(encoder.encode(' '));
+            } catch {
+              /* 已 close 的 controller 抛错，忽略 */
+            }
+          }, 15_000);
 
-    const assistantMessage = buildAgentMessage({
-      sessionId: session.id,
-      role: 'assistant',
-      content: chat.assistantContent,
-      skillCalls: chat.skillCalls,
-    });
-    store.appendMessage(session.id, assistantMessage);
+          const chat = await adapter.chat({
+            opencodeSessionId: session.opencodeSessionId,
+            workspacePath: session.workspacePath,
+            content,
+            contextSummary: null,
+            scenario: session.scenario,
+          });
+          if (!session.opencodeSessionId) {
+            store.setOpencodeSessionId(session.id, chat.opencodeSessionId);
+          }
 
-    return c.json<SendMessageResult>({ userMessage, assistantMessage });
+          const assistantMessage = buildAgentMessage({
+            sessionId: session.id,
+            role: 'assistant',
+            content: chat.assistantContent,
+            skillCalls: chat.skillCalls,
+          });
+          store.appendMessage(session.id, assistantMessage);
+
+          const payload: SendMessageResult = { userMessage, assistantMessage };
+          controller.enqueue(encoder.encode(JSON.stringify(payload)));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'agent-server 处理消息失败';
+          controller.enqueue(encoder.encode(JSON.stringify({ error: message })));
+        } finally {
+          if (heartbeat) {
+            clearInterval(heartbeat);
+          }
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-Heartbeat': 'true',
+      },
+    });
   });
 
   app.get('/sessions/:id/data', async (c) => {
