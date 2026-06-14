@@ -45,6 +45,13 @@ export class StubOpencodeAdapter implements OpencodeAdapter {
   }
 }
 
+const NO_QUESTION_SYSTEM_PROMPT = [
+  '你是模组创作 / 游戏运行的 agent，运行在无人交互的 server 模式下。',
+  '不要使用 question 工具向用户提问；用户不会看到，也无法回答。',
+  '如果信息不足，请基于已知材料给出最佳判断并直接推进，把"需要用户确认的点"作为正文输出的一部分写出来即可。',
+  '每一轮请尽量在一次回复内给出可落地的产出。',
+].join('\n');
+
 type OpencodeReplyPart = {
   type: string;
   text?: string;
@@ -109,6 +116,9 @@ export class HttpOpencodeAdapter implements OpencodeAdapter {
       query: { directory: input.workspacePath },
       body: {
         parts: [{ type: 'text', text: userText }],
+        system: NO_QUESTION_SYSTEM_PROMPT,
+        // question 是交互式工具，server 模式下没人答会让 agent loop 卡住直至 Cloudflare 100s 超时
+        tools: { question: false },
       },
     });
 
