@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Card } from '@/components/card';
 import { canEdit } from '@/lib/auth/permission';
@@ -9,6 +10,11 @@ import { DraftPublishButton } from './publish-button';
 
 type Props = {
   params: Promise<{ id: string }>;
+};
+
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  draft: { label: '草稿中', cls: 'bg-amber-100 text-amber-900 ring-amber-200' },
+  published: { label: '已发布', cls: 'bg-emerald-100 text-emerald-900 ring-emerald-200' },
 };
 
 export default async function ModuleDraftPage({ params }: Props) {
@@ -31,57 +37,74 @@ export default async function ModuleDraftPage({ params }: Props) {
 
   const messages = await listModuleDraftMessages(id);
   const dataSummary = summarizeData(draft.data);
+  const badge = STATUS_BADGE[draft.status] ?? STATUS_BADGE.draft;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <p className="text-sm uppercase tracking-[0.22em] text-zinc-500">模组草稿 · {draft.status}</p>
-          <h1 className="text-3xl font-semibold text-zinc-950">{draft.title}</h1>
-          <p className="text-sm text-zinc-500">slug: {draft.slug}</p>
+      <nav className="flex items-center gap-2 text-sm text-zinc-500" aria-label="面包屑">
+        <Link className="hover:text-zinc-900" href="/admin/module-drafts">
+          创作中心
+        </Link>
+        <span aria-hidden="true">/</span>
+        <span className="text-zinc-700">{draft.title || '（未命名）'}</span>
+      </nav>
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${badge.cls}`}
+            >
+              {badge.label}
+            </span>
+            <span className="text-xs text-zinc-500">slug: {draft.slug}</span>
+          </div>
+          <h1 className="text-3xl font-semibold text-zinc-950">{draft.title || '（未命名）'}</h1>
         </div>
         <DraftPublishButton draftId={draft.id} disabled={draft.status === 'published'} />
       </div>
+
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <Card className="space-y-3">
-          <h2 className="text-lg font-semibold text-zinc-950">创作会话</h2>
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-lg font-semibold text-zinc-950">创作会话</h2>
+            <span className="text-xs text-zinc-500">{messages.length} 条消息</span>
+          </div>
           <DraftChatPanel draftId={draft.id} initialMessages={messages} />
         </Card>
+
         <div className="space-y-6">
           <Card className="space-y-3">
             <h2 className="text-lg font-semibold text-zinc-950">Meta</h2>
             <dl className="space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <dt className="text-zinc-500">摘要</dt>
-                <dd className="text-zinc-900">{draft.summary || '—'}</dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-zinc-500">设定</dt>
-                <dd className="text-zinc-900">{draft.setting || '—'}</dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-zinc-500">难度</dt>
-                <dd className="text-zinc-900">{draft.difficulty}</dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-zinc-500">工作目录</dt>
-                <dd className="text-right text-xs text-zinc-700">{draft.workspacePath}</dd>
-              </div>
+              <Row label="摘要" value={draft.summary || '—'} />
+              <Row label="设定" value={draft.setting || '—'} />
+              <Row label="难度" value={draft.difficulty} />
             </dl>
           </Card>
+
           <Card className="space-y-3">
             <h2 className="text-lg font-semibold text-zinc-950">数据概览</h2>
             <ul className="space-y-1 text-sm">
               {dataSummary.map((item) => (
                 <li className="flex justify-between gap-4" key={item.key}>
                   <span className="text-zinc-500">{item.label}</span>
-                  <span className="text-zinc-900">{item.value}</span>
+                  <span className="font-medium text-zinc-900">{item.value}</span>
                 </li>
               ))}
             </ul>
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className="text-zinc-500">{label}</dt>
+      <dd className="text-right text-zinc-900">{value}</dd>
     </div>
   );
 }
