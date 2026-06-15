@@ -27,6 +27,25 @@ afterEach(async () => {
   await rm(skillsDir, { recursive: true, force: true });
 });
 
+type DoneEventPayload = {
+  userMessage: { role: string };
+  assistantMessage: { role: string; content: string };
+};
+
+async function consumeDoneEvent(response: Response): Promise<DoneEventPayload> {
+  const text = await response.text();
+  const events = text.split('\n\n').filter((chunk) => chunk.trim().length > 0);
+  for (const raw of events) {
+    const lines = raw.split('\n');
+    const eventLine = lines.find((line) => line.startsWith('event: '));
+    const dataLine = lines.find((line) => line.startsWith('data: '));
+    if (eventLine === 'event: done' && dataLine) {
+      return JSON.parse(dataLine.slice('data: '.length)) as DoneEventPayload;
+    }
+  }
+  throw new Error('SSE 流没有 done 事件');
+}
+
 function authedRequest(path: string, init: RequestInit = {}): Request {
   const headers = new Headers(init.headers);
   headers.set('Authorization', 'Bearer test-token');
@@ -76,10 +95,8 @@ describe('agent-server', () => {
       }),
     );
     expect(sent.status).toBe(200);
-    const sendPayload = (await sent.json()) as {
-      userMessage: { role: string };
-      assistantMessage: { role: string; content: string };
-    };
+    expect(sent.headers.get('Content-Type')).toContain('text/event-stream');
+    const sendPayload = await consumeDoneEvent(sent);
     expect(sendPayload.userMessage.role).toBe('user');
     expect(sendPayload.assistantMessage.role).toBe('assistant');
     expect(sendPayload.assistantMessage.content).toContain('stub agent');

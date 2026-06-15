@@ -94,6 +94,31 @@ export async function isAgentServerConfigured(): Promise<boolean> {
   return (await getEndpoint()) !== null;
 }
 
+/**
+ * 打开 agent-server 的 SSE 流，返回的 Response.body 由调用方负责转发与解析。
+ * 上游本身是 text/event-stream。
+ */
+export async function openAgentMessageStream(sessionId: string, content: string): Promise<Response> {
+  const endpoint = await getEndpoint();
+  if (!endpoint) {
+    throw new AgentServerUnavailableError();
+  }
+  const response = await fetch(new URL(`/sessions/${sessionId}/messages`, endpoint.baseUrl), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${endpoint.token}`,
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`agent-server 请求失败 ${response.status}: ${text}`);
+  }
+  return response;
+}
+
 export async function createAgentSession(input: CreateAgentSessionInput): Promise<AgentSession> {
   const payload = await request<{ session: AgentSession }>('POST', '/sessions', input);
   return payload.session;

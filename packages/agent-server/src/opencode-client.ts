@@ -21,8 +21,17 @@ export type OpencodeChatResult = {
   skillCalls: AgentSkillCall[];
 };
 
+// 流式回调里能拿到的事件类型——比 opencode 全量事件简化过的子集
+export type OpencodeChatEvent =
+  | { type: 'text-delta'; delta: string }
+  | { type: 'tool-call'; name: string; arguments: Record<string, unknown> }
+  | { type: 'tool-completed'; name: string };
+
+export type OpencodeChatEventHandler = (event: OpencodeChatEvent) => void;
+
 export interface OpencodeAdapter {
   chat(input: OpencodeChatInput): Promise<OpencodeChatResult>;
+  chatStream(input: OpencodeChatInput, onEvent: OpencodeChatEventHandler): Promise<OpencodeChatResult>;
 }
 
 /**
@@ -42,6 +51,13 @@ export class StubOpencodeAdapter implements OpencodeAdapter {
       assistantContent: lines.join('\n'),
       skillCalls: [],
     };
+  }
+
+  async chatStream(input: OpencodeChatInput, onEvent: OpencodeChatEventHandler): Promise<OpencodeChatResult> {
+    const result = await this.chat(input);
+    // stub 模式下伪造一次完整 delta，让前端能看到流式效果
+    onEvent({ type: 'text-delta', delta: result.assistantContent });
+    return result;
   }
 }
 
@@ -95,42 +111,117 @@ export class HttpOpencodeAdapter implements OpencodeAdapter {
     this.client = createOpencodeClient({ baseUrl: options.baseUrl });
   }
 
-  async chat(input: OpencodeChatInput): Promise<OpencodeChatResult> {
-    let sessionId = input.opencodeSessionId;
-
-    if (!sessionId) {
-      const created = await this.client.session.create({
-        body: { title: `${input.scenario}-${new Date().toISOString()}` },
-        query: { directory: input.workspacePath },
-      });
-      const newId = (created.data as { id?: string } | undefined)?.id;
-      if (!newId) {
-        throw new Error('opencode session.create 没有返回 id');
-      }
-      sessionId = newId;
+  private async ensureSession(input: OpencodeChatInput): Promise<string> {
+    if (input.opencodeSessionId) {
+      return input.opencodeSessionId;
     }
+    const created = await this.client.session.create({
+      body: { title: `${input.scenario}-${new Date().toISOString()}` },
+      query: { directory: input.workspacePath },
+    });
+    const newId = (created.data as { id?: string } | undefined)?.id;
+    if (!newId) {
+      throw new Error('opencode session.create 没有返回 id');
+    }
+    return newId;
+  }
 
+  private buildPromptBody(input: OpencodeChatInput) {
     const userText = [input.contextSummary, input.content].filter(Boolean).join('\n\n');
+    return {
+      parts: [{ type: 'text' as const, text: userText }],
+      system: NO_QUESTION_SYSTEM_PROMPT,
+      // question 是交互式工具，server 模式下没人答会让 agent loop 卡住直至 Cloudflare 100s 超时
+      tools: { question: false },
+    };
+  }
+
+  async chat(input: OpencodeChatInput): Promise<OpencodeChatResult> {
+    const sessionId = await this.ensureSession(input);
     const reply = await this.client.session.prompt({
       path: { id: sessionId },
       query: { directory: input.workspacePath },
-      body: {
-        parts: [{ type: 'text', text: userText }],
-        system: NO_QUESTION_SYSTEM_PROMPT,
-        // question 是交互式工具，server 模式下没人答会让 agent loop 卡住直至 Cloudflare 100s 超时
-        tools: { question: false },
-      },
+      body: this.buildPromptBody(input),
     });
 
     const data = reply.data as { parts?: OpencodeReplyPart[] } | undefined;
     const parts = data?.parts ?? [];
-    const text = extractTextFromParts(parts);
-    const skillCalls = extractSkillCallsFromParts(parts);
-
     return {
       opencodeSessionId: sessionId,
-      assistantContent: text || '(opencode 未返回文本内容)',
-      skillCalls,
+      assistantContent: extractTextFromParts(parts) || '(opencode 未返回文本内容)',
+      skillCalls: extractSkillCallsFromParts(parts),
+    };
+  }
+
+  async chatStream(input: OpencodeChatInput, onEvent: OpencodeChatEventHandler): Promise<OpencodeChatResult> {
+    const sessionId = await this.ensureSession(input);
+    const eventResult = await this.client.event.subscribe();
+    const eventStream = eventResult.stream;
+
+    const seenToolCalls = new Set<string>();
+    const seenToolCompletions = new Set<string>();
+    const consume = (async () => {
+      try {
+        for await (const event of eventStream) {
+          if (!event || event.type !== 'message.part.updated') continue;
+          const props = event.properties as {
+            part?: {
+              type?: string;
+              sessionID?: string;
+              tool?: string;
+              callID?: string;
+              state?: { status?: string; input?: Record<string, unknown> };
+            };
+            delta?: string;
+          };
+          if (props.part?.sessionID !== sessionId) continue;
+
+          if (props.part.type === 'text' && typeof props.delta === 'string' && props.delta.length > 0) {
+            onEvent({ type: 'text-delta', delta: props.delta });
+          } else if (props.part.type === 'tool' && typeof props.part.tool === 'string') {
+            const callId = props.part.callID ?? props.part.tool;
+            const status = props.part.state?.status;
+            if (status === 'running' && !seenToolCalls.has(callId)) {
+              seenToolCalls.add(callId);
+              onEvent({
+                type: 'tool-call',
+                name: props.part.tool,
+                arguments: props.part.state?.input ?? {},
+              });
+            } else if (status === 'completed' && !seenToolCompletions.has(callId)) {
+              seenToolCompletions.add(callId);
+              onEvent({ type: 'tool-completed', name: props.part.tool });
+            }
+          }
+        }
+      } catch {
+        // 事件流被关闭时会抛出，忽略
+      }
+    })();
+
+    let promptResult: Awaited<ReturnType<OpencodeClient['session']['prompt']>>;
+    try {
+      promptResult = await this.client.session.prompt({
+        path: { id: sessionId },
+        query: { directory: input.workspacePath },
+        body: this.buildPromptBody(input),
+      });
+    } finally {
+      // session.prompt 已结束，关闭 event 订阅
+      try {
+        await eventStream.return?.(undefined as never);
+      } catch {
+        /* ignore */
+      }
+      await consume;
+    }
+
+    const data = promptResult.data as { parts?: OpencodeReplyPart[] } | undefined;
+    const parts = data?.parts ?? [];
+    return {
+      opencodeSessionId: sessionId,
+      assistantContent: extractTextFromParts(parts) || '(opencode 未返回文本内容)',
+      skillCalls: extractSkillCallsFromParts(parts),
     };
   }
 }

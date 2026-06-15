@@ -90,30 +90,36 @@ export function createApp(options: { store?: SessionStore; adapter?: ReturnType<
     });
     store.appendMessage(session.id, userMessage);
 
-    // 立刻 200 + chunked，先吐一个空格让 Cloudflare 看到 origin 已经开始响应，
-    // 再每 15s 写一个空格当 heartbeat。
-    // 真正的 JSON 在 adapter.chat 完成后写到最后；JSON.parse 容忍前导空白。
+    // SSE 输出：边接 opencode 事件总线边把 text-delta / tool-call 推给 worker；
+    // 最后一条 `done` 携带完整 userMessage + assistantMessage 用于持久化。
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
-        let heartbeat: ReturnType<typeof setInterval> | null = null;
-        try {
-          controller.enqueue(encoder.encode(' '));
-          heartbeat = setInterval(() => {
-            try {
-              controller.enqueue(encoder.encode(' '));
-            } catch {
-              /* 已 close 的 controller 抛错，忽略 */
-            }
-          }, 15_000);
+        const writeEvent = (eventType: string, data: unknown) => {
+          try {
+            controller.enqueue(encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`));
+          } catch {
+            /* controller 已 close */
+          }
+        };
 
-          const chat = await adapter.chat({
-            opencodeSessionId: session.opencodeSessionId,
-            workspacePath: session.workspacePath,
-            content,
-            contextSummary: null,
-            scenario: session.scenario,
-          });
+        // 立刻发一个 ping，让 Cloudflare 看到 origin 已经响应（避免 524）
+        writeEvent('ping', { ts: Date.now() });
+
+        // 心跳每 15s 一次，长链路保活
+        const heartbeat = setInterval(() => writeEvent('ping', { ts: Date.now() }), 15_000);
+
+        try {
+          const chat = await adapter.chatStream(
+            {
+              opencodeSessionId: session.opencodeSessionId,
+              workspacePath: session.workspacePath,
+              content,
+              contextSummary: null,
+              scenario: session.scenario,
+            },
+            (event) => writeEvent(event.type, event),
+          );
           if (!session.opencodeSessionId) {
             store.setOpencodeSessionId(session.id, chat.opencodeSessionId);
           }
@@ -127,14 +133,12 @@ export function createApp(options: { store?: SessionStore; adapter?: ReturnType<
           store.appendMessage(session.id, assistantMessage);
 
           const payload: SendMessageResult = { userMessage, assistantMessage };
-          controller.enqueue(encoder.encode(JSON.stringify(payload)));
+          writeEvent('done', payload);
         } catch (error) {
           const message = error instanceof Error ? error.message : 'agent-server 处理消息失败';
-          controller.enqueue(encoder.encode(JSON.stringify({ error: message })));
+          writeEvent('error', { message });
         } finally {
-          if (heartbeat) {
-            clearInterval(heartbeat);
-          }
+          clearInterval(heartbeat);
           controller.close();
         }
       },
@@ -143,8 +147,9 @@ export function createApp(options: { store?: SessionStore; adapter?: ReturnType<
     return new Response(stream, {
       status: 200,
       headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'X-Heartbeat': 'true',
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
       },
     });
   });
