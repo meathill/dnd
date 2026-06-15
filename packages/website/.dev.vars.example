@@ -1,0 +1,11 @@
+# wrangler/OpenNext 的本地 dev secrets。
+# `next dev` 通过 initOpenNextCloudflareForDev() 把这里的值注入 CF env，
+# 用来覆盖 wrangler.jsonc 里指向 prod 的 vars + 提供本地需要的 secret。
+#
+# 不要 commit 真实 token。复制为 .dev.vars 后改值即可。
+
+OPENCODE_AGENT_BASE_URL=http://127.0.0.1:4180
+OPENCODE_AGENT_TOKEN=dev-token
+NEXT_PUBLIC_APP_BASE_URL=http://127.0.0.1:3090
+NEXT_PUBLIC_AUTH_COOKIE_DOMAIN=
+BETTER_AUTH_SECRET=local-dev-secret-do-not-use-in-prod

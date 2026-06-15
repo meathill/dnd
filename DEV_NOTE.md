@@ -270,10 +270,12 @@ pnpm dev          # 读 .env.local（首次启动前需要 cp .env.example .env.
 
 #### 常见绊脚石
 
-- `next dev` 没有 Cloudflare context；`getCloudflareContext()` 返回失败时 `db.ts`/`runtime.ts` 都有降级到 `process.env` + 本地 SQLite 的路径。
-- `.env.local` 不要 commit；`.env.example` 是模板。`packages/agent-server/.env` 同样 gitignored。
-- `AGENT_WORKSPACE_ROOT` 默认是 VPS 的 `/var/agent/workspace`，在 macOS 上没权限。`.env.example` 已经把它换成 `./.workspace`。
-- agent-server 的 `pnpm dev` 用 `node --env-file-if-exists=.env`，要求 Node ≥ 22.7。我们项目要求 Node ≥ 24。
+- **`next dev` 实际上有 Cloudflare context**：[next.config.ts](packages/website/next.config.ts) 调 `initOpenNextCloudflareForDev()`，miniflare 提供 D1/R2 binding，wrangler.jsonc 的 vars 也会注入 CF env（包括指向 prod 的 `OPENCODE_AGENT_BASE_URL`）。要覆盖必须用 `.dev.vars`，**`.env.local` 在这里赢不了 wrangler.jsonc vars**。我们在 `.dev.vars.example` 写了本地版本，复制为 `.dev.vars` 后 `next dev` 重启即可。
+- **本地 DB 不是 `.local/website.sqlite`**：因为 miniflare 提供了 D1 binding，`db.ts` 的 `shouldUseD1()` 返回 true，实际写到 `.wrangler/state/v3/d1/miniflare-D1DatabaseObject/*.sqlite`。
+- **改 `.dev.vars` / `.env.local` 后要重启 `next dev`**：env 在启动时加载。
+- `AGENT_WORKSPACE_ROOT` 默认是 VPS 的 `/var/agent/workspace`，在 macOS 上没权限。agent-server `.env.example` 已经换成 `./.workspace`。
+- agent-server 的 `pnpm dev` 用 `node --env-file-if-exists=.env`，要求 Node ≥ 22.7。项目要求 Node ≥ 24，没问题。
+- 创建草稿那一刻 worker 拿不到 agent-server endpoint，`agent_session_id` 会落 null 落库，后续发消息都走 stub fallback。本地配错过环境的旧草稿要删了重建。
 
 ### opencode adapter 的不确定性
 
