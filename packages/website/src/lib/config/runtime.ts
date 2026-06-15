@@ -47,8 +47,32 @@ function resolveAppBaseUrl(): string {
   return DEFAULT_APP_BASE_URL;
 }
 
+function expandLoopbackVariants(origin: string): string[] {
+  // 本地开发时浏览器地址栏可能是 localhost 也可能是 127.0.0.1，
+  // 把两个 loopback 变体都加进 trustedOrigins，避免 better-auth 报 INVALID_ORIGIN。
+  try {
+    const url = new URL(origin);
+    if (url.hostname === '127.0.0.1') {
+      const alt = new URL(origin);
+      alt.hostname = 'localhost';
+      return [origin, alt.origin];
+    }
+    if (url.hostname === 'localhost') {
+      const alt = new URL(origin);
+      alt.hostname = '127.0.0.1';
+      return [origin, alt.origin];
+    }
+  } catch {
+    /* 不是合法 URL，原样返回 */
+  }
+  return [origin];
+}
+
 function collectTrustedOrigins(origins: ReadonlyArray<string | null>): string[] {
-  return [...new Set(origins.filter((value): value is string => Boolean(value)))];
+  const expanded = origins
+    .filter((value): value is string => Boolean(value))
+    .flatMap((value) => expandLoopbackVariants(value));
+  return [...new Set(expanded)];
 }
 
 function parseAllowedModels(value: string | undefined): string[] {
