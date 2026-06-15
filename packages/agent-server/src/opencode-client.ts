@@ -154,8 +154,12 @@ export class HttpOpencodeAdapter implements OpencodeAdapter {
   }
 
   async chatStream(input: OpencodeChatInput, onEvent: OpencodeChatEventHandler): Promise<OpencodeChatResult> {
+    const debug = process.env.OPENCODE_DEBUG_EVENTS === '1';
+    if (debug) console.log('[chatStream] enter, sid=', input.opencodeSessionId);
     const sessionId = await this.ensureSession(input);
+    if (debug) console.log('[chatStream] sessionId=', sessionId);
     const eventResult = await this.client.event.subscribe();
+    if (debug) console.log('[chatStream] subscribed');
     const eventStream = eventResult.stream;
 
     const seenToolCalls = new Set<string>();
