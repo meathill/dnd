@@ -154,77 +154,102 @@ export class HttpOpencodeAdapter implements OpencodeAdapter {
   }
 
   async chatStream(input: OpencodeChatInput, onEvent: OpencodeChatEventHandler): Promise<OpencodeChatResult> {
-    const debug = process.env.OPENCODE_DEBUG_EVENTS === '1';
-    if (debug) console.log('[chatStream] enter, sid=', input.opencodeSessionId);
     const sessionId = await this.ensureSession(input);
-    if (debug) console.log('[chatStream] sessionId=', sessionId);
-    const eventResult = await this.client.event.subscribe();
-    if (debug) console.log('[chatStream] subscribed');
-    const eventStream = eventResult.stream;
+
+    // opencode 的 /event SSE 只下发 server.* 事件（connected / heartbeat），
+    // 不会推送 message.part.delta；SDK 也没有 prompt streaming 接口。
+    // 折中：在等 session.prompt 时轮询 session.messages，按 TextPart 增量算 text-delta。
+    let stopped = false;
+    const promptPromise = this.client.session.prompt({
+      path: { id: sessionId },
+      query: { directory: input.workspacePath },
+      body: this.buildPromptBody(input),
+    });
 
     const seenToolCalls = new Set<string>();
     const seenToolCompletions = new Set<string>();
-    const debugSeenTypes = process.env.OPENCODE_DEBUG_EVENTS === '1' ? new Set<string>() : null;
-    const consume = (async () => {
-      try {
-        for await (const event of eventStream) {
-          if (!event) continue;
-          // 调试：每种 type 第一次出现时打一条
-          if (debugSeenTypes && !debugSeenTypes.has(event.type)) {
-            debugSeenTypes.add(event.type);
-            console.log('[opencode-event]', event.type, JSON.stringify(event).slice(0, 400));
-          }
-          if (event.type !== 'message.part.updated') continue;
-          const props = event.properties as {
-            part?: {
-              type?: string;
-              sessionID?: string;
-              tool?: string;
-              callID?: string;
-              state?: { status?: string; input?: Record<string, unknown> };
-            };
-            delta?: string;
-          };
-          if (props.part?.sessionID !== sessionId) continue;
+    let lastEmittedTextLength = 0;
+    let lastAssistantMessageId: string | null = null;
 
-          if (props.part.type === 'text' && typeof props.delta === 'string' && props.delta.length > 0) {
-            onEvent({ type: 'text-delta', delta: props.delta });
-          } else if (props.part.type === 'tool' && typeof props.part.tool === 'string') {
-            const callId = props.part.callID ?? props.part.tool;
-            const status = props.part.state?.status;
-            if (status === 'running' && !seenToolCalls.has(callId)) {
-              seenToolCalls.add(callId);
-              onEvent({
-                type: 'tool-call',
-                name: props.part.tool,
-                arguments: props.part.state?.input ?? {},
-              });
-            } else if (status === 'completed' && !seenToolCompletions.has(callId)) {
-              seenToolCompletions.add(callId);
-              onEvent({ type: 'tool-completed', name: props.part.tool });
-            }
-          }
-        }
+    const pollOnce = async () => {
+      let messagesResponse: Awaited<ReturnType<OpencodeClient['session']['messages']>>;
+      try {
+        messagesResponse = await this.client.session.messages({
+          path: { id: sessionId },
+          query: { directory: input.workspacePath },
+        });
       } catch {
-        // 事件流被关闭时会抛出，忽略
+        return;
       }
+      const messages = (messagesResponse.data ?? []) as Array<{
+        info?: { id?: string; role?: string };
+        parts?: Array<{
+          id?: string;
+          messageID?: string;
+          type?: string;
+          text?: string;
+          tool?: string;
+          callID?: string;
+          state?: { status?: string; input?: Record<string, unknown> };
+        }>;
+      }>;
+
+      // 找当前最新的 assistant 消息
+      const assistantMessage = [...messages].reverse().find((m) => m.info?.role === 'assistant');
+      if (!assistantMessage) return;
+      if (lastAssistantMessageId && assistantMessage.info?.id !== lastAssistantMessageId) {
+        // 出现新一轮 assistant 消息，重置文本游标
+        lastEmittedTextLength = 0;
+      }
+      lastAssistantMessageId = assistantMessage.info?.id ?? lastAssistantMessageId;
+
+      // text 累积
+      const fullText = (assistantMessage.parts ?? [])
+        .filter((p) => p.type === 'text' && typeof p.text === 'string')
+        .map((p) => p.text ?? '')
+        .join('');
+      if (fullText.length > lastEmittedTextLength) {
+        const delta = fullText.slice(lastEmittedTextLength);
+        lastEmittedTextLength = fullText.length;
+        onEvent({ type: 'text-delta', delta });
+      }
+
+      // tool 调用
+      for (const part of assistantMessage.parts ?? []) {
+        if (part.type !== 'tool' || typeof part.tool !== 'string') continue;
+        const callId = part.callID ?? part.id ?? `${part.tool}-${seenToolCalls.size}`;
+        const status = part.state?.status;
+        if ((status === 'running' || status === 'completed') && !seenToolCalls.has(callId)) {
+          seenToolCalls.add(callId);
+          onEvent({
+            type: 'tool-call',
+            name: part.tool,
+            arguments: part.state?.input ?? {},
+          });
+        }
+        if (status === 'completed' && !seenToolCompletions.has(callId)) {
+          seenToolCompletions.add(callId);
+          onEvent({ type: 'tool-completed', name: part.tool });
+        }
+      }
+    };
+
+    const pollLoop = (async () => {
+      while (!stopped) {
+        await pollOnce();
+        if (stopped) break;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+      // 最后兜底再轮一次，确保 prompt 完成后的尾段也被捕获
+      await pollOnce();
     })();
 
-    let promptResult: Awaited<ReturnType<OpencodeClient['session']['prompt']>>;
+    let promptResult: Awaited<typeof promptPromise>;
     try {
-      promptResult = await this.client.session.prompt({
-        path: { id: sessionId },
-        query: { directory: input.workspacePath },
-        body: this.buildPromptBody(input),
-      });
+      promptResult = await promptPromise;
     } finally {
-      // session.prompt 已结束，关闭 event 订阅
-      try {
-        await eventStream.return?.(undefined as never);
-      } catch {
-        /* ignore */
-      }
-      await consume;
+      stopped = true;
+      await pollLoop;
     }
 
     const data = promptResult.data as { parts?: OpencodeReplyPart[] } | undefined;
