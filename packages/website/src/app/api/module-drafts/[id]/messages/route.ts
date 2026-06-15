@@ -1,3 +1,4 @@
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse } from 'next/server';
 import { AgentServerUnavailableError, isAgentServerConfigured, openAgentMessageStream } from '@/lib/agent/client';
 import { createModuleDraftMessage, listModuleDraftMessages } from '@/lib/db/module-drafts-repo';
@@ -46,31 +47,60 @@ export async function POST(request: Request, context: RouteContext) {
   });
 
   const draft = access.draft;
-  if (!draft.agentSessionId || !(await isAgentServerConfigured())) {
-    return buildStreamResponse(streamStubReply(draft, content, userMessage));
-  }
 
-  let upstream: Response;
-  try {
-    upstream = await openAgentMessageStream(draft.agentSessionId, content);
-  } catch (error) {
-    if (error instanceof AgentServerUnavailableError) {
-      return buildStreamResponse(streamStubReply(draft, content, userMessage));
+  // 在 Cloudflare Workers 上用 TransformStream + ctx.waitUntil 保证 worker 不被提前终止
+  const { ctx } = await getCloudflareContext({ async: true });
+  const transform = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = transform.writable.getWriter();
+
+  const work = (async () => {
+    try {
+      await writer.write(encodeSseEvent('user', { userMessage }));
+
+      if (!draft.agentSessionId || !(await isAgentServerConfigured())) {
+        await runStubReply(writer, draft, content);
+        return;
+      }
+
+      let upstream: Response;
+      try {
+        upstream = await openAgentMessageStream(draft.agentSessionId, content);
+      } catch (error) {
+        if (error instanceof AgentServerUnavailableError) {
+          await runStubReply(writer, draft, content);
+          return;
+        }
+        const message = error instanceof Error ? error.message : '调用 agent-server 失败';
+        await writer.write(encodeSseEvent('error', { message }));
+        return;
+      }
+
+      await pipeUpstream(writer, upstream, id, userMessage);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '处理消息失败';
+      try {
+        await writer.write(encodeSseEvent('error', { message }));
+      } catch {
+        /* writer 可能已 close */
+      }
+    } finally {
+      try {
+        await writer.close();
+      } catch {
+        /* ignore */
+      }
     }
-    const message = error instanceof Error ? error.message : '调用 agent-server 失败';
-    return buildStreamResponse(streamError(userMessage, message));
-  }
+  })();
 
-  return buildStreamResponse(pipeAgentStream(upstream, id, userMessage));
-}
+  ctx.waitUntil(work);
 
-function buildStreamResponse(stream: ReadableStream<Uint8Array>): Response {
-  return new Response(stream, {
+  return new Response(transform.readable, {
     status: 200,
     headers: {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   });
 }
@@ -81,114 +111,103 @@ function encodeSseEvent(eventType: string, data: unknown): Uint8Array {
   return ENCODER.encode(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
-function streamStubReply(
+async function runStubReply(
+  writer: WritableStreamDefaultWriter<Uint8Array>,
   draft: ModuleDraftRecord,
   content: string,
-  userMessage: ModuleDraftMessageRecord,
-): ReadableStream<Uint8Array> {
+): Promise<void> {
   const assistantText = [
     `这里是模组创作 stub runtime（agent-server 未配置或会话未绑定）。当前模组《${draft.title}》（slug: ${draft.slug}）。`,
     `editor 输入：${content}`,
     '在 wrangler.jsonc 配置 OPENCODE_AGENT_BASE_URL 与 OPENCODE_AGENT_TOKEN 后，会调用 VPS 上的 opencode agent loop。',
   ].join('\n\n');
-
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      controller.enqueue(encodeSseEvent('user', { userMessage }));
-      controller.enqueue(encodeSseEvent('text-delta', { type: 'text-delta', delta: assistantText }));
-      const assistantMessage = await createModuleDraftMessage({
-        moduleDraftId: draft.id,
-        role: 'assistant',
-        content: assistantText,
-        meta: { runtime: 'stub' },
-      });
-      controller.enqueue(encodeSseEvent('done', { userMessage, assistantMessage }));
-      controller.close();
-    },
+  await writer.write(encodeSseEvent('text-delta', { type: 'text-delta', delta: assistantText }));
+  const assistantMessage = await createModuleDraftMessage({
+    moduleDraftId: draft.id,
+    role: 'assistant',
+    content: assistantText,
+    meta: { runtime: 'stub' },
   });
-}
-
-function streamError(userMessage: ModuleDraftMessageRecord, message: string): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(encodeSseEvent('user', { userMessage }));
-      controller.enqueue(encodeSseEvent('error', { message }));
-      controller.close();
-    },
-  });
+  await writer.write(encodeSseEvent('done', { assistantMessage }));
 }
 
 type UpstreamDonePayload = {
   assistantMessage?: { content?: string; skillCalls?: Array<{ name: string; arguments: Record<string, unknown> }> };
 };
 
-/**
- * 把 agent-server 的 SSE 透传给浏览器，同时拦截 `done` 事件用本地 DB 落盘 assistant 消息，
- * 然后用 DB 记录覆盖一次新的 `done`，保证 UI 看到的是带 DB id 的最终记录。
- */
-function pipeAgentStream(
+async function pipeUpstream(
+  writer: WritableStreamDefaultWriter<Uint8Array>,
   upstream: Response,
   draftId: string,
   userMessage: ModuleDraftMessageRecord,
-): ReadableStream<Uint8Array> {
+): Promise<void> {
   const reader = upstream.body!.getReader();
   const decoder = new TextDecoder();
+  let buffer = '';
+  let upstreamDone: UpstreamDonePayload | null = null;
+  let receivedError: string | null = null;
 
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      controller.enqueue(encodeSseEvent('user', { userMessage }));
-
-      let buffer = '';
-      let upstreamDone: UpstreamDonePayload | null = null;
-      let receivedError: string | null = null;
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          while (true) {
-            const sep = buffer.indexOf('\n\n');
-            if (sep < 0) break;
-            const eventBlock = buffer.slice(0, sep);
-            buffer = buffer.slice(sep + 2);
-            const parsed = parseSseBlock(eventBlock);
-            if (!parsed) continue;
-            if (parsed.event === 'done') {
-              upstreamDone = JSON.parse(parsed.data) as UpstreamDonePayload;
-              // 不直接转发，最后用本地 DB 记录重新发
-              continue;
-            }
-            if (parsed.event === 'error') {
-              const errPayload = JSON.parse(parsed.data) as { message?: string };
-              receivedError = errPayload.message ?? '上游异常';
-            }
-            controller.enqueue(encodeSseEvent(parsed.event, JSON.parse(parsed.data)));
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      while (true) {
+        const sep = buffer.indexOf('\n\n');
+        if (sep < 0) break;
+        const block = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        const parsed = parseSseBlock(block);
+        if (!parsed) continue;
+        if (parsed.event === 'done') {
+          try {
+            upstreamDone = JSON.parse(parsed.data) as UpstreamDonePayload;
+          } catch {
+            /* 忽略坏 JSON */
+          }
+          continue;
+        }
+        if (parsed.event === 'error') {
+          try {
+            const errPayload = JSON.parse(parsed.data) as { message?: string };
+            receivedError = errPayload.message ?? '上游异常';
+          } catch {
+            /* ignore */
           }
         }
-
-        if (upstreamDone?.assistantMessage) {
-          const content = upstreamDone.assistantMessage.content ?? '';
-          const skillCalls = upstreamDone.assistantMessage.skillCalls ?? [];
-          const assistantMessage = await createModuleDraftMessage({
-            moduleDraftId: draftId,
-            role: 'assistant',
-            content,
-            meta: { runtime: 'agent-server', skillCalls },
-          });
-          controller.enqueue(encodeSseEvent('done', { userMessage, assistantMessage }));
-        } else if (!receivedError) {
-          controller.enqueue(encodeSseEvent('error', { message: 'agent-server 未返回 done 事件' }));
+        try {
+          await writer.write(encodeSseEvent(parsed.event, JSON.parse(parsed.data)));
+        } catch {
+          /* 客户端断开则结束 */
+          return;
         }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '转发 agent-server 流失败';
-        controller.enqueue(encodeSseEvent('error', { message }));
-      } finally {
-        controller.close();
       }
-    },
-  });
+    }
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (upstreamDone?.assistantMessage) {
+    const assistantMessage = await createModuleDraftMessage({
+      moduleDraftId: draftId,
+      role: 'assistant',
+      content: upstreamDone.assistantMessage.content ?? '',
+      meta: {
+        runtime: 'agent-server',
+        skillCalls: upstreamDone.assistantMessage.skillCalls ?? [],
+      },
+    });
+    await writer.write(encodeSseEvent('done', { assistantMessage }));
+  } else if (!receivedError) {
+    await writer.write(encodeSseEvent('error', { message: 'agent-server 未返回 done 事件' }));
+  }
+  // 兼容上游已经发了 error 的情况：不再追加额外 done
+  // userMessage 不在 done payload 里重发，前端已经从 user 事件拿到
+  void userMessage;
 }
 
 function parseSseBlock(block: string): { event: string; data: string } | null {

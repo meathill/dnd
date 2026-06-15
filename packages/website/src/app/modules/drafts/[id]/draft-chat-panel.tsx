@@ -22,7 +22,7 @@ type AgentEventPayload =
   | { event: 'text-delta'; delta: string }
   | { event: 'tool-call'; name: string }
   | { event: 'tool-completed'; name: string }
-  | { event: 'done'; userMessage: ModuleDraftMessageRecord; assistantMessage: ModuleDraftMessageRecord }
+  | { event: 'done'; assistantMessage: ModuleDraftMessageRecord }
   | { event: 'error'; message: string };
 
 export function DraftChatPanel({ draftId, initialMessages }: Props) {
@@ -73,14 +73,8 @@ export function DraftChatPanel({ draftId, initialMessages }: Props) {
             }));
             break;
           case 'done':
-            // 流结束后，覆盖 user 占位 + 追加最终 assistant；不依赖前面 user 事件的 id
-            setMessages((current) => {
-              const withoutLastUser =
-                current.length > 0 && current[current.length - 1].id === evt.userMessage.id
-                  ? current.slice(0, -1)
-                  : current;
-              return [...withoutLastUser, evt.userMessage, evt.assistantMessage];
-            });
+            // user 消息已在前面 user 事件入队，这里只追加 assistant 最终记录
+            setMessages((current) => [...current, evt.assistantMessage]);
             setStreaming(EMPTY_STREAMING);
             break;
           case 'error':
