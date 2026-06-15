@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/server.ts",
   "scripts": {
-    "dev": "node --experimental-strip-types --no-warnings --watch src/server.ts",
+    "dev": "node --experimental-strip-types --no-warnings --watch --env-file-if-exists=.env src/server.ts",
     "start": "node --experimental-strip-types --no-warnings src/server.ts",
     "test": "vitest run",
     "test:watch": "vitest",

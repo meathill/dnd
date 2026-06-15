@@ -235,6 +235,46 @@ client 在能力未稳定前，不应承担产品定义责任。
 
 完整端点见 `packages/agent-server/README.md` 与 `packages/agent-server/src/types.ts`。worker 端 `lib/agent/client.ts` 的类型必须与 agent-server `src/types.ts` 保持一致——不直接共享类型是因为 worker 包不应依赖 Node 包。
 
+### 本地开发拓扑
+
+```
+[浏览器 :3090]
+    │ fetch /api/...
+    ▼
+[Next.js dev (next dev)]          ← packages/website，使用本地 SQLite (.local/website.sqlite)
+    │ fetch http://127.0.0.1:4180
+    ▼
+[agent-server (pnpm dev)]         ← packages/agent-server，stub 模式
+    │ (stub 模式下不走 opencode)
+    └── (可选) http://127.0.0.1:4096 → opencode serve
+```
+
+#### 起服务
+
+```bash
+# 终端 A
+cd packages/agent-server
+pnpm dev          # 读 .env（首次启动前需要 cp .env.example .env）
+
+# 终端 B
+cd packages/website
+pnpm dev          # 读 .env.local（首次启动前需要 cp .env.example .env.local）
+
+# 打开 http://127.0.0.1:3090
+```
+
+#### 选择适当的运行模式
+
+- **stub 模式（默认）**：`OPENCODE_MODE=stub`。agent-server 不调用真实 LLM，返回占位回复。适合改 UI、调流式协议、调 auth/D1/SSR、跑 e2e。
+- **真实 LLM 模式**：本机另起 `opencode serve --port 4096` 并把 agent-server 的 `OPENCODE_MODE` 改成 `opencode`，把 `OPENCODE_DEFAULT_MODEL` 和 LLM key 填好。第一次跑通后可以验证 `chatStream` 轮询逻辑。
+
+#### 常见绊脚石
+
+- `next dev` 没有 Cloudflare context；`getCloudflareContext()` 返回失败时 `db.ts`/`runtime.ts` 都有降级到 `process.env` + 本地 SQLite 的路径。
+- `.env.local` 不要 commit；`.env.example` 是模板。`packages/agent-server/.env` 同样 gitignored。
+- `AGENT_WORKSPACE_ROOT` 默认是 VPS 的 `/var/agent/workspace`，在 macOS 上没权限。`.env.example` 已经把它换成 `./.workspace`。
+- agent-server 的 `pnpm dev` 用 `node --env-file-if-exists=.env`，要求 Node ≥ 22.7。我们项目要求 Node ≥ 24。
+
 ### opencode adapter 的不确定性
 
 `HttpOpencodeAdapter` 按 opencode `/session` 与 `/session/{id}/message` 的常见形态写。但 opencode schema 还在迭代，部署后第一次跑通要看 `http://localhost:4096/doc`（OpenAPI）确认实际响应字段，调整 `extractSkillCalls` 等解析逻辑即可，不影响 agent-server 对外的接口契约。
