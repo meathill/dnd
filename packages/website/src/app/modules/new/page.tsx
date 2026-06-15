@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Card } from '@/components/card';
 import { canEdit } from '@/lib/auth/permission';
@@ -16,12 +17,22 @@ export default async function NewModulePage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <nav className="flex items-center gap-2 text-sm text-zinc-500" aria-label="面包屑">
+        <Link className="hover:text-zinc-900" href="/admin/module-drafts">
+          创作中心
+        </Link>
+        <span aria-hidden="true">/</span>
+        <span className="text-zinc-700">新建模组</span>
+      </nav>
+
       <div className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.22em] text-zinc-500">Authoring</p>
         <h1 className="text-3xl font-semibold text-zinc-950">创作新模组</h1>
-        <p className="max-w-2xl text-zinc-600">先填好 Meta 信息，下一步进入会话与「创作模组」skill 协作。</p>
+        <p className="max-w-2xl text-zinc-600">
+          先把基础 Meta 填好，下一步会自动创建会话，进入对话与「创作模组」skill 协作完善细节。
+        </p>
       </div>
+
       <Card>
         <ModuleDraftForm />
       </Card>
