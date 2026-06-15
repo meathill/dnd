@@ -160,10 +160,17 @@ export class HttpOpencodeAdapter implements OpencodeAdapter {
 
     const seenToolCalls = new Set<string>();
     const seenToolCompletions = new Set<string>();
+    const debugSeenTypes = process.env.OPENCODE_DEBUG_EVENTS === '1' ? new Set<string>() : null;
     const consume = (async () => {
       try {
         for await (const event of eventStream) {
-          if (!event || event.type !== 'message.part.updated') continue;
+          if (!event) continue;
+          // 调试：每种 type 第一次出现时打一条
+          if (debugSeenTypes && !debugSeenTypes.has(event.type)) {
+            debugSeenTypes.add(event.type);
+            console.log('[opencode-event]', event.type, JSON.stringify(event).slice(0, 400));
+          }
+          if (event.type !== 'message.part.updated') continue;
           const props = event.properties as {
             part?: {
               type?: string;
