@@ -1,16 +1,12 @@
 import { brandCatalog, getOrganizationJsonLd } from 'meathill-brand';
-import type { Metadata } from 'next';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
+import { MUIRPG_METADATA } from '@/lib/site-metadata';
 import './globals.css';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: '肉团长',
-  description: 'AI 跑团网站',
-  publisher: 'Meathill Studio',
-};
+export const metadata = MUIRPG_METADATA;
 
 const STRUCTURED_DATA = {
   '@context': 'https://schema.org',
