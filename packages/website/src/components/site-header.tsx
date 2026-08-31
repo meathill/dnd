@@ -1,3 +1,4 @@
+import { BrandSiteSwitcher } from 'meathill-brand-react';
 import Link from 'next/link';
 import { canEdit } from '@/lib/auth/permission';
 import { getRequestSession } from '@/lib/auth/session';
@@ -9,12 +10,20 @@ export async function SiteHeader() {
   const adminEmails = await resolveAdminEmails();
   const showBackstage = session ? canEdit({ email: session.email, role: session.role }, adminEmails) : false;
   return (
-    <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/85 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-[var(--meathill-rule)] bg-[var(--meathill-cream)] backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-3">
         <div className="flex items-center gap-6">
-          <Link className="text-lg font-semibold text-zinc-950" href="/">
-            肉团长
-          </Link>
+          <div className="flex items-baseline gap-2">
+            <a className="font-semibold text-sm text-zinc-700" href="https://meathill.com">
+              Meathill Studio
+            </a>
+            <span aria-hidden="true" className="text-zinc-300">
+              /
+            </span>
+            <Link className="text-lg font-semibold text-zinc-950" href="/">
+              肉团长
+            </Link>
+          </div>
           <nav className="hidden items-center gap-1 text-sm text-zinc-600 md:flex">
             <NavLink href="/">模组</NavLink>
             {showBackstage ? <NavLink href="/admin/module-drafts">创作中心</NavLink> : null}
@@ -22,6 +31,7 @@ export async function SiteHeader() {
           </nav>
         </div>
         <div className="flex items-center gap-3">
+          <BrandSiteSwitcher currentSiteId="muirpg" locale="zh" />
           {session ? (
             <>
               <Link
