@@ -22,10 +22,6 @@
     {
       "binding": "ASSETS_BUCKET",
       "bucket_name": "dnd"
-    },
-    {
-      "binding": "NEXT_INC_CACHE_R2_BUCKET",
-      "bucket_name": "site-cache"
     }
   ],
   "services": [
