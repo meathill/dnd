@@ -6,4 +6,8 @@ describe('MuiRPG SEO metadata', () => {
     expect(MUIRPG_METADATA.metadataBase?.toString()).toBe(`${MUIRPG_SITE_URL}/`);
     expect(MUIRPG_METADATA.alternates?.canonical).toBe(MUIRPG_SITE_URL);
   });
+
+  it('marks the whole site as noindex, nofollow', () => {
+    expect(MUIRPG_METADATA.robots).toMatchObject({ index: false, follow: false });
+  });
 });
